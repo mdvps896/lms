@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-// Import models registry to ensure all models are registered in correct order
-import { User, Category } from '@/models';
-import { sendOtpEmail } from '@/utils/sendOtpEmail';
-import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import { sendOtpEmail } from '@/utils/sendOtpEmail';
+
+// Force register Category model inline to ensure it's available
+const CategorySchema = new mongoose.Schema({
+    name: { type: String, required: true, trim: true, unique: true },
+    description: { type: String, default: '' },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' }
+}, { timestamps: true });
+
+const Category = mongoose.models.Category || mongoose.model('Category', CategorySchema);
+
+// Import User model after Category is registered
+import User from '@/models/User';
 
 export async function POST(request) {
   try {
