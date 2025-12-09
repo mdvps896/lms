@@ -13,12 +13,15 @@ export async function POST(request) {
             )
         }
 
-        // In serverless environment (Vercel), file system is read-only
-        // Files should be stored in external storage (S3, Cloudinary, etc.)
-        if (process.env.VERCEL) {
+        // In production (Vercel), file system is read-only after deployment
+        // Files in /public are part of the build and cannot be deleted at runtime
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
             return NextResponse.json(
-                { success: false, message: 'File deletion not supported in serverless environment. Please use external storage.' },
-                { status: 501 }
+                { 
+                    success: false, 
+                    message: 'File deletion not supported in production. Files are part of the deployment and cannot be modified. Please use external storage (Cloudinary, S3) for dynamic file management.' 
+                },
+                { status: 400 }
             )
         }
 

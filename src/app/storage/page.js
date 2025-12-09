@@ -94,9 +94,13 @@ const StoragePage = () => {
             const data = await response.json()
             if (data.success) {
                 fetchFiles()
+                alert('File deleted successfully')
+            } else {
+                alert(data.message || 'Failed to delete file')
             }
         } catch (error) {
             console.error('Error deleting file:', error)
+            alert('Error deleting file')
         }
     }
 
