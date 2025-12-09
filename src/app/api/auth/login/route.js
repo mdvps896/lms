@@ -4,21 +4,18 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 
-// Force register Category model inline to ensure it's available
-const CategorySchema = new mongoose.Schema({
-    name: { type: String, required: true, trim: true, unique: true },
-    description: { type: String, default: '' },
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' }
-}, { timestamps: true });
-
-const Category = mongoose.models.Category || mongoose.model('Category', CategorySchema);
-
-// Import User model after Category is registered
+// Import Category first to ensure it's registered
+import Category from '@/models/Category';
+// Then import User model
 import User from '@/models/User';
 
 export async function POST(request) {
   try {
     await connectDB();
+    
+    // Force Category model to be registered by touching it
+    mongoose.model('Category');
+    
     const { email, password } = await request.json();
     
     console.log('Login attempt for:', email);
