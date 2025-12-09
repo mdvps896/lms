@@ -6,6 +6,8 @@ import User from '@/models/User';
 import Category from '@/models/Category';
 import Subject from '@/models/Subject';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
     try {
         await connectDB();

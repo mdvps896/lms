@@ -5,6 +5,8 @@ import Subject from '@/models/Subject'
 import Category from '@/models/Category'
 import Question from '@/models/Question'
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
     try {
         await connectDB()

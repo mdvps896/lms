@@ -4,6 +4,8 @@ import User from '@/models/User';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         await connectDB();

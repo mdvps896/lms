@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import connectDB from '../../../lib/mongodb';
 
+export const dynamic = 'force-dynamic';
+
 // Default settings structure
 const defaultSettings = {
     general: {
