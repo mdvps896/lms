@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 // Import Category to ensure it's registered before User model references it
-import './Category.js';
+import Category from './Category.js';
 
 const userSchema = new mongoose.Schema({
   name: {

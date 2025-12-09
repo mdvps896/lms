@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Category from './Category.js';
 
 const questionGroupSchema = new mongoose.Schema({
     name: {

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Category from './Category.js';
 
 // Delete any cached model to ensure fresh schema is used
 delete mongoose.models.Exam;

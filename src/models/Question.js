@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
+import Category from './Category.js';
 
-const optionSchema = new mongoose.Schema({
+const questionSchema = new mongoose.Schema(
     text: { type: String, default: '' },
     image: { type: String, default: '' }, // URL or path to image
     isCorrect: { type: Boolean, default: false },
