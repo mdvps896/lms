@@ -4,6 +4,7 @@ import connectDB from '@/lib/mongodb';
 delete require.cache[require.resolve('@/models/User')];
 import User from '@/models/User';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request) {
     try {
@@ -167,8 +168,11 @@ export async function POST(request) {
                 });
             }
 
-            // Update password and clear OTP (storing as plain text to match existing auth system)
-            user.password = newPassword;
+            // Hash the new password before saving
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Update password and clear OTP
+            user.password = hashedPassword;
             user.resetOtp = undefined;
             user.resetOtpExpiry = undefined;
             await user.save();
