@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import fs from 'fs'
+import { uploadToCloudinary, getCloudinaryStatus } from '@/utils/cloudinary'
 
 export async function POST(request) {
     try {
@@ -10,7 +11,72 @@ export async function POST(request) {
         const folder = formData.get('folder') || ''
         const fileUrl = formData.get('fileUrl')
 
-        // Handle URL upload
+        // Check if Cloudinary is enabled
+        const cloudinaryStatus = await getCloudinaryStatus()
+
+        if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
+            // Use Cloudinary
+            let base64File;
+            let fileName;
+
+            if (fileUrl) {
+                // Handle URL upload
+                try {
+                    const response = await fetch(fileUrl)
+                    const blob = await response.blob()
+                    const buffer = Buffer.from(await blob.arrayBuffer())
+                    const base64 = buffer.toString('base64')
+                    const mimeType = blob.type || 'image/jpeg'
+                    base64File = `data:${mimeType};base64,${base64}`
+                    fileName = path.basename(new URL(fileUrl).pathname)
+                } catch (error) {
+                    return NextResponse.json(
+                        { success: false, message: 'Failed to download file from URL' },
+                        { status: 400 }
+                    )
+                }
+            } else if (file) {
+                // Handle file upload
+                const bytes = await file.arrayBuffer()
+                const buffer = Buffer.from(bytes)
+                const base64 = buffer.toString('base64')
+                const mimeType = file.type || 'image/jpeg'
+                base64File = `data:${mimeType};base64,${base64}`
+                fileName = file.name
+            } else {
+                return NextResponse.json(
+                    { success: false, message: 'No file provided' },
+                    { status: 400 }
+                )
+            }
+
+            try {
+                const result = await uploadToCloudinary(base64File, folder)
+                return NextResponse.json({
+                    success: true,
+                    message: 'File uploaded to Cloudinary successfully',
+                    path: result.url,
+                    publicId: result.publicId,
+                    cloudinary: true
+                })
+            } catch (error) {
+                console.error('Cloudinary upload error:', error)
+                return NextResponse.json(
+                    { success: false, message: 'Failed to upload to Cloudinary' },
+                    { status: 500 }
+                )
+            }
+        }
+
+        // Fallback to local storage (for development)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            return NextResponse.json(
+                { success: false, message: 'Local file storage not supported in production. Please enable Cloudinary in Settings.' },
+                { status: 400 }
+            )
+        }
+
+        // Handle URL upload (local)
         if (fileUrl) {
             try {
                 const response = await fetch(fileUrl)

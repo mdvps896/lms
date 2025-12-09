@@ -15,18 +15,27 @@ const IntegrationsSettings = () => {
             enabled: false,
             siteKey: '',
             secretKey: ''
+        },
+        cloudinary: {
+            enabled: false,
+            cloudName: '',
+            apiKey: '',
+            apiSecret: '',
+            folder: 'exam-portal'
         }
     })
 
     const [loading, setLoading] = useState({
         save: false,
         testOAuth: false,
-        testRecaptcha: false
+        testRecaptcha: false,
+        testCloudinary: false
     })
 
     const [showSecrets, setShowSecrets] = useState({
         clientSecret: false,
-        secretKey: false
+        secretKey: false,
+        apiSecret: false
     })
 
     // Load settings on component mount
@@ -174,6 +183,56 @@ const IntegrationsSettings = () => {
             })
         }
         setLoading(prev => ({ ...prev, testRecaptcha: false }))
+    }
+
+    const testCloudinary = async () => {
+        const { cloudName, apiKey, apiSecret } = formData.cloudinary
+        if (!cloudName || !apiKey || !apiSecret) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Configuration',
+                text: 'Please fill in all Cloudinary credentials',
+                timer: 2000
+            })
+            return
+        }
+
+        setLoading(prev => ({ ...prev, testCloudinary: true }))
+        try {
+            const response = await fetch('/api/integrations/test-cloudinary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData.cloudinary)
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cloudinary Test Successful!',
+                    html: `
+                        <p>Configuration is working correctly</p>
+                        <small>Cloud: ${cloudName}</small>
+                    `,
+                    timer: 3000
+                })
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Cloudinary Test Failed',
+                    text: result.message || 'Invalid configuration',
+                    timer: 3000
+                })
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Test Failed',
+                text: 'Unable to test Cloudinary configuration',
+                timer: 2000
+            })
+        }
+        setLoading(prev => ({ ...prev, testCloudinary: false }))
     }
 
     const showHowToModal = (type) => {
@@ -486,6 +545,142 @@ const IntegrationsSettings = () => {
                                         ) : (
                                             <>
                                                 <FiExternalLink className="me-1" /> Test Configuration
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Cloudinary Section */}
+                        <div className="mb-5">
+                            <div className="d-flex align-items-center justify-content-between mb-4">
+                                <div className="d-flex align-items-center">
+                                    <Image 
+                                        src="https://res.cloudinary.com/cloudinary-marketing/image/upload/v1/creative_staging/cloudinary_internal/Website_Assets/Brand_Assets/Logo/Cloudinary-Blue-Icon.png" 
+                                        alt="Cloudinary" 
+                                        width={32} 
+                                        height={32} 
+                                        className="me-2"
+                                    />
+                                    <h6 className="mb-0 me-3">Cloudinary Storage</h6>
+                                    <div className="form-check form-switch">
+                                        <input 
+                                            className="form-check-input" 
+                                            type="checkbox" 
+                                            checked={formData.cloudinary.enabled}
+                                            onChange={() => handleToggle('cloudinary')}
+                                        />
+                                        <label className="form-check-label">
+                                            {formData.cloudinary.enabled ? (
+                                                <span className="text-success d-flex align-items-center">
+                                                    <FiCheck className="me-1" /> Enabled
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted d-flex align-items-center">
+                                                    <FiX className="me-1" /> Disabled
+                                                </span>
+                                            )}
+                                        </label>
+                                    </div>
+                                </div>
+                                <a 
+                                    href="https://cloudinary.com/console" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="btn btn-outline-info btn-sm"
+                                >
+                                    <FiExternalLink className="me-1" /> Get Credentials
+                                </a>
+                            </div>
+
+                            <div className="alert alert-info mb-3">
+                                <FiInfo className="me-2" />
+                                Cloudinary provides cloud storage for images, videos, and other files. When enabled, all file uploads will be stored in Cloudinary instead of local storage. This is required for production deployment.
+                            </div>
+
+                            <div className="row">
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label className="form-label">Cloud Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.cloudinary.cloudName}
+                                            onChange={(e) => handleInputChange('cloudinary', 'cloudName', e.target.value)}
+                                            placeholder="your-cloud-name"
+                                            disabled={!formData.cloudinary.enabled}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label className="form-label">API Key</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.cloudinary.apiKey}
+                                            onChange={(e) => handleInputChange('cloudinary', 'apiKey', e.target.value)}
+                                            placeholder="123456789012345"
+                                            disabled={!formData.cloudinary.enabled}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label className="form-label">API Secret</label>
+                                        <div className="input-group">
+                                            <input
+                                                type={showSecrets.apiSecret ? "text" : "password"}
+                                                className="form-control"
+                                                value={formData.cloudinary.apiSecret}
+                                                onChange={(e) => handleInputChange('cloudinary', 'apiSecret', e.target.value)}
+                                                placeholder="Your API Secret"
+                                                disabled={!formData.cloudinary.enabled}
+                                            />
+                                            <button
+                                                className="btn btn-outline-secondary"
+                                                type="button"
+                                                onClick={() => setShowSecrets(prev => ({ ...prev, apiSecret: !prev.apiSecret }))}
+                                                disabled={!formData.cloudinary.enabled}
+                                            >
+                                                {showSecrets.apiSecret ? <FiEyeOff /> : <FiEye />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label className="form-label">Upload Folder (Optional)</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.cloudinary.folder}
+                                            onChange={(e) => handleInputChange('cloudinary', 'folder', e.target.value)}
+                                            placeholder="exam-portal"
+                                            disabled={!formData.cloudinary.enabled}
+                                        />
+                                        <small className="text-muted">Files will be organized in this folder</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {formData.cloudinary.enabled && (
+                                <div className="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-primary btn-sm"
+                                        onClick={testCloudinary}
+                                        disabled={loading.testCloudinary}
+                                    >
+                                        {loading.testCloudinary ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-1"></span>
+                                                Testing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FiExternalLink className="me-1" /> Test Connection
                                             </>
                                         )}
                                     </button>

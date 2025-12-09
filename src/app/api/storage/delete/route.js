@@ -1,26 +1,53 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { deleteFromCloudinary, getCloudinaryStatus } from '@/utils/cloudinary'
 
 export async function POST(request) {
     try {
-        const { filePath } = await request.json()
+        const { filePath, publicId, resourceType } = await request.json()
 
-        if (!filePath) {
+        if (!filePath && !publicId) {
             return NextResponse.json(
-                { success: false, message: 'File path is required' },
+                { success: false, message: 'File path or publicId is required' },
                 { status: 400 }
             )
         }
 
-        // In production (Vercel), file system is read-only after deployment
-        // Files in /public are part of the build and cannot be deleted at runtime
+        // Check if Cloudinary is enabled
+        const cloudinaryStatus = await getCloudinaryStatus()
+
+        if (cloudinaryStatus.enabled && cloudinaryStatus.configured && publicId) {
+            // Delete from Cloudinary
+            try {
+                const result = await deleteFromCloudinary(publicId, resourceType || 'image')
+                return NextResponse.json({
+                    success: result.success,
+                    message: result.success ? 'File deleted from Cloudinary successfully' : 'Failed to delete file from Cloudinary'
+                })
+            } catch (error) {
+                console.error('Cloudinary delete error:', error)
+                return NextResponse.json(
+                    { success: false, message: 'Error deleting file from Cloudinary' },
+                    { status: 500 }
+                )
+            }
+        }
+
+        // Fallback to local storage deletion (for development only)
         if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
             return NextResponse.json(
                 { 
                     success: false, 
-                    message: 'File deletion not supported in production. Files are part of the deployment and cannot be modified. Please use external storage (Cloudinary, S3) for dynamic file management.' 
+                    message: 'File deletion not supported in production. Files are part of the deployment. Please enable Cloudinary in Settings for dynamic file management.' 
                 },
+                { status: 400 }
+            )
+        }
+
+        if (!filePath) {
+            return NextResponse.json(
+                { success: false, message: 'File path is required for local storage' },
                 { status: 400 }
             )
         }

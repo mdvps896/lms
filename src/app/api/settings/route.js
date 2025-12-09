@@ -113,6 +113,13 @@ const defaultSettings = {
             enabled: false,
             siteKey: '',
             secretKey: ''
+        },
+        cloudinary: {
+            enabled: false,
+            cloudName: '',
+            apiKey: '',
+            apiSecret: '',
+            folder: 'exam-portal'
         }
     },
     notifications: {
