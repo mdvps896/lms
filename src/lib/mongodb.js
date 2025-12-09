@@ -9,8 +9,13 @@ if (!cached) {
 async function connectDB() {
   const MONGODB_URI = process.env.MONGODB_URI;
 
+  // During build time, skip the connection
   if (!MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Please define the MONGODB_URI environment variable');
+    }
+    console.warn('MONGODB_URI not defined, skipping database connection');
+    return null;
   }
 
   if (cached.conn) {

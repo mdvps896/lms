@@ -11,7 +11,8 @@
     "migrate:exam-attempts": "node src/utils/migrateExamAttempts.js",
     "fix:exam-attempts": "node src/utils/fixExamAttempts.js",
     "cleanup:exam-attempts": "node src/utils/cleanupExamAttempts.js",
-    "create:admin": "node scripts/createAdmin.js"
+    "create:admin": "node scripts/createAdmin.js",
+    "add:category": "node scripts/addCategoryAndAssignToAdmin.js"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.15",
@@ -26,6 +27,7 @@
     "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.3",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "emoji-picker-react": "^4.12.0",
     "face-api.js": "^0.22.2",
     "feather-icons": "^4.29.2",

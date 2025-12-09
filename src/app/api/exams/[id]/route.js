@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
+import Category from '@/models/Category';
 import { createExamNotification } from '@/utils/examNotifications';
 import { cookies } from 'next/headers';
 

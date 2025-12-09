@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Category from '@/models/Category';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request) {
   try {
@@ -10,7 +12,31 @@ export async function POST(request) {
     
     const user = await User.findOne({ email }).populate('category', 'name');
     
-    if (!user || user.password !== password) {
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    // Check password - support both plain text (legacy) and hashed passwords
+    let isPasswordValid = false;
+    if (user.password.startsWith('$2')) {
+      // BCrypt hashed password
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    } else {
+      // Plain text password (legacy) - compare directly
+      isPasswordValid = user.password === password;
+      
+      // If valid, hash the password for future logins
+      if (isPasswordValid) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await User.findByIdAndUpdate(user._id, { password: hashedPassword });
+        console.log('Password hashed for user:', user.email);
+      }
+    }
+
+    if (!isPasswordValid) {
       return NextResponse.json(
         { success: false, message: 'Invalid email or password' },
         { status: 401 }
