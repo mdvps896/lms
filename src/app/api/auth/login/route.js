@@ -4,13 +4,21 @@ import connectDB from '@/lib/mongodb';
 import { User, Category } from '@/models';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 
 export async function POST(request) {
   try {
     await connectDB();
     const { email, password } = await request.json();
     
+    console.log('Login attempt for:', email);
+    
+    // Check if models are registered
+    console.log('Registered models:', Object.keys(mongoose.models));
+    
     const user = await User.findOne({ email }).populate('category', 'name');
+    
+    console.log('User found:', user ? 'Yes' : 'No');
     
     if (!user) {
       return NextResponse.json(
@@ -84,8 +92,9 @@ export async function POST(request) {
     
     return NextResponse.json({ success: true, data: userObj });
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json(
-      { success: false, message: error.message },
+      { success: false, message: error.message, stack: process.env.NODE_ENV === 'development' ? error.stack : undefined },
       { status: 500 }
     );
   }
