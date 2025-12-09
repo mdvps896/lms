@@ -13,9 +13,6 @@ export async function POST(request) {
   try {
     await connectDB();
     
-    // Force Category model to be registered by touching it
-    mongoose.model('Category');
-    
     const { email, password } = await request.json();
     
     console.log('Login attempt for:', email);
@@ -23,7 +20,21 @@ export async function POST(request) {
     // Check if models are registered
     console.log('Registered models:', Object.keys(mongoose.models));
     
-    const user = await User.findOne({ email }).populate('category', 'name');
+    // Find user without populate to avoid Category registration issues
+    const user = await User.findOne({ email });
+    
+    // If user has category, fetch it separately
+    if (user && user.category) {
+      try {
+        const category = await Category.findById(user.category);
+        if (category) {
+          user.category = { _id: category._id, name: category.name };
+        }
+      } catch (catError) {
+        console.warn('Could not fetch category:', catError.message);
+        // Continue without category data
+      }
+    }
     
     console.log('User found:', user ? 'Yes' : 'No');
     
