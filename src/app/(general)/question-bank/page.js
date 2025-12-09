@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import QuestionList from '@/components/questions/QuestionList';
 
 export const metadata = {
@@ -22,7 +22,15 @@ const QuestionsPage = () => {
                     </div>
                 </div>
             </div>
-            <QuestionList />
+            <Suspense fallback={
+                <div className="d-flex justify-content-center p-5">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }>
+                <QuestionList />
+            </Suspense>
         </div>
     );
 };

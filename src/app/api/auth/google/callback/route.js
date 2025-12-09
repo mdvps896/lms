@@ -4,6 +4,8 @@ import connectDB from '../../../../../lib/mongodb'
 import User from '../../../../../models/User'
 import Settings from '../../../../../models/Settings'
 
+export const dynamic = 'force-dynamic'
+
 // Helper function to generate roll number
 async function generateRollNumber() {
     try {
