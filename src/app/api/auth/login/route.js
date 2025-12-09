@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import Category from '@/models/Category'; // Import Category BEFORE User to ensure it's registered first
 import User from '@/models/User';
-import Category from '@/models/Category';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 import bcrypt from 'bcryptjs';
 
