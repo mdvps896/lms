@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
 import Category from './Category.js';
 
-const questionSchema = new mongoose.Schema(
+// Option schema for MCQ questions
+const optionSchema = new mongoose.Schema({
     text: { type: String, default: '' },
     image: { type: String, default: '' }, // URL or path to image
     isCorrect: { type: Boolean, default: false },
     order: { type: Number, default: 0 }
-});
+}, { _id: false });
 
 const questionSchema = new mongoose.Schema({
     category: {
@@ -61,3 +62,4 @@ const questionSchema = new mongoose.Schema({
 });
 
 export default mongoose.models.Question || mongoose.model('Question', questionSchema);
+
