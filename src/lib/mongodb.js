@@ -1,14 +1,6 @@
 import mongoose from 'mongoose';
-// Import all models to ensure they're registered before any database operations
-import '../models/Category.js';
-import '../models/Subject.js';
-import '../models/Question.js';
-import '../models/QuestionGroup.js';
-import '../models/User.js';
-import '../models/Exam.js';
-import '../models/ExamAttempt.js';
-import '../models/Notification.js';
-import '../models/Settings.js';
+// Import all models in correct order to ensure they're registered before any database operations
+import '../models/init.js';
 
 let cached = global.mongoose;
 

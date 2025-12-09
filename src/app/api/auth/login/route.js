@@ -4,10 +4,8 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 
-// Import Category first to ensure it's registered
-import Category from '@/models/Category';
-// Then import User model
-import User from '@/models/User';
+// Import all models in correct order to ensure proper registration
+import { Category, User } from '@/models/init';
 
 export async function POST(request) {
   try {
