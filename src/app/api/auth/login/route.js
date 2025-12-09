@@ -11,6 +11,13 @@ export async function POST(request) {
   try {
     await connectDB();
     
+    // Force ensure Category is registered (workaround for serverless cold start)
+    if (!mongoose.models.Category) {
+      console.error('Category model not registered! Forcing registration...');
+      // Re-import to trigger registration
+      await import('@/models/Category');
+    }
+    
     const { email, password } = await request.json();
     
     console.log('Login attempt for:', email);
