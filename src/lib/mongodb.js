@@ -6,6 +6,28 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
 
+// Pre-register all models to prevent "Schema hasn't been registered" errors
+function registerModels() {
+  if (mongoose.models.Category) {
+    return; // Already registered
+  }
+  
+  try {
+    // Import models in dependency order
+    require('@/models/Category');
+    require('@/models/Subject');
+    require('@/models/Question');
+    require('@/models/QuestionGroup');
+    require('@/models/User');
+    require('@/models/Exam');
+    require('@/models/ExamAttempt');
+    require('@/models/Notification');
+    require('@/models/Settings');
+  } catch (error) {
+    console.error('Error registering models:', error);
+  }
+}
+
 async function connectDB() {
   const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -19,6 +41,8 @@ async function connectDB() {
   }
 
   if (cached.conn) {
+    // Ensure models are registered even if connection is cached
+    registerModels();
     return cached.conn;
   }
 
@@ -28,6 +52,8 @@ async function connectDB() {
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      // Register all models after connection
+      registerModels();
       return mongoose;
     });
   }
