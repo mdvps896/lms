@@ -3,7 +3,7 @@ import { uploadToCloudinary, getCloudinaryStatus } from '@/utils/cloudinary';
 
 // Configure this route to handle uploads with minimal processing
 export const runtime = 'nodejs';
-export const maxDuration = 600; // 10 minutes timeout for very large uploads
+export const maxDuration = 300; // 5 minutes timeout for large uploads (Vercel hobby plan limit)
 
 export async function POST(request) {
     try {

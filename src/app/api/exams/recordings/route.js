@@ -4,11 +4,15 @@ import ExamAttempt from '@/models/ExamAttempt'
 import Exam from '@/models/Exam'
 import User from '@/models/User'
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
     try {
         await connectDB()
         
-        const { searchParams } = new URL(request.url)
+        const url = new URL(request.url)
+        const { searchParams } = url
         const attemptId = searchParams.get('attemptId')
         const examId = searchParams.get('examId')
         const userId = searchParams.get('userId')

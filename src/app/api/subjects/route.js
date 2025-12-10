@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Subject from '@/models/Subject'
 
+export const dynamic = 'force-dynamic'
+
 // GET - Get all subjects
 export async function GET(request) {
     try {

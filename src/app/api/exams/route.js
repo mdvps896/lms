@@ -9,6 +9,8 @@ import { createExamNotification } from '../../../utils/examNotifications';
 import { cookies } from 'next/headers';
 import User from '../../../models/User';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req) {
     try {
         await connectDB();
