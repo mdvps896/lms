@@ -134,9 +134,12 @@ const ExamForm = ({ type, initialData }) => {
 
             const toLocalISOString = (dateString) => {
                 if (!dateString) return '';
+                // Create date and adjust for timezone offset to get local time
                 const date = new Date(dateString);
+                // Subtract the timezone offset to get local time
+                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
                 const pad = (n) => n < 10 ? '0' + n : n;
-                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+                return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}`;
             };
 
             const newFormData = {
@@ -295,6 +298,15 @@ const ExamForm = ({ type, initialData }) => {
         setLoading(true);
 
         try {
+            // Convert datetime-local strings to proper UTC dates for server
+            const convertToUTC = (datetimeLocalString) => {
+                if (!datetimeLocalString) return '';
+                // The datetime-local input gives us a string like "2025-12-10T10:00"
+                // We need to treat this as local time and convert to UTC
+                const localDate = new Date(datetimeLocalString);
+                return localDate.toISOString();
+            };
+
             // Prepare payload and ensure number fields are numbers
             const payload = {
                 ...formData,
@@ -304,7 +316,9 @@ const ExamForm = ({ type, initialData }) => {
                 duration: Number(formData.duration),
                 totalMarks: Number(formData.totalMarks),
                 passingPercentage: Number(formData.passingPercentage),
-                maxAttempts: Number(formData.maxAttempts)
+                maxAttempts: Number(formData.maxAttempts),
+                startDate: convertToUTC(formData.startDate),
+                endDate: convertToUTC(formData.endDate)
             };
 
             console.log('Submitting exam payload:', payload);

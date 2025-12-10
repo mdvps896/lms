@@ -37,22 +37,33 @@ class ServerSideLiveStream {
     async captureAndSendFrames() {
         if (!this.isStreaming) return;
 
+        const promises = [];
+
         try {
             // Capture camera frame
-            if (this.cameraStream) {
-                const cameraBlob = await this.captureFrame(this.cameraStream, 'camera');
-                if (cameraBlob) {
-                    await this.sendFrame(cameraBlob, 'camera');
-                }
+            if (this.cameraStream && this.cameraStream.active) {
+                promises.push(
+                    this.captureFrame(this.cameraStream, 'camera')
+                        .then(blob => {
+                            if (blob) return this.sendFrame(blob, 'camera');
+                        })
+                        .catch(error => console.warn('Camera frame capture failed:', error))
+                );
             }
 
             // Capture screen frame
-            if (this.screenStream) {
-                const screenBlob = await this.captureFrame(this.screenStream, 'screen');
-                if (screenBlob) {
-                    await this.sendFrame(screenBlob, 'screen');
-                }
+            if (this.screenStream && this.screenStream.active) {
+                promises.push(
+                    this.captureFrame(this.screenStream, 'screen')
+                        .then(blob => {
+                            if (blob) return this.sendFrame(blob, 'screen');
+                        })
+                        .catch(error => console.warn('Screen frame capture failed:', error))
+                );
             }
+
+            // Wait for all frames to be processed (with timeout)
+            await Promise.allSettled(promises);
         } catch (error) {
             console.error('Error capturing frames:', error);
         }
@@ -64,32 +75,68 @@ class ServerSideLiveStream {
     async captureFrame(stream, type) {
         return new Promise((resolve) => {
             try {
+                // Check if stream is active
+                if (!stream || stream.getVideoTracks().length === 0) {
+                    console.warn(`No video track available for ${type} stream`);
+                    resolve(null);
+                    return;
+                }
+
+                // Check if video track is active
+                const videoTrack = stream.getVideoTracks()[0];
+                if (!videoTrack || videoTrack.readyState !== 'live') {
+                    console.warn(`Video track not active for ${type} stream`);
+                    resolve(null);
+                    return;
+                }
+
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 video.muted = true;
                 video.playsInline = true;
+                video.autoplay = true;
+
+                const timeoutId = setTimeout(() => {
+                    video.srcObject = null;
+                    resolve(null);
+                }, 5000); // 5 second timeout
 
                 video.onloadedmetadata = () => {
-                    video.play();
+                    video.play().then(() => {
+                        // Wait a bit for the video to start playing
+                        setTimeout(() => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = type === 'camera' ? 640 : 1280;
+                                canvas.height = type === 'camera' ? 480 : 720;
 
-                    // Wait a bit for the video to start
-                    setTimeout(() => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = type === 'camera' ? 640 : 1280;
-                        canvas.height = type === 'camera' ? 480 : 720;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                        canvas.toBlob((blob) => {
-                            video.srcObject = null;
-                            resolve(blob);
-                        }, 'image/jpeg', 0.8);
-                    }, 100);
+                                canvas.toBlob((blob) => {
+                                    clearTimeout(timeoutId);
+                                    video.srcObject = null;
+                                    resolve(blob);
+                                }, 'image/jpeg', 0.8);
+                            } catch (drawError) {
+                                clearTimeout(timeoutId);
+                                video.srcObject = null;
+                                console.error('Error drawing to canvas:', drawError);
+                                resolve(null);
+                            }
+                        }, 200);
+                    }).catch((playError) => {
+                        clearTimeout(timeoutId);
+                        video.srcObject = null;
+                        console.error('Error playing video:', playError);
+                        resolve(null);
+                    });
                 };
 
-                video.onerror = () => {
-                    console.error('Video error for', type);
+                video.onerror = (error) => {
+                    clearTimeout(timeoutId);
+                    console.error('Video error for', type, error);
+                    video.srcObject = null;
                     resolve(null);
                 };
             } catch (error) {

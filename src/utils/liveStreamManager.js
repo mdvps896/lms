@@ -25,7 +25,7 @@ class LiveStreamManager {
         // Check if we're in production (Vercel)
         const isProduction = typeof window !== 'undefined' && 
                             (window.location.hostname.includes('vercel.app') || 
-                             window.location.hostname.includes('ex2-iota.vercel.app'));
+                             window.location.hostname.includes('exam-two-rouge.vercel.app'));
 
         if (isProduction) {
             console.log('Production mode: Using HTTP polling for live monitoring');
