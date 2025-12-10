@@ -236,35 +236,44 @@ export default function TakeExamPage() {
             const allowTabSwitch = exam?.settings?.allowTabSwitch ?? false;
             const maxSwitches = exam?.settings?.maxTabSwitches ?? 3;
 
+            // If tab switching is allowed, do nothing
+            if (allowTabSwitch) {
+                return;
+            }
+
             if (document.hidden) {
-                if (!allowTabSwitch) {
-                    // Play warning sound
-                    try {
-                        const audio = new Audio('/sound/warnig.mp3');
-                        audio.play().catch(e => console.error("Audio play blocked", e));
-                    } catch (e) { console.error(e); }
+                // Tab switch not allowed - play warning sound and increment count
+                try {
+                    const audio = new Audio('/sound/warnig.mp3');
+                    audio.play().catch(e => console.error("Audio play blocked", e));
+                } catch (e) { console.error(e); }
 
-                    // Increment switch count
-                    tabSwitchCountRef.current += 1;
+                // Increment switch count
+                tabSwitchCountRef.current += 1;
 
-                    // Check limit
-                    if (tabSwitchCountRef.current > maxSwitches) {
-                        toast.error("Maximum tab switches exceeded! The exam is being auto-submitted.", {
-                            theme: "colored",
-                            autoClose: 5000
-                        });
-                        handleSubmitExam(true);
-                    }
+                // Check limit
+                if (tabSwitchCountRef.current > maxSwitches) {
+                    toast.error("Maximum tab switches exceeded! The exam is being auto-submitted.", {
+                        theme: "colored",
+                        autoClose: 5000
+                    });
+                    handleSubmitExam(true);
                 }
             } else {
-                // User returned to tab
-                if (!allowTabSwitch && tabSwitchCountRef.current > 0 && tabSwitchCountRef.current <= maxSwitches) {
+                // User returned to tab - show warning only if switches exceeded but not max yet
+                if (tabSwitchCountRef.current > 0 && tabSwitchCountRef.current <= maxSwitches) {
                     setShowTabWarning(true);
                 }
             }
         };
 
-        const handleContextMenu = (e) => e.preventDefault();
+        const handleContextMenu = (e) => {
+            // Allow context menu if copy/paste is allowed
+            const allowCopyPaste = exam?.settings?.allowCopyPaste ?? false;
+            if (!allowCopyPaste) {
+                e.preventDefault();
+            }
+        };
 
         const handleKeyDown = (e) => {
             // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
