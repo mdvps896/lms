@@ -51,7 +51,14 @@ export async function POST(request) {
             }
 
             try {
-                const result = await uploadToCloudinary(base64File, folder)
+                console.log('Attempting to upload to Cloudinary...')
+                console.log('File name:', fileName)
+                console.log('Folder:', folder)
+                console.log('Base64 size:', base64File ? base64File.length : 'null')
+                
+                const result = await uploadToCloudinary(base64File, folder, 'auto', fileName)
+                console.log('Cloudinary upload successful:', result)
+                
                 return NextResponse.json({
                     success: true,
                     message: 'File uploaded to Cloudinary successfully',
@@ -60,9 +67,14 @@ export async function POST(request) {
                     cloudinary: true
                 })
             } catch (error) {
-                console.error('Cloudinary upload error:', error)
+                console.error('Cloudinary upload error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    fileName: fileName,
+                    folder: folder
+                })
                 return NextResponse.json(
-                    { success: false, message: 'Failed to upload to Cloudinary' },
+                    { success: false, message: `Failed to upload to Cloudinary: ${error.message}` },
                     { status: 500 }
                 )
             }

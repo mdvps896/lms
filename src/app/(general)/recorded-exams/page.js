@@ -357,43 +357,123 @@ export default function RecordedExamsPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Recording Info */}
-                                                    {(attempt.recordings?.cameraVideo || attempt.recordings?.screenVideo) && (
-                                                        <div className="alert alert-info mb-3">
-                                                            <small className="d-block mb-2"><strong>Available Recordings:</strong></small>
-                                                            <div className="d-flex flex-column gap-2">
-                                                                {attempt.recordings?.cameraVideo && (
-                                                                    <a 
-                                                                        href={`/api/storage/secure-file?path=${encodeURIComponent(attempt.recordings.cameraVideo)}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="btn btn-sm btn-primary"
-                                                                        download
-                                                                    >
-                                                                        <i className="bi bi-camera-video me-1"></i>
-                                                                        Download Camera Recording
-                                                                    </a>
-                                                                )}
-                                                                {attempt.recordings?.screenVideo && (
-                                                                    <a 
-                                                                        href={`/api/storage/secure-file?path=${encodeURIComponent(attempt.recordings.screenVideo)}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="btn btn-sm btn-success"
-                                                                        download
-                                                                    >
-                                                                        <i className="bi bi-display me-1"></i>
-                                                                        Download Screen Recording
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
 
-                                                    {!attempt.recordings?.cameraVideo && !attempt.recordings?.screenVideo && (
-                                                        <div className="alert alert-warning">
-                                                            <i className="bi bi-exclamation-triangle me-2"></i>
-                                                            No Recording Available
+
+                                                    {/* Show recording options if we have IDs or video files */}
+                                                    {(attempt.recordings?.cameraRecordingId || attempt.recordings?.screenRecordingId || attempt.recordings?.cameraVideo || attempt.recordings?.screenVideo) ? (
+                                                        <div className="alert alert-success">
+                                                            <i className="bi bi-check-circle me-2"></i>
+                                                            Recording Files Available
+                                                            
+                                                            {/* Download Buttons */}
+                                                            <div className="mt-3">
+                                                                <div className="row g-2">
+                                                                    {(attempt.recordings?.cameraVideo || attempt.recordings?.cameraRecordingId) && (
+                                                                        <div className="col-md-6">
+                                                                            <a
+                                                                                href={attempt.recordings?.cameraVideo || '#'}
+                                                                                className="btn btn-outline-primary btn-sm w-100"
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                onClick={!attempt.recordings?.cameraVideo ? (e) => {
+                                                                                    e.preventDefault();
+                                                                                    alert(`Camera Recording ID: ${attempt.recordings?.cameraRecordingId}\n\nVideo will be available for download once processed.`);
+                                                                                } : undefined}
+                                                                            >
+                                                                                <i className="bi bi-camera-video me-2"></i>
+                                                                                {attempt.recordings?.cameraVideo ? 'Download' : 'Processing'} Camera Recording
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {(attempt.recordings?.screenVideo || attempt.recordings?.screenRecordingId) && (
+                                                                        <div className="col-md-6">
+                                                                            <a
+                                                                                href={attempt.recordings?.screenVideo || '#'}
+                                                                                className="btn btn-outline-success btn-sm w-100"
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                onClick={!attempt.recordings?.screenVideo ? (e) => {
+                                                                                    e.preventDefault();
+                                                                                    alert(`Screen Recording ID: ${attempt.recordings?.screenRecordingId}\n\nVideo will be available for download once processed.`);
+                                                                                } : undefined}
+                                                                            >
+                                                                                <i className="bi bi-display me-2"></i>
+                                                                                {attempt.recordings?.screenVideo ? 'Download' : 'Processing'} Screen Recording
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Show Recording IDs if available */}
+                                                            {(attempt.recordings?.cameraRecordingId || attempt.recordings?.screenRecordingId) && (
+                                                                <div className="mt-3">
+                                                                    <h6 className="mb-2">📋 Recording IDs:</h6>
+                                                                    
+                                                                    {attempt.recordings?.cameraRecordingId && (
+                                                                        <div className="mb-2">
+                                                                            <strong>📹 Camera Recording ID:</strong>
+                                                                            <div className="input-group mt-1">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    className="form-control form-control-sm"
+                                                                                    value={attempt.recordings.cameraRecordingId}
+                                                                                    readOnly
+                                                                                    style={{ fontSize: '0.85rem' }}
+                                                                                />
+                                                                                <button
+                                                                                    className="btn btn-outline-primary btn-sm"
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        navigator.clipboard.writeText(attempt.recordings.cameraRecordingId);
+                                                                                        alert('Camera Recording ID copied to clipboard!');
+                                                                                    }}
+                                                                                    title="Copy Camera Recording ID"
+                                                                                >
+                                                                                    <i className="bi bi-clipboard"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {attempt.recordings?.screenRecordingId && (
+                                                                        <div className="mb-2">
+                                                                            <strong>🖥️ Screen Recording ID:</strong>
+                                                                            <div className="input-group mt-1">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    className="form-control form-control-sm"
+                                                                                    value={attempt.recordings.screenRecordingId}
+                                                                                    readOnly
+                                                                                    style={{ fontSize: '0.85rem' }}
+                                                                                />
+                                                                                <button
+                                                                                    className="btn btn-outline-primary btn-sm"
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        navigator.clipboard.writeText(attempt.recordings.screenRecordingId);
+                                                                                        alert('Screen Recording ID copied to clipboard!');
+                                                                                    }}
+                                                                                    title="Copy Screen Recording ID"
+                                                                                >
+                                                                                    <i className="bi bi-clipboard"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    <small className="text-muted">
+                                                                        <i className="bi bi-lightbulb me-1"></i>
+                                                                        Use these IDs to search recordings in Storage section
+                                                                    </small>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="alert alert-info">
+                                                            <i className="bi bi-info-circle me-2"></i>
+                                                            No Recording Files Available
                                                         </div>
                                                     )}
                                                 </div>
@@ -518,10 +598,11 @@ export default function RecordedExamsPage() {
                 }
                 .cursor-pointer {
                     cursor: pointer;
-                    transition: transform 0.2s ease;
+                    transition: all 0.2s ease;
                 }
                 .cursor-pointer:hover {
-                    transform: translateY(-5px);
+                    background-color: #e9ecef !important;
+                    transform: scale(1.02);
                 }
             `}</style>
         </div>

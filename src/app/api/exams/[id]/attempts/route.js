@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
+import ExamAttempt from '@/models/ExamAttempt';
 import User from '@/models/User';
 
 export async function GET(request, { params }) {
@@ -9,7 +10,7 @@ export async function GET(request, { params }) {
 
         const { id } = params;
 
-        // Find exam with its attempts
+        // Find exam to verify it exists
         const exam = await Exam.findById(id).lean();
 
         if (!exam) {
@@ -19,35 +20,20 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log('Exam found:', exam.name);
-        console.log('Total attempts:', exam.attempts?.length);
-
-        // Get all attempts (not just submitted)
-        const allAttempts = exam.attempts || [];
-
-        console.log('All attempts:', allAttempts.length);
-
-        // Get unique user IDs
-        const userIds = [...new Set(allAttempts.map(a => a.userId?.toString()).filter(Boolean))];
-        
-        // Fetch user details
-        const users = await User.find({ _id: { $in: userIds } }).lean();
-        const userMap = {};
-        users.forEach(user => {
-            userMap[user._id.toString()] = user;
-        });
+        // Get all attempts from ExamAttempt collection
+        const allAttempts = await ExamAttempt.find({ exam: id }).populate('user', 'name email photo profileImage').lean();
 
         // Format the attempts
         const formattedAttempts = allAttempts.map(attempt => {
-            const duration = attempt.submittedAt && attempt.startTime
-                ? Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startTime)) / 60000)
+            const duration = attempt.submittedAt && attempt.startedAt
+                ? Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 60000)
                 : 0;
 
             // Get recording paths - handle both array and object format
             let cameraVideo = null;
             let screenVideo = null;
 
-            console.log(`Attempt ${attempt._id} recordings:`, attempt.recordings);
+
 
             if (Array.isArray(attempt.recordings)) {
                 // Array format (old)
@@ -61,26 +47,27 @@ export async function GET(request, { params }) {
                 screenVideo = attempt.recordings.screenVideo || null;
             }
 
-            console.log(`Attempt ${attempt._id}:`, { cameraVideo, screenVideo });
 
-            const userId = attempt.userId?.toString();
-            const user = userMap[userId] || { name: 'Unknown', email: 'N/A', photo: null };
+
+            const user = attempt.user || { name: 'Unknown', email: 'N/A', photo: null };
 
             return {
                 _id: attempt._id,
                 user: {
-                    _id: userId,
+                    _id: user._id?.toString(),
                     name: user.name,
                     email: user.email,
-                    photo: user.photo || null
+                    photo: user.photo || user.profileImage || null
                 },
                 score: attempt.score || 0,
                 duration: `${duration} minutes`,
-                submittedAt: attempt.submittedAt || attempt.endTime || attempt.startTime,
+                submittedAt: attempt.submittedAt || attempt.endedAt || attempt.startedAt,
                 status: attempt.status || 'unknown',
                 recordings: {
                     cameraVideo: cameraVideo,
-                    screenVideo: screenVideo
+                    screenVideo: screenVideo,
+                    cameraRecordingId: attempt.cameraRecordingId || null,
+                    screenRecordingId: attempt.screenRecordingId || null
                 }
             };
         });

@@ -20,15 +20,35 @@ export async function POST(request) {
         if (cloudinaryStatus.enabled && cloudinaryStatus.configured && publicId) {
             // Delete from Cloudinary
             try {
-                const result = await deleteFromCloudinary(publicId, resourceType || 'image')
+                // Auto-detect resource type if not provided
+                let detectedResourceType = resourceType
+                if (!detectedResourceType) {
+                    // If publicId contains 'video' or common video extensions, treat as video
+                    if (publicId.includes('camera-') || publicId.includes('screen-') || 
+                        publicId.includes('video') || publicId.endsWith('.mp4') || 
+                        publicId.endsWith('.webm') || publicId.endsWith('.avi')) {
+                        detectedResourceType = 'video'
+                    } else {
+                        detectedResourceType = 'image'
+                    }
+                }
+                
+                console.log(`🗑️ Deleting from Cloudinary: ${publicId} (${detectedResourceType})`)
+                
+                const result = await deleteFromCloudinary(publicId, detectedResourceType)
+                
+                console.log('Delete result:', result)
+                
                 return NextResponse.json({
                     success: result.success,
-                    message: result.success ? 'File deleted from Cloudinary successfully' : 'Failed to delete file from Cloudinary'
+                    message: result.success ? 
+                        `File deleted from Cloudinary successfully (${detectedResourceType})` : 
+                        `Failed to delete file from Cloudinary: ${result.result || 'Unknown error'}`
                 })
             } catch (error) {
                 console.error('Cloudinary delete error:', error)
                 return NextResponse.json(
-                    { success: false, message: 'Error deleting file from Cloudinary' },
+                    { success: false, message: `Error deleting file from Cloudinary: ${error.message}` },
                     { status: 500 }
                 )
             }

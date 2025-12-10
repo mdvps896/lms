@@ -52,8 +52,54 @@ const settingsSchema = new mongoose.Schema({
         enabled: { type: Boolean, default: true }
     },
     // General Settings
+    general: {
+        adminName: { type: String, default: 'Administrator' },
+        contactEmail: { type: String, default: '' },
+        phoneNumber: { type: String, default: '' },
+        timeZone: { type: String, default: 'UTC' },
+        emailNotifications: { type: Boolean, default: true },
+        siteLogo: { type: String, default: '/images/logo-full.png' },
+        siteLogoWidth: { type: Number, default: 150 }, // Width in pixels
+        siteLogoHeight: { type: Number, default: 50 }, // Height in pixels
+        siteFavIcon: { type: String, default: '/images/logo/favicon.ico' },
+        siteSmallLogo: { type: String, default: '/images/logo-abbr.png' },
+        siteSmallLogoWidth: { type: Number, default: 40 },
+        siteSmallLogoHeight: { type: Number, default: 40 },
+        digitalSignature: { type: String, default: '' },
+        siteName: { type: String, default: 'Duralux Exam Portal' },
+        seoTitle: { type: String, default: 'Online Exam System' },
+        seoDescription: { type: String, default: 'Professional online examination platform' },
+        examHeaderText: { type: String, default: 'Welcome to the Examination Portal' },
+        examFooterText: { type: String, default: 'Good luck with your exam!' },
+        showProgressBar: { type: Boolean, default: true },
+        showQuestionNumbers: { type: Boolean, default: true },
+        questionsPerPage: { type: Number, default: 1 }
+    },
     autoRefreshInterval: { type: Number, default: 5000 }, // milliseconds
     maxConcurrentExams: { type: Number, default: 100 },
+    
+    // Integrations Settings
+    integrations: {
+        cloudinary: {
+            enabled: { type: Boolean, default: false },
+            cloudName: { type: String, default: '' },
+            apiKey: { type: String, default: '' },
+            apiSecret: { type: String, default: '' },
+            folder: { type: String, default: 'exam-portal' }
+        },
+        googleOAuth: {
+            enabled: { type: Boolean, default: false },
+            clientId: { type: String, default: '' },
+            clientSecret: { type: String, default: '' }
+        },
+        recaptcha: {
+            enabled: { type: Boolean, default: false },
+            siteKey: { type: String, default: '' },
+            secretKey: { type: String, default: '' },
+            version: { type: String, default: 'v2' }
+        }
+    },
+    
     // Single instance - only one settings document
     singleton: { type: Boolean, default: true, unique: true }
 }, { timestamps: true });

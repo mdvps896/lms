@@ -57,6 +57,12 @@ const examAttemptSchema = new mongoose.Schema({
         screenVideo: {
             type: String
         },
+        cameraRecordingId: {
+            type: String
+        },
+        screenRecordingId: {
+            type: String
+        },
         recordedAt: {
             type: Date
         }

@@ -105,10 +105,18 @@ const VerificationPanel = ({ attemptId, studentData }) => {
                     {/* Student Info */}
                     <div className="d-flex align-items-center mb-3 pb-3 border-bottom">
                         <img
-                            src={studentData?.profileImage || verificationData.user?.profileImage || '/images/default-avatar.png'}
+                            src={studentData?.userPhoto || studentData?.profileImage || verificationData.user?.profileImage || '/images/profile/default-avatar.svg'}
                             alt={verificationData.user?.name}
-                            className="rounded-circle me-3"
-                            style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                            className="rounded-circle border me-3"
+                            style={{ 
+                                width: '50px', 
+                                height: '50px', 
+                                objectFit: 'cover',
+                                backgroundColor: '#f8f9fa'
+                            }}
+                            onError={(e) => {
+                                e.target.src = '/images/profile/default-avatar.svg';
+                            }}
                         />
                         <div>
                             <h6 className="mb-0">{verificationData.user?.name}</h6>

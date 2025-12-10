@@ -3,6 +3,46 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 
+// Inline styles for profile images
+const profileImageStyles = `
+.profile-image-container {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-image {
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.profile-image:hover {
+    border-color: #0d6efd;
+    transform: scale(1.05);
+}
+
+.online-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background-color: #198754;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.student-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+`;
+
 export default function LiveExamsPage() {
     const router = useRouter();
     const [liveExams, setLiveExams] = useState([]);
@@ -43,7 +83,9 @@ export default function LiveExamsPage() {
     }
 
     return (
-        <div className="container-fluid p-4">
+        <>
+            <style dangerouslySetInnerHTML={{ __html: profileImageStyles }} />
+            <div className="container-fluid p-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h2 className="mb-0">
                     <i className="bi bi-broadcast me-2"></i>
@@ -109,10 +151,18 @@ export default function LiveExamsPage() {
                                                         <div className="d-flex align-items-center mb-3">
                                                             <div className="position-relative">
                                                                 <img
-                                                                    src={student.userPhoto || '/images/default-avatar.png'}
+                                                                    src={student.userPhoto || '/images/profile/default-avatar.svg'}
                                                                     alt={student.userName}
-                                                                    className="rounded-circle"
-                                                                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                                                                    className="rounded-circle border"
+                                                                    style={{ 
+                                                                        width: '50px', 
+                                                                        height: '50px', 
+                                                                        objectFit: 'cover',
+                                                                        backgroundColor: '#f8f9fa'
+                                                                    }}
+                                                                    onError={(e) => {
+                                                                        e.target.src = '/images/profile/default-avatar.svg';
+                                                                    }}
                                                                 />
                                                                 <span
                                                                     className="position-absolute bottom-0 end-0 badge rounded-pill bg-success"
@@ -160,6 +210,7 @@ export default function LiveExamsPage() {
                     )}
                 </>
             )}
-        </div>
+            </div>
+        </>
     );
 }

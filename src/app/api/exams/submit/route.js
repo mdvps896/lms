@@ -10,8 +10,7 @@ export async function POST(request) {
 
         const { attemptId, sessionToken, answers, examId } = await request.json()
 
-        console.log('Submit exam - Attempt ID:', attemptId);
-        console.log('Submit exam - Session Token:', sessionToken);
+
 
         if (!attemptId || !sessionToken || !examId) {
             return NextResponse.json(
@@ -23,7 +22,7 @@ export async function POST(request) {
         // Find the ExamAttempt
         const attempt = await ExamAttempt.findById(attemptId);
 
-        console.log('Found attempt:', attempt ? 'Yes' : 'No');
+
 
         if (!attempt) {
             return NextResponse.json(
@@ -48,7 +47,7 @@ export async function POST(request) {
         }
 
         if (attempt.sessionToken !== sessionToken) {
-            console.log('Session token mismatch');
+
             return NextResponse.json(
                 { message: 'Invalid session token' },
                 { status: 403 }

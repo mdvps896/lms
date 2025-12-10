@@ -14,10 +14,10 @@ export async function POST(request) {
         const examId = formData.get('examId');
         const cameraVideo = formData.get('cameraVideo');
         const screenVideo = formData.get('screenVideo');
+        const cameraRecordingId = formData.get('cameraRecordingId');
+        const screenRecordingId = formData.get('screenRecordingId');
 
-        console.log('=== Saving recordings ===');
-        console.log('Attempt ID:', attemptId);
-        console.log('Exam ID:', examId);
+
 
         if (!attemptId || !examId) {
             return NextResponse.json(
@@ -34,43 +34,42 @@ export async function POST(request) {
         let screenPath = null;
 
         if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
-            // Use Cloudinary for storage
-            console.log('Uploading to Cloudinary...');
+            // Use Cloudinary for storage with enhanced upload system
             const timestamp = Date.now();
 
-            // Upload camera video
             if (cameraVideo) {
                 const cameraBytes = await cameraVideo.arrayBuffer();
                 const cameraBuffer = Buffer.from(cameraBytes);
                 const cameraBase64 = `data:video/webm;base64,${cameraBuffer.toString('base64')}`;
+                const cameraFileName = cameraRecordingId ? `${cameraRecordingId}.webm` : `camera-${attemptId}-${timestamp}.webm`;
                 
                 const cameraResult = await uploadToCloudinary(
                     cameraBase64,
                     'exam-recordings',
-                    'video'
+                    'video',
+                    cameraFileName
                 );
                 
                 if (cameraResult.success) {
                     cameraPath = cameraResult.url;
-                    console.log('Camera video uploaded to Cloudinary:', cameraPath);
                 }
             }
 
-            // Upload screen video
             if (screenVideo) {
                 const screenBytes = await screenVideo.arrayBuffer();
                 const screenBuffer = Buffer.from(screenBytes);
                 const screenBase64 = `data:video/webm;base64,${screenBuffer.toString('base64')}`;
+                const screenFileName = screenRecordingId ? `${screenRecordingId}.webm` : `screen-${attemptId}-${timestamp}.webm`;
                 
                 const screenResult = await uploadToCloudinary(
                     screenBase64,
                     'exam-recordings',
-                    'video'
+                    'video',
+                    screenFileName
                 );
                 
                 if (screenResult.success) {
                     screenPath = screenResult.url;
-                    console.log('Screen video uploaded to Cloudinary:', screenPath);
                 }
             }
         } else if (!isProduction) {
@@ -92,7 +91,7 @@ export async function POST(request) {
                 const cameraFilePath = path.join(examVideosDir, cameraFileName);
                 await writeFile(cameraFilePath, cameraBuffer);
                 cameraPath = `/exam-videos/${cameraFileName}`;
-                console.log('Camera video saved locally:', cameraPath);
+
             }
 
             // Save screen video
@@ -103,7 +102,7 @@ export async function POST(request) {
                 const screenFilePath = path.join(screenVideosDir, screenFileName);
                 await writeFile(screenFilePath, screenBuffer);
                 screenPath = `/exam-screen-videos/${screenFileName}`;
-                console.log('Screen video saved locally:', screenPath);
+
             }
         } else {
             // Production without Cloudinary - error
@@ -116,7 +115,7 @@ export async function POST(request) {
             );
         }
 
-        // Update exam attempt with recording paths in Exam model
+        // Update exam attempt with recording paths in both Exam and ExamAttempt models
         const exam = await Exam.findById(examId);
         if (exam) {
             const attempt = exam.attempts.id(attemptId);
@@ -129,9 +128,11 @@ export async function POST(request) {
                 // Set the recording paths
                 if (cameraPath) {
                     attempt.recordings.cameraVideo = cameraPath;
+                    attempt.recordings.cameraRecordingId = cameraRecordingId;
                 }
                 if (screenPath) {
                     attempt.recordings.screenVideo = screenPath;
+                    attempt.recordings.screenRecordingId = screenRecordingId;
                 }
                 attempt.recordings.recordedAt = new Date();
                 
@@ -139,23 +140,62 @@ export async function POST(request) {
                 exam.markModified('attempts');
                 
                 await exam.save();
-                console.log('Recordings saved to Exam attempt:', {
+                console.log('✅ Recordings saved to Exam attempt:', {
                     attemptId,
                     cameraPath,
                     screenPath,
                     recordings: attempt.recordings
                 });
             } else {
-                console.error('Attempt not found in exam');
+                console.error('❌ Attempt not found in exam');
             }
         } else {
-            console.error('Exam not found');
+            console.error('❌ Exam not found');
+        }
+
+        // Also update ExamAttempt model if it exists separately
+        try {
+            const ExamAttempt = (await import('@/models/ExamAttempt')).default;
+            const examAttempt = await ExamAttempt.findById(attemptId);
+            if (examAttempt) {
+                if (!examAttempt.recordings) {
+                    examAttempt.recordings = {};
+                }
+                
+                if (cameraPath) {
+                    examAttempt.recordings.cameraVideo = cameraPath;
+                    examAttempt.recordings.cameraRecordingId = cameraRecordingId;
+                }
+                if (screenPath) {
+                    examAttempt.recordings.screenVideo = screenPath;
+                    examAttempt.recordings.screenRecordingId = screenRecordingId;
+                }
+                examAttempt.recordings.recordedAt = new Date();
+                
+                await examAttempt.save();
+        
+            }
+        } catch (error) {
+
         }
 
         return NextResponse.json({
-            message: 'Recordings saved successfully',
+            success: true,
+            message: 'Exam recordings saved successfully to Cloudinary',
             cameraPath,
-            screenPath
+            screenPath,
+            cameraRecordingId,
+            screenRecordingId,
+            cloudinary: cloudinaryStatus.enabled && cloudinaryStatus.configured,
+            recordingStats: {
+                cameraUploaded: !!cameraPath,
+                screenUploaded: !!screenPath,
+                totalRecordings: [cameraPath, screenPath].filter(Boolean).length,
+                uniqueIds: {
+                    camera: cameraRecordingId,
+                    screen: screenRecordingId
+                }
+            }
         });
     } catch (error) {
         console.error('Error saving recordings:', error);

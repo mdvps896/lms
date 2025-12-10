@@ -29,7 +29,7 @@ export async function GET() {
         .populate('exam', 'name')
         .lean();
 
-        console.log('Found submitted attempts:', submittedAttempts.length);
+
 
         // Group by exam and count attempts
         const examMap = new Map();
@@ -71,7 +71,7 @@ export async function GET() {
 
         const exams = Array.from(examMap.values());
 
-        console.log(`Processed ${exams.length} exams with recordings`);
+
 
         // Fallback: If no ExamAttempts found, try old Exam.attempts structure
         if (exams.length === 0) {
@@ -106,12 +106,7 @@ export async function GET() {
                 }
             }
             
-            console.log(`Found ${exams.length} exams from old structure`);
-        }
-
-        console.log('Final exams response:', JSON.stringify(exams, null, 2));
-
-        return NextResponse.json({
+        }        return NextResponse.json({
             exams
         });
     } catch (error) {

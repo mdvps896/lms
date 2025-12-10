@@ -5,6 +5,8 @@ export default function LocalStreamView({ cameraStream, screenStream }) {
     const cameraVideoRef = useRef(null);
     const screenVideoRef = useRef(null);
 
+    console.log('LocalStreamView render:', { cameraStream: !!cameraStream, screenStream: !!screenStream });
+
     useEffect(() => {
         // Set camera stream to video element
         if (cameraVideoRef.current && cameraStream) {

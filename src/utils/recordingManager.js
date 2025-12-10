@@ -1,6 +1,8 @@
+import { generateRecordingId, generateRecordingFilename } from './recordingIdGenerator.js';
+
 /**
  * Recording Manager for Exam Proctoring
- * Handles camera, microphone, and screen recording
+ * Handles camera, microphone, and screen recording with unique ID generation
  */
 
 class RecordingManager {
@@ -50,27 +52,27 @@ class RecordingManager {
 
             console.log('Using MIME type:', mimeType);
 
-            // Start camera recording - DON'T pass timeslice to get one continuous recording
+            // Start camera recording optimized for Cloudinary upload
             this.cameraRecorder = new MediaRecorder(this.cameraStream, {
                 mimeType: mimeType,
-                videoBitsPerSecond: 2500000
+                videoBitsPerSecond: 1000000  // 1MB - good quality, Cloudinary will optimize
             });
 
             this.cameraRecorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
-                    console.log('Camera chunk received:', event.data.size, 'bytes');
+                    console.log('📹 Camera chunk received:', event.data.size, 'bytes');
                     this.cameraChunks.push(event.data);
                 }
             };
 
             this.cameraRecorder.onerror = (event) => {
-                console.error('Camera recorder error:', event.error);
+                console.error('❌ Camera recorder error:', event.error);
             };
 
-            // Start screen recording - DON'T pass timeslice to get one continuous recording
+            // Start screen recording optimized for Cloudinary upload
             this.screenRecorder = new MediaRecorder(this.screenStream, {
                 mimeType: mimeType,
-                videoBitsPerSecond: 5000000
+                videoBitsPerSecond: 2000000  // 2MB - higher quality for screen content
             });
 
             this.screenRecorder.ondataavailable = (event) => {
@@ -181,12 +183,10 @@ class RecordingManager {
      */
     async saveRecordings() {
         try {
-            console.log('Saving recordings...');
-            console.log('Camera chunks:', this.cameraChunks.length);
-            console.log('Screen chunks:', this.screenChunks.length);
-
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
+            console.log('💾 Saving exam recordings to Cloudinary with unique IDs...');
+            console.log('📹 Camera chunks:', this.cameraChunks.length);
+            console.log('🖥️ Screen chunks:', this.screenChunks.length);
+            
             // Create blobs
             const cameraBlob = new Blob(this.cameraChunks, { type: 'video/webm' });
             const screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
@@ -199,16 +199,40 @@ class RecordingManager {
                 return null;
             }
 
-            // Create form data
+            // Generate unique recording IDs
+            const cameraRecordingId = await generateRecordingId('vd', this.attemptId, this.examId);
+            const screenRecordingId = await generateRecordingId('sc', this.attemptId, this.examId);
+            
+            console.log('🆔 Generated Camera ID:', cameraRecordingId);
+            console.log('🆔 Generated Screen ID:', screenRecordingId);
+
+            // Cloudinary Enhanced Upload - No Size Limits!
+            const totalSize = cameraBlob.size + screenBlob.size;
+            console.log(`📊 Total recording size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+            console.log('☁️ Using Cloudinary enhanced upload system - no size restrictions!');
+
+            // Create form data with all recordings and unique IDs
             const formData = new FormData();
             formData.append('attemptId', this.attemptId);
             formData.append('examId', this.examId);
-            formData.append('cameraVideo', cameraBlob, `camera-${this.attemptId}-${timestamp}.webm`);
-            formData.append('screenVideo', screenBlob, `screen-${this.attemptId}-${timestamp}.webm`);
+            
+            // Upload all recordings with unique IDs - Cloudinary will handle optimization
+            if (cameraBlob.size > 0) {
+                const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd');
+                formData.append('cameraVideo', cameraBlob, cameraFilename);
+                formData.append('cameraRecordingId', cameraRecordingId);
+                console.log(`📹 Camera video: ${(cameraBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${cameraRecordingId}`);
+            }
+            if (screenBlob.size > 0) {
+                const screenFilename = generateRecordingFilename(screenRecordingId, 'sc');
+                formData.append('screenVideo', screenBlob, screenFilename);
+                formData.append('screenRecordingId', screenRecordingId);
+                console.log(`🖥️ Screen video: ${(screenBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${screenRecordingId}`);
+            }
 
-            console.log('Uploading to server...');
+            console.log('⬆️ Uploading to Cloudinary enhanced system...');
 
-            // Upload to server
+            // Upload to server with enhanced Cloudinary system
             const response = await fetch('/api/exams/save-recording', {
                 method: 'POST',
                 body: formData
@@ -217,11 +241,14 @@ class RecordingManager {
             const result = await response.json();
 
             if (response.ok) {
-                console.log('Recordings saved successfully:', result);
+                console.log('🎉 Exam recordings saved successfully to Cloudinary!');
+                console.log('📈 Upload stats:', result.recordingStats);
                 return result;
             } else {
-                console.error('Failed to save recordings:', result);
-                return null;
+                console.error('❌ Failed to save recordings:', response.status, result);
+                // With enhanced Cloudinary, large files are handled automatically
+                console.log('🔄 Enhanced upload system handles large files automatically');
+                return { error: result.message || 'Upload failed', status: response.status };
             }
         } catch (error) {
             console.error('Error saving recordings:', error);

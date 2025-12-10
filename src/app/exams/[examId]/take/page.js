@@ -15,7 +15,7 @@ import PermissionModal from '@/components/exams/take/PermissionModal';
 import RecordingManager from '@/utils/recordingManager';
 import ServerSideLiveStream from '@/utils/serverSideLiveStream';
 import ExamChatBox from '@/components/exams/ExamChatBox';
-import LocalStreamView from '@/components/exams/take/LocalStreamView';
+// import LocalStreamView from '@/components/exams/take/LocalStreamView';  // Disabled for student exam
 
 export default function TakeExamPage() {
     const params = useParams();
@@ -44,8 +44,8 @@ export default function TakeExamPage() {
     const [permissionDenied, setPermissionDenied] = useState(false);
     const [savingRecordings, setSavingRecordings] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [cameraStream, setCameraStream] = useState(null);
-    const [screenStream, setScreenStream] = useState(null);
+    // const [cameraStream, setCameraStream] = useState(null);  // Disabled for student exam
+    // const [screenStream, setScreenStream] = useState(null);   // Disabled for student exam
     const tabSwitchCountRef = useRef(null);
     const recordingManagerRef = useRef(null);
     const liveStreamManagerRef = useRef(null);
@@ -63,20 +63,21 @@ export default function TakeExamPage() {
             setRecordingStarted(true);
             toast.success('Recording started successfully!');
 
-            // Set camera and screen streams for preview
+            // Note: Stream preview disabled for students during exam
+            // Students should not see their own recording preview to avoid distraction
             try {
                 const streams = recordingManagerRef.current.getLiveStreams();
-                console.log('Setting streams:', streams);
-                setCameraStream(streams.camera);
-                setScreenStream(streams.screen);
+                console.log('Recording streams active (preview hidden for student)');
+                // setCameraStream(streams.camera);  // Hidden for student
+                // setScreenStream(streams.screen);   // Hidden for student
             } catch (streamError) {
-                console.warn('Failed to get streams for preview:', streamError);
+                console.warn('Failed to get streams info:', streamError);
             }
 
             // Setup screen share stop handler
             window.onScreenShareStopped = () => {
                 toast.error('Screen sharing stopped! Please share your screen again.');
-                setScreenStream(null); // Clear screen stream when stopped
+                // Note: Screen stream preview already disabled for students
             };
 
             // Start server-side live streaming
@@ -326,29 +327,18 @@ export default function TakeExamPage() {
         };
     }, [exam]);
 
-    // Cleanup streams on component unmount
+    // Cleanup streams on component unmount - streams handled by recording manager
     useEffect(() => {
         return () => {
-            // Cleanup camera stream
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => {
-                    track.stop();
-                });
-            }
+            // Note: Stream cleanup now handled by recording manager
+            // Recording manager will handle proper cleanup of streams
             
-            // Cleanup screen stream
-            if (screenStream) {
-                screenStream.getTracks().forEach(track => {
-                    track.stop();
-                });
-            }
-
             // Stop live streaming
             if (liveStreamManagerRef.current) {
                 liveStreamManagerRef.current.stopStreaming();
             }
         };
-    }, [cameraStream, screenStream]);
+    }, []);
 
     const handleSubmitClick = () => {
         setShowSubmitModal(true);
@@ -831,21 +821,10 @@ export default function TakeExamPage() {
                 recordingStarted={recordingStarted}
             />
 
-            {/* Local Stream View - Show camera and screen feeds */}
-            {recordingStarted && (cameraStream || screenStream) && (
-                <LocalStreamView 
-                    cameraStream={cameraStream} 
-                    screenStream={screenStream} 
-                />
-            )}
-
-            {/* Local Stream View for Camera and Screen Preview */}
-            {recordingStarted && (cameraStream || screenStream) && (
-                <LocalStreamView 
-                    cameraStream={cameraStream} 
-                    screenStream={screenStream} 
-                />
-            )}
+            {/* Local Stream View - Disabled for students to avoid distraction during exam */}
+            {/* Note: Recording is still active in background, preview is just hidden */}
+            {console.log('Recording status:', { recordingStarted, streamsDisabled: true })}
+            {/* Stream preview completely disabled for students during exam */}
 
             {/* Saving Recordings Overlay */}
             {savingRecordings && (

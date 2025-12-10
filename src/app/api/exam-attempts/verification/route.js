@@ -37,19 +37,19 @@ export async function POST(request) {
         // Save images to file system and get paths
         const processedVerification = { ...verification }
 
-        console.log('Original verification data received:', JSON.stringify(verification, null, 2))
+
 
         // Save face verification image
         if (verification?.faceVerification?.selfieImage) {
             try {
-                console.log('Saving face image...')
+
                 const facePath = saveVerificationImage(
                     verification.faceVerification.selfieImage,
                     'face',
                     userId,
                     examId
                 )
-                console.log('Face image saved to:', facePath)
+
                 processedVerification.faceVerification.selfieImage = facePath
             } catch (error) {
                 console.error('Error saving face image:', error)
@@ -60,14 +60,14 @@ export async function POST(request) {
         // Save identity verification image
         if (verification?.identityVerification?.identityImage) {
             try {
-                console.log('Saving identity image...')
+
                 const identityPath = saveVerificationImage(
                     verification.identityVerification.identityImage,
                     'identity',
                     userId,
                     examId
                 )
-                console.log('Identity image saved to:', identityPath)
+
                 processedVerification.identityVerification.identityImage = identityPath
             } catch (error) {
                 console.error('Error saving identity image:', error)

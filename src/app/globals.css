@@ -335,3 +335,63 @@
   background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
   background-size: 200% 100%;
 }
+
+/* Upload Progress Bar Styles */
+.upload-progress-card {
+  border: 1px solid #0d6efd;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+  transition: all 0.3s ease;
+}
+
+.upload-progress-card:hover {
+  box-shadow: 0 4px 16px rgba(13, 110, 253, 0.25);
+}
+
+.upload-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background-color: #e9ecef;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0d6efd, #0dcaf0);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.upload-chunk-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.upload-chunk-indicator i {
+  color: #0d6efd;
+}

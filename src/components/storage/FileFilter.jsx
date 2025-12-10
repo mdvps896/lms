@@ -13,6 +13,7 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
         { value: 'audio', label: 'Audio', icon: Music },
         { value: 'pdf', label: 'PDF', icon: FileText },
         { value: 'document', label: 'Documents', icon: File },
+        { value: 'exam-recording', label: 'Exam Recordings', icon: Video },
         { value: 'other', label: 'Other', icon: MoreHorizontal }
     ]
 
@@ -57,7 +58,7 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="Search files by name..."
+                            placeholder="Search by name, exam, student, or recording ID (e.g., sc-3hr-j8e-#@-1)..."
                             value={filters.search}
                             onChange={handleSearch}
                         />

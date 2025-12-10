@@ -83,12 +83,44 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    // Pass publicId for Cloudinary files
-                    await onDelete(file.source === 'cloudinary' ? file.publicId : file.path, file.source === 'cloudinary' ? file.resourceType : null)
+                    // Special handling for exam recordings
+                    if (file.category === 'exam-recording' && file.attemptId && file.recordingType) {
+                        console.log('Deleting exam recording:', file)
+                        
+                        const response = await fetch('/api/exams/delete-recording', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                attemptId: file.attemptId,
+                                recordingType: file.recordingType
+                            })
+                        })
+                        
+                        const result = await response.json()
+                        
+                        if (!result.success) {
+                            throw new Error(result.message || 'Failed to delete recording')
+                        }
+                    } else {
+                        // For regular files, use the standard delete method
+                        const isCloudinaryFile = file.source === 'cloudinary' || file.path?.includes('cloudinary') || file.cloudinaryId
+                        const deleteIdentifier = isCloudinaryFile ? (file.publicId || file.cloudinaryId) : file.path
+                        const resourceType = isCloudinaryFile ? (file.resourceType || 'video') : null
+                        
+                        console.log('Deleting file:', { deleteIdentifier, resourceType, isCloudinaryFile, file })
+                        
+                        await onDelete(deleteIdentifier, resourceType)
+                    }
+                    
+                    // Refresh the file list
+                    if (onRefresh) {
+                        await onRefresh()
+                    }
+                    
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
-                        text: 'File has been deleted.',
+                        text: 'File has been deleted successfully.',
                         timer: 1500,
                         showConfirmButton: false
                     })
@@ -154,54 +186,96 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
 
     return (
         <div className="card h-100 file-card">
-            <div style={{ cursor: 'pointer' }} onClick={handleView}>
+            <div className="position-relative thumbnail-container" style={{ cursor: 'pointer' }}>
                 {renderThumbnail()}
+                
+                {/* Overlay with action buttons */}
+                <div className="overlay-actions">
+                    <div className="d-flex justify-content-center gap-2">
+                        <button
+                            className="btn btn-primary btn-sm action-btn"
+                            onClick={(e) => { e.stopPropagation(); handleView(); }}
+                            title="View File"
+                        >
+                            <Eye size={16} />
+                        </button>
+                        <button
+                            className="btn btn-info btn-sm action-btn"
+                            onClick={(e) => { e.stopPropagation(); handleCopyLink(); }}
+                            title="Copy Link"
+                        >
+                            <Copy size={16} />
+                        </button>
+                        <button
+                            className="btn btn-danger btn-sm action-btn"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                            title="Delete File"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </div>
             </div>
             <div className="card-body p-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <h6 className="mb-0 text-truncate flex-grow-1" title={file.name}>
                         {file.name}
                     </h6>
-                    {file.source === 'cloudinary' && (
-                        <span className="badge bg-info text-white ms-2" style={{ fontSize: '0.7rem' }}>
-                            ☁️ Cloud
-                        </span>
-                    )}
+                    <div className="d-flex gap-1">
+                        {file.source === 'cloudinary' && (
+                            <span className="badge bg-info text-white" style={{ fontSize: '0.7rem' }}>
+                                ☁️ Cloud
+                            </span>
+                        )}
+                        {file.category === 'exam-recording' && (
+                            <span className="badge bg-primary text-white" style={{ fontSize: '0.7rem' }}>
+                                📹 Recording
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <small className="text-muted">{formatFileSize(file.size)}</small>
                     <small className="text-muted">{formatDate(file.createdAt)}</small>
                 </div>
-                {file.folder && file.folder !== 'root' && (
-                    <div className="mb-2">
-                        <small className="badge bg-secondary" style={{ fontSize: '0.65rem' }}>
+                {/* Folder and recording metadata */}
+                <div className="mb-2">
+                    {file.folder && file.folder !== 'root' && (
+                        <small className="badge bg-secondary me-2" style={{ fontSize: '0.65rem' }}>
                             📁 {file.folder}
                         </small>
+                    )}
+                    {file.recordingType && (
+                        <small className="badge bg-success me-2" style={{ fontSize: '0.65rem' }}>
+                            {file.recordingType === 'camera' ? '📹 Camera' : '🖥️ Screen'}
+                        </small>
+                    )}
+                </div>
+                
+                {/* Exam recording details */}
+                {file.category === 'exam-recording' && (
+                    <div className="mb-2">
+                        {file.examName && (
+                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                <strong>Exam:</strong> {file.examName}
+                            </div>
+                        )}
+                        {file.studentName && (
+                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                <strong>Student:</strong> {file.studentName}
+                            </div>
+                        )}
+                        {(file.recordingId || file.cameraRecordingId || file.screenRecordingId) && (
+                            <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                <strong>Recording ID:</strong> 
+                                <span className="badge bg-info text-white ms-1" style={{ fontSize: '0.65rem' }}>
+                                    {file.recordingId || file.cameraRecordingId || file.screenRecordingId}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
-                <div className="d-flex gap-2">
-                    <button
-                        className="btn btn-sm btn-outline-primary flex-fill"
-                        onClick={handleView}
-                        title="View File"
-                    >
-                        <Eye size={14} />
-                    </button>
-                    <button
-                        className="btn btn-sm btn-outline-info flex-fill"
-                        onClick={handleCopyLink}
-                        title="Copy Link"
-                    >
-                        <Copy size={14} />
-                    </button>
-                    <button
-                        className="btn btn-sm btn-outline-danger flex-fill"
-                        onClick={handleDelete}
-                        title="Delete File"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                </div>
+
             </div>
 
             <style jsx>{`
@@ -211,6 +285,54 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                 .file-card:hover {
                     transform: translateY(-5px);
                     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                }
+                
+                .thumbnail-container {
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .overlay-actions {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    backdrop-filter: blur(2px);
+                }
+                
+                .thumbnail-container:hover .overlay-actions {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .action-btn {
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    padding: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    backdrop-filter: blur(10px);
+                    transition: all 0.2s ease;
+                }
+                
+                .action-btn:hover {
+                    transform: scale(1.1);
+                    border-color: rgba(255, 255, 255, 0.6);
+                }
+                
+                .action-btn:active {
+                    transform: scale(0.95);
                 }
             `}</style>
         </div>

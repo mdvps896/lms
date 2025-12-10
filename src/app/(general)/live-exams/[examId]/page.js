@@ -7,6 +7,29 @@ import ChatBox from '@/components/admin/ChatBox';
 import VerificationPanel from '@/components/admin/VerificationPanel';
 import ExamMonitoringSkeleton from '@/components/admin/ExamMonitoringSkeleton';
 
+// Profile image styles
+const profileImageStyles = `
+.profile-image {
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.profile-image:hover {
+    border-color: #0d6efd;
+    transform: scale(1.05);
+}
+
+.student-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+`;
+
 export default function ExamMonitoringPage() {
     const params = useParams();
     const router = useRouter();
@@ -124,10 +147,18 @@ export default function ExamMonitoringPage() {
                                         <div className="d-flex align-items-center mb-3">
                                             <div className="position-relative">
                                                 <img
-                                                    src={student.userPhoto || '/images/default-avatar.png'}
+                                                    src={student.userPhoto || '/images/profile/default-avatar.svg'}
                                                     alt={student.userName}
-                                                    className="rounded-circle"
-                                                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                                                    className="rounded-circle border"
+                                                    style={{ 
+                                                        width: '50px', 
+                                                        height: '50px', 
+                                                        objectFit: 'cover',
+                                                        backgroundColor: '#f8f9fa'
+                                                    }}
+                                                    onError={(e) => {
+                                                        e.target.src = '/images/profile/default-avatar.svg';
+                                                    }}
                                                 />
                                                 <span
                                                     className="position-absolute bottom-0 end-0 badge rounded-pill bg-success"

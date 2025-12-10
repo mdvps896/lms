@@ -42,6 +42,10 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
+        // If it's a Cloudinary URL, return as-is
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            return filePath
+        }
         // Ensure path starts with /
         const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
         return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
@@ -121,9 +125,40 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
                             onError={(e) => e.target.style.display = 'none'}
                         />
                     )}
-                    <span className="text-truncate" style={{ maxWidth: '300px' }} title={file.name}>
-                        {file.name}
-                    </span>
+                    <div>
+                        <div className="text-truncate" style={{ maxWidth: '300px' }} title={file.name}>
+                            {file.name}
+                        </div>
+                        {/* Exam recording metadata */}
+                        {file.category === 'exam-recording' && (
+                            <div className="small text-muted">
+                                {file.recordingType && (
+                                    <span className="badge bg-primary me-1" style={{ fontSize: '0.65rem' }}>
+                                        {file.recordingType === 'camera' ? '📹 Camera' : '🖥️ Screen'}
+                                    </span>
+                                )}
+                                {file.examName && (
+                                    <span className="me-2">📚 {file.examName}</span>
+                                )}
+                                {file.studentName && (
+                                    <span>👤 {file.studentName}</span>
+                                )}
+                            </div>
+                        )}
+                        {/* Source badge */}
+                        <div className="mt-1">
+                            {file.source === 'cloudinary' && (
+                                <span className="badge bg-info text-white me-1" style={{ fontSize: '0.65rem' }}>
+                                    ☁️ Cloud
+                                </span>
+                            )}
+                            {file.category === 'exam-recording' && (
+                                <span className="badge bg-success text-white" style={{ fontSize: '0.65rem' }}>
+                                    📹 Recording
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </td>
             <td>{formatFileSize(file.size)}</td>

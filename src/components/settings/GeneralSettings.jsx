@@ -1,17 +1,24 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { FiSave, FiRefreshCw, FiUpload, FiUser, FiMail, FiPhone, FiGlobe, FiBell, FiImage, FiEdit3, FiType, FiSettings, FiBarChart } from 'react-icons/fi';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GeneralSettings = ({ settings, onUpdate, saving }) => {
+    const { user } = useAuth();
+    
     const [formData, setFormData] = useState({
         adminName: '',
         contactEmail: '',
         phoneNumber: '',
         timeZone: 'UTC',
         emailNotifications: true,
-        siteLogo: '/images/logo/logo.png',
+        siteLogo: '/images/logo-full.png',
+        siteLogoWidth: 150,
+        siteLogoHeight: 50,
         siteFavIcon: '/images/logo/favicon.ico',
-        siteSmallLogo: '/images/logo/small-logo.png',
+        siteSmallLogo: '/images/logo-abbr.png',
+        siteSmallLogoWidth: 40,
+        siteSmallLogoHeight: 40,
         digitalSignature: '',
         siteName: 'Duralux Exam Portal',
         seoTitle: 'Online Exam System',
@@ -32,9 +39,26 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
 
     useEffect(() => {
         if (settings && settings.general) {
-            setFormData(settings.general);
+            setFormData(prevData => ({
+                ...prevData,
+                ...settings.general,
+                // Override with logged-in user info
+                adminName: user?.name || settings.general.adminName || '',
+                contactEmail: user?.email || settings.general.contactEmail || ''
+            }));
         }
-    }, [settings]);
+    }, [settings, user]);
+    
+    // Update form data when user changes
+    useEffect(() => {
+        if (user) {
+            setFormData(prevData => ({
+                ...prevData,
+                adminName: user.name || prevData.adminName,
+                contactEmail: user.email || prevData.contactEmail
+            }));
+        }
+    }, [user]);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -183,10 +207,149 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
                     </h6>
                 </div>
 
+                {/* Site Logo with dimensions */}
+                <div className="col-md-6">
+                    <label className="form-label">Site Logo</label>
+                    <div className="d-flex gap-2">
+                        <input
+                            type="text"
+                            name="siteLogo"
+                            className="form-control"
+                            value={formData.siteLogo}
+                            onChange={handleInputChange}
+                            placeholder="Enter site logo URL"
+                        />
+                        <label className="btn btn-outline-primary">
+                            {uploading.siteLogo ? (
+                                <FiRefreshCw className="spin" />
+                            ) : (
+                                <FiUpload />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, 'siteLogo')}
+                                style={{ display: 'none' }}
+                            />
+                        </label>
+                    </div>
+                    <div className="row g-2 mt-1">
+                        <div className="col-6">
+                            <label className="form-label small">Width (px)</label>
+                            <input
+                                type="number"
+                                name="siteLogoWidth"
+                                className="form-control form-control-sm"
+                                value={formData.siteLogoWidth}
+                                onChange={handleInputChange}
+                                placeholder="Width"
+                                min="20"
+                                max="500"
+                            />
+                        </div>
+                        <div className="col-6">
+                            <label className="form-label small">Height (px)</label>
+                            <input
+                                type="number"
+                                name="siteLogoHeight"
+                                className="form-control form-control-sm"
+                                value={formData.siteLogoHeight}
+                                onChange={handleInputChange}
+                                placeholder="Height"
+                                min="20"
+                                max="200"
+                            />
+                        </div>
+                    </div>
+                    {formData.siteLogo && (
+                        <div className="mt-2">
+                            <img
+                                src={formData.siteLogo}
+                                alt="Site Logo Preview"
+                                className="img-thumbnail"
+                                style={{ 
+                                    width: `${formData.siteLogoWidth}px`, 
+                                    height: `${formData.siteLogoHeight}px`,
+                                    objectFit: 'contain'
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Site Small Logo with dimensions */}
+                <div className="col-md-6">
+                    <label className="form-label">Site Small Logo (Sidebar)</label>
+                    <div className="d-flex gap-2">
+                        <input
+                            type="text"
+                            name="siteSmallLogo"
+                            className="form-control"
+                            value={formData.siteSmallLogo}
+                            onChange={handleInputChange}
+                            placeholder="Enter small logo URL"
+                        />
+                        <label className="btn btn-outline-primary">
+                            {uploading.siteSmallLogo ? (
+                                <FiRefreshCw className="spin" />
+                            ) : (
+                                <FiUpload />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, 'siteSmallLogo')}
+                                style={{ display: 'none' }}
+                            />
+                        </label>
+                    </div>
+                    <div className="row g-2 mt-1">
+                        <div className="col-6">
+                            <label className="form-label small">Width (px)</label>
+                            <input
+                                type="number"
+                                name="siteSmallLogoWidth"
+                                className="form-control form-control-sm"
+                                value={formData.siteSmallLogoWidth}
+                                onChange={handleInputChange}
+                                placeholder="Width"
+                                min="20"
+                                max="100"
+                            />
+                        </div>
+                        <div className="col-6">
+                            <label className="form-label small">Height (px)</label>
+                            <input
+                                type="number"
+                                name="siteSmallLogoHeight"
+                                className="form-control form-control-sm"
+                                value={formData.siteSmallLogoHeight}
+                                onChange={handleInputChange}
+                                placeholder="Height"
+                                min="20"
+                                max="100"
+                            />
+                        </div>
+                    </div>
+                    {formData.siteSmallLogo && (
+                        <div className="mt-2">
+                            <img
+                                src={formData.siteSmallLogo}
+                                alt="Small Logo Preview"
+                                className="img-thumbnail"
+                                style={{ 
+                                    width: `${formData.siteSmallLogoWidth}px`, 
+                                    height: `${formData.siteSmallLogoHeight}px`,
+                                    objectFit: 'contain'
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Other branding items */}
                 {[
-                    { field: 'siteLogo', label: 'Site Logo', accept: 'image/*' },
                     { field: 'siteFavIcon', label: 'Site Favicon', accept: 'image/x-icon,image/png' },
-                    { field: 'siteSmallLogo', label: 'Site Small Logo', accept: 'image/*' },
                     { field: 'digitalSignature', label: 'Digital Signature', accept: 'image/*' }
                 ].map(({ field, label, accept }) => (
                     <div key={field} className="col-md-6">

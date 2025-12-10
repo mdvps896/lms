@@ -22,7 +22,7 @@ export async function GET(request) {
             }, { status: 400 });
         }
 
-        console.log('Fetching dashboard data for user:', userId);
+
 
         // Get user details
         const user = await User.findById(userId).select('name email role category').lean();
@@ -34,7 +34,7 @@ export async function GET(request) {
             }, { status: 404 });
         }
 
-        console.log('User category:', user.category);
+
 
         if (!user.category) {
             return NextResponse.json({ 
@@ -51,10 +51,6 @@ export async function GET(request) {
             .populate('subjects', 'name')
             .sort({ startDate: 1 })
             .lean();
-
-        console.log(`Found ${allExams.length} exams in category ${user.category}`);
-
-        console.log(`Found ${allExams.length} exams in category ${user.category}`);
 
         // Separate upcoming and available test exams
         const myExams = [];

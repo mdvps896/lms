@@ -40,64 +40,116 @@ const NavigationManu = () => {
         root.style.setProperty('--button-hover-color', uiCustomization.buttonHoverColor);
     };
     
+    // Force refresh settings when component mounts or when page changes
     useEffect(() => {
-        // Fallback: Fetch settings if not available from context
         const fetchSettings = async () => {
             try {
-                const response = await fetch('/api/settings');
+                console.log('🔄 Fetching settings for navigation menu...');
+                const response = await fetch('/api/settings', {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
                 const data = await response.json();
                 if (data.success) {
+                    console.log('✅ Settings loaded for navigation:', data.data.general);
                     setLocalSettings(data.data);
                     if (data.data?.themeDesign?.uiCustomization) {
                         applyThemeColors(data.data.themeDesign.uiCustomization);
                     }
+                } else {
+                    console.error('❌ Failed to fetch settings:', data.message);
                 }
             } catch (error) {
-                console.error('Error fetching settings:', error);
+                console.error('❌ Error fetching settings:', error);
             } finally {
                 setLoadingSettings(false);
             }
         };
         
-        if (!settings && !localSettings) {
-            fetchSettings();
-        } else {
-            setLoadingSettings(false);
-        }
-    }, [settings, localSettings]);
+        // Always fetch settings to ensure latest data
+        fetchSettings();
+    }, [pathName]); // Refresh when path changes
     
-    // Get logos from settings context or local settings
+    // Get logos and dimensions from settings context or local settings
     const currentSettings = settings || localSettings;
     const siteLogo = currentSettings?.general?.siteLogo;
     const siteSmallLogo = currentSettings?.general?.siteSmallLogo;
+    const siteLogoWidth = currentSettings?.general?.siteLogoWidth || 150;
+    const siteLogoHeight = currentSettings?.general?.siteLogoHeight || 50;
+    const siteSmallLogoWidth = currentSettings?.general?.siteSmallLogoWidth || 40;
+    const siteSmallLogoHeight = currentSettings?.general?.siteSmallLogoHeight || 40;
+    
+    // Debug logging
+    console.log('🖼️ Navigation Logo Debug:', {
+        hasSettings: !!currentSettings,
+        hasGeneral: !!currentSettings?.general,
+        siteLogo,
+        siteSmallLogo,
+        dimensions: { siteLogoWidth, siteLogoHeight, siteSmallLogoWidth, siteSmallLogoHeight }
+    });
     
     // Normalize logo paths to ensure they start with /
-    const normalizedSiteLogo = siteLogo?.startsWith('/') ? siteLogo : siteLogo ? '/' + siteLogo : null;
-    const normalizedSiteSmallLogo = siteSmallLogo?.startsWith('/') ? siteSmallLogo : siteSmallLogo ? '/' + siteSmallLogo : null;
+    const normalizedSiteLogo = siteLogo?.startsWith('http') ? siteLogo : 
+        siteLogo?.startsWith('/') ? siteLogo : 
+        siteLogo ? '/' + siteLogo : '/images/logo-full.png';
+        
+    const normalizedSiteSmallLogo = siteSmallLogo?.startsWith('http') ? siteSmallLogo :
+        siteSmallLogo?.startsWith('/') ? siteSmallLogo : 
+        siteSmallLogo ? '/' + siteSmallLogo : '/images/logo-abbr.png';
     
     return (
         <nav className={`nxl-navigation ${navigationOpen ? "mob-navigation-active" : ""}`}>
             <div className="navbar-wrapper">
                 <div className="m-header">
                     <Link href="/" className="b-brand">
-                        {/* Dynamic Logo */}
-                        {normalizedSiteLogo && (
-                            <Image 
-                                width={130} 
-                                height={55} 
-                                src={normalizedSiteLogo} 
-                                alt="logo" 
-                                className="logo logo-lg" 
-                            />
-                        )}
-                        {normalizedSiteSmallLogo && (
-                            <Image 
-                                width={33} 
-                                height={40} 
-                                src={normalizedSiteSmallLogo} 
-                                alt="logo" 
-                                className="logo logo-sm" 
-                            />
+                        {/* Dynamic Logo with Dynamic Dimensions */}
+                        {!loadingSettings ? (
+                            <>
+                                <Image 
+                                    width={siteLogoWidth} 
+                                    height={siteLogoHeight} 
+                                    src={normalizedSiteLogo} 
+                                    alt="Site Logo" 
+                                    className="logo logo-lg" 
+                                    style={{
+                                        maxWidth: '100%',
+                                        height: 'auto',
+                                        objectFit: 'contain'
+                                    }}
+                                    onError={(e) => {
+                                        console.log('🚫 Logo failed to load, using fallback');
+                                        e.currentTarget.src = '/images/logo-full.png';
+                                    }}
+                                    priority
+                                />
+                                <Image 
+                                    width={siteSmallLogoWidth} 
+                                    height={siteSmallLogoHeight} 
+                                    src={normalizedSiteSmallLogo} 
+                                    alt="Small Logo" 
+                                    className="logo logo-sm" 
+                                    style={{
+                                        maxWidth: '100%',
+                                        height: 'auto',
+                                        objectFit: 'contain'
+                                    }}
+                                    onError={(e) => {
+                                        console.log('🚫 Small logo failed to load, using fallback');
+                                        e.currentTarget.src = '/images/logo-abbr.png';
+                                    }}
+                                    priority
+                                />
+                            </>
+                        ) : (
+                            // Loading fallback
+                            <>
+                                <div className="logo logo-lg bg-light rounded" style={{width: '150px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                    <span className="text-muted">Loading...</span>
+                                </div>
+                                <div className="logo logo-sm bg-light rounded" style={{width: '40px', height: '40px'}}></div>
+                            </>
                         )}
                     </Link>
                 </div>

@@ -62,9 +62,12 @@ export async function GET() {
 
         // Get Cloudinary files
         const cloudinaryFiles = await getCloudinaryFiles()
+        
+        // Get exam recordings
+        const examRecordings = await getExamRecordings()
 
-        // Merge both sources
-        const allFiles = [...localFiles, ...cloudinaryFiles]
+        // Merge all sources
+        const allFiles = [...localFiles, ...cloudinaryFiles, ...examRecordings]
 
         return NextResponse.json({
             success: true,
@@ -72,7 +75,8 @@ export async function GET() {
             count: allFiles.length,
             sources: {
                 local: localFiles.length,
-                cloudinary: cloudinaryFiles.length
+                cloudinary: cloudinaryFiles.length,
+                examRecordings: examRecordings.length
             }
         })
     } catch (error) {
@@ -81,6 +85,190 @@ export async function GET() {
             { success: false, message: 'Error fetching files' },
             { status: 500 }
         )
+    }
+}
+
+/**
+ * Get exam recordings from database
+ */
+async function getExamRecordings() {
+    try {
+        // Import models
+        const ExamAttempt = (await import('@/models/ExamAttempt')).default
+        const Exam = (await import('@/models/Exam')).default
+        const User = (await import('@/models/User')).default
+        
+        const recordings = []
+        
+        // Get recordings from ExamAttempt collection
+        const attempts = await ExamAttempt.find({
+            $or: [
+                { 'recordings.cameraVideo': { $exists: true, $ne: null, $ne: '' } },
+                { 'recordings.screenVideo': { $exists: true, $ne: null, $ne: '' } }
+            ]
+        })
+        .populate('user', 'name email')
+        .populate('exam', 'name')
+        .lean()
+        
+        for (const attempt of attempts) {
+            const user = attempt.user || { name: 'Unknown User', email: 'N/A' }
+            const exam = attempt.exam || { name: 'Unknown Exam' }
+            
+            if (attempt.recordings?.cameraVideo) {
+                // Extract publicId from Cloudinary URL for deletion
+                let cameraPublicId = null
+                if (attempt.recordings.cameraVideo.includes('cloudinary')) {
+                    const urlParts = attempt.recordings.cameraVideo.split('/')
+                    const filenamePart = urlParts[urlParts.length - 1]
+                    cameraPublicId = filenamePart.split('.')[0]
+                    // If it includes folder, get the full path
+                    const folderIndex = urlParts.indexOf('exam-recordings')
+                    if (folderIndex !== -1 && folderIndex < urlParts.length - 1) {
+                        cameraPublicId = urlParts.slice(folderIndex).join('/').split('.')[0]
+                    }
+                }
+                
+                recordings.push({
+                    name: `📹 Camera Recording - ${exam.name} (${user.name})`,
+                    originalName: `Camera-${exam.name}-${user.name}-${attempt._id}.webm`,
+                    path: attempt.recordings.cameraVideo,
+                    fullPath: attempt.recordings.cameraVideo,
+                    publicId: cameraPublicId,
+                    cloudinaryId: cameraPublicId,
+                    size: 0, // Size not available from URL
+                    createdAt: attempt.createdAt || new Date(),
+                    modifiedAt: attempt.updatedAt || new Date(),
+                    type: 'video',
+                    resourceType: 'video',
+                    source: attempt.recordings.cameraVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                    category: 'exam-recording',
+                    recordingType: 'camera',
+                    examName: exam.name,
+                    studentName: user.name,
+                    attemptId: attempt._id,
+                    recordingId: attempt.recordings.cameraRecordingId,
+                    cameraRecordingId: attempt.recordings.cameraRecordingId,
+                    folder: 'exam-recordings'
+                })
+            }
+            
+            if (attempt.recordings?.screenVideo) {
+                // Extract publicId from Cloudinary URL for deletion
+                let screenPublicId = null
+                if (attempt.recordings.screenVideo.includes('cloudinary')) {
+                    const urlParts = attempt.recordings.screenVideo.split('/')
+                    const filenamePart = urlParts[urlParts.length - 1]
+                    screenPublicId = filenamePart.split('.')[0]
+                    // If it includes folder, get the full path
+                    const folderIndex = urlParts.indexOf('exam-recordings')
+                    if (folderIndex !== -1 && folderIndex < urlParts.length - 1) {
+                        screenPublicId = urlParts.slice(folderIndex).join('/').split('.')[0]
+                    }
+                }
+                
+                recordings.push({
+                    name: `🖥️ Screen Recording - ${exam.name} (${user.name})`,
+                    originalName: `Screen-${exam.name}-${user.name}-${attempt._id}.webm`,
+                    path: attempt.recordings.screenVideo,
+                    fullPath: attempt.recordings.screenVideo,
+                    publicId: screenPublicId,
+                    cloudinaryId: screenPublicId,
+                    size: 0, // Size not available from URL
+                    createdAt: attempt.createdAt || new Date(),
+                    modifiedAt: attempt.updatedAt || new Date(),
+                    type: 'video',
+                    resourceType: 'video',
+                    source: attempt.recordings.screenVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                    category: 'exam-recording',
+                    recordingType: 'screen',
+                    examName: exam.name,
+                    studentName: user.name,
+                    attemptId: attempt._id,
+                    recordingId: attempt.recordings.screenRecordingId,
+                    screenRecordingId: attempt.recordings.screenRecordingId,
+                    folder: 'exam-recordings'
+                })
+            }
+        }
+        
+        // Also check embedded attempts in Exam collection
+        const examsWithAttempts = await Exam.find({
+            'attempts.recordings': { $exists: true }
+        }).lean()
+        
+        for (const exam of examsWithAttempts) {
+            if (exam.attempts) {
+                for (const attempt of exam.attempts) {
+                    if (attempt.recordings?.cameraVideo || attempt.recordings?.screenVideo) {
+                        // Get user info
+                        const user = await User.findById(attempt.userId).select('name email').lean()
+                        const userName = user?.name || 'Unknown User'
+                        
+                        if (attempt.recordings.cameraVideo) {
+                            const existingCamera = recordings.find(r => 
+                                r.attemptId === attempt._id.toString() && r.recordingType === 'camera'
+                            )
+                            
+                            if (!existingCamera) {
+                                recordings.push({
+                                    name: `Camera-${exam.name}-${userName}-${attempt._id}.webm`,
+                                    path: attempt.recordings.cameraVideo,
+                                    fullPath: attempt.recordings.cameraVideo,
+                                    size: 0,
+                                    createdAt: attempt.submittedAt || attempt.startTime || new Date(),
+                                    modifiedAt: attempt.submittedAt || attempt.startTime || new Date(),
+                                    type: 'video',
+                                    source: attempt.recordings.cameraVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                                    category: 'exam-recording',
+                                    recordingType: 'camera',
+                                    examName: exam.name,
+                                    studentName: userName,
+                                    attemptId: attempt._id.toString(),
+                                    recordingId: attempt.recordings.cameraRecordingId,
+                                    cameraRecordingId: attempt.recordings.cameraRecordingId,
+                                    folder: 'exam-recordings'
+                                })
+                            }
+                        }
+                        
+                        if (attempt.recordings.screenVideo) {
+                            const existingScreen = recordings.find(r => 
+                                r.attemptId === attempt._id.toString() && r.recordingType === 'screen'
+                            )
+                            
+                            if (!existingScreen) {
+                                recordings.push({
+                                    name: `Screen-${exam.name}-${userName}-${attempt._id}.webm`,
+                                    path: attempt.recordings.screenVideo,
+                                    fullPath: attempt.recordings.screenVideo,
+                                    size: 0,
+                                    createdAt: attempt.submittedAt || attempt.startTime || new Date(),
+                                    modifiedAt: attempt.submittedAt || attempt.startTime || new Date(),
+                                    type: 'video',
+                                    source: attempt.recordings.screenVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                                    category: 'exam-recording',
+                                    recordingType: 'screen',
+                                    examName: exam.name,
+                                    studentName: userName,
+                                    attemptId: attempt._id.toString(),
+                                    recordingId: attempt.recordings.screenRecordingId,
+                                    screenRecordingId: attempt.recordings.screenRecordingId,
+                                    folder: 'exam-recordings'
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        console.log(`Found ${recordings.length} exam recordings`)
+        return recordings
+        
+    } catch (error) {
+        console.error('Error fetching exam recordings:', error)
+        return []
     }
 }
 
@@ -133,9 +321,24 @@ async function getCloudinaryFiles() {
                     result.resources.forEach(resource => {
                         const fileName = resource.public_id.split('/').pop()
                         const ext = resource.format
+                        let displayName = `${fileName}.${ext}`
+                        let category = 'file'
+                        
+                        // Better labeling for exam recordings
+                        if (fileName.includes('camera-')) {
+                            displayName = `📹 Camera Recording - ${fileName.replace('camera-', '').replace(/\d{13}-\d+/g, 'Exam').replace('.webm', '')}.${ext}`
+                            category = 'exam-camera'
+                        } else if (fileName.includes('screen-')) {
+                            displayName = `🖥️ Screen Recording - ${fileName.replace('screen-', '').replace(/\d{13}-\d+/g, 'Exam').replace('.webm', '')}.${ext}`
+                            category = 'exam-screen'
+                        } else if (resource.public_id.includes('exam-recordings/')) {
+                            displayName = `🎥 Exam Recording - ${fileName}.${ext}`
+                            category = 'exam-recording'
+                        }
                         
                         cloudinaryFiles.push({
-                            name: `${fileName}.${ext}`,
+                            name: displayName,
+                            originalName: `${fileName}.${ext}`,
                             path: resource.secure_url,
                             publicId: resource.public_id,
                             fullPath: resource.secure_url,
@@ -143,6 +346,7 @@ async function getCloudinaryFiles() {
                             createdAt: new Date(resource.created_at),
                             modifiedAt: new Date(resource.created_at),
                             type: getFileType(`${fileName}.${ext}`),
+                            category: category,
                             source: 'cloudinary',
                             resourceType: resource.resource_type,
                             format: resource.format,
