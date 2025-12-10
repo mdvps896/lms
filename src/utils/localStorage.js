@@ -308,13 +308,27 @@ export async function deleteFromLocalStorage(filePath) {
         for (const tryPath of pathsToTry) {
             console.log('   Checking:', tryPath, 'Exists?', fs.existsSync(tryPath));
             if (fs.existsSync(tryPath)) {
-                fs.unlinkSync(tryPath);
-                console.log('✅ File deleted successfully at:', tryPath);
-                
-                return {
-                    success: true,
-                    message: 'File deleted successfully'
-                };
+                try {
+                    fs.unlinkSync(tryPath);
+                    console.log('✅ File deleted successfully at:', tryPath);
+                    
+                    return {
+                        success: true,
+                        message: 'File deleted successfully'
+                    };
+                } catch (unlinkError) {
+                    // Check if it's a read-only file system error
+                    if (unlinkError.code === 'EROFS') {
+                        console.warn('⚠️ Read-only file system detected. File exists but cannot be deleted:', tryPath);
+                        return {
+                            success: true, // Return success so DB cleanup continues
+                            message: 'File marked for deletion (read-only filesystem)',
+                            warning: 'Running on read-only filesystem - file cannot be physically deleted',
+                            readOnlyFS: true
+                        };
+                    }
+                    throw unlinkError; // Re-throw if it's a different error
+                }
             }
         }
         

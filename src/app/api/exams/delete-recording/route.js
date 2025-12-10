@@ -52,6 +52,7 @@ export async function POST(request) {
 
         let deletionSuccess = false
         let deletionMethod = 'local'
+        let isReadOnlyFS = false
 
         // Delete from local storage
         try {
@@ -59,9 +60,12 @@ export async function POST(request) {
             
             const deleteResult = await deleteFromLocalStorage(recordingUrl)
             deletionSuccess = deleteResult.success
+            isReadOnlyFS = deleteResult.readOnlyFS || false
             
-            if (!deletionSuccess) {
+            if (!deletionSuccess && !isReadOnlyFS) {
                 console.warn('Failed to delete from local storage, but continuing with database cleanup')
+            } else if (isReadOnlyFS) {
+                console.log('⚠️ Running on read-only filesystem - database will be updated but file persists in deployment')
             }
         } catch (error) {
             console.error('Local storage deletion error:', error)
@@ -105,9 +109,13 @@ export async function POST(request) {
 
         return NextResponse.json({
             success: true,
-            message: `${recordingType} recording deleted successfully (${deletionMethod})`,
+            message: isReadOnlyFS 
+                ? `${recordingType} recording removed from database (read-only filesystem)`
+                : `${recordingType} recording deleted successfully (${deletionMethod})`,
             deletionMethod,
-            fileDeleted: deletionSuccess
+            fileDeleted: deletionSuccess,
+            readOnlyFS: isReadOnlyFS,
+            warning: isReadOnlyFS ? 'File still exists in deployment but is no longer accessible via the app' : undefined
         })
 
     } catch (error) {
