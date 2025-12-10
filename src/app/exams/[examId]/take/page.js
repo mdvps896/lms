@@ -363,6 +363,8 @@ export default function TakeExamPage() {
     const [saving, setSaving] = useState(false);
     const hasFetchedRef = useRef(false);
 
+
+
     useEffect(() => {
         // Wait for search params to be ready
         if (!attemptId || !sessionToken) {
@@ -452,8 +454,13 @@ export default function TakeExamPage() {
                     setActiveSection(subjectsWithCount[0]._id);
                 }
 
-                // Show permission modal for recording only if proctoring is enabled
-                if (data.exam?.settings?.proctoring?.enabled) {
+                // Show permission modal if any proctoring features are enabled
+                const requiresPermissions = data.exam?.settings?.allowCam || 
+                                          data.exam?.settings?.allowScreen || 
+                                          data.exam?.settings?.allowMic ||
+                                          data.exam?.settings?.proctoring?.enabled;
+
+                if (requiresPermissions) {
                     setShowPermissionModal(true);
                 } else {
                     // If proctoring is disabled, mark recording as "started" to show exam
@@ -816,6 +823,14 @@ export default function TakeExamPage() {
             />
 
             {/* Local Stream View - Show camera and screen feeds */}
+            {recordingStarted && (cameraStream || screenStream) && (
+                <LocalStreamView 
+                    cameraStream={cameraStream} 
+                    screenStream={screenStream} 
+                />
+            )}
+
+            {/* Local Stream View for Camera and Screen Preview */}
             {recordingStarted && (cameraStream || screenStream) && (
                 <LocalStreamView 
                     cameraStream={cameraStream} 
