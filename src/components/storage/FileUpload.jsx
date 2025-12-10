@@ -9,7 +9,6 @@ const FileUpload = ({ onUploadComplete }) => {
     const [showUrlInput, setShowUrlInput] = useState(false)
     const [fileUrl, setFileUrl] = useState('')
     const [selectedFolder, setSelectedFolder] = useState('images')
-    const [cloudinaryStatus, setCloudinaryStatus] = useState({ enabled: false, configured: false })
     const [uploadProgress, setUploadProgress] = useState({ show: false, fileName: '', progress: 0, currentChunk: 0, totalChunks: 0, isChunked: false })
 
     const folders = [
@@ -21,50 +20,11 @@ const FileUpload = ({ onUploadComplete }) => {
         { value: 'other', label: 'Other' }
     ]
 
-    useEffect(() => {
-        // Check Cloudinary status
-        const checkCloudinaryStatus = async () => {
-            try {
-                console.log('Checking Cloudinary status...')
-                const response = await fetch('/api/settings/cloudinary-status')
-                console.log('Response status:', response.status)
-                if (response.ok) {
-                    const status = await response.json()
-                    console.log('Cloudinary status:', status)
-                    setCloudinaryStatus(status)
-                } else {
-                    console.error('Failed to get Cloudinary status:', response.status)
-                }
-            } catch (error) {
-                console.error('Failed to check Cloudinary status:', error)
-            }
-        }
-        checkCloudinaryStatus()
-    }, [])
-
     const handleFileUpload = async (e) => {
         const files = e.target.files
         if (!files || files.length === 0) return
 
-        // Check Cloudinary status first
-        try {
-            const statusResponse = await fetch('/api/storage/status')
-            const statusData = await statusResponse.json()
-            
-            if (!statusData.success || !statusData.cloudinary.configured) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Configuration Error',
-                    html: `
-                        <p>Cloudinary is not properly configured.</p>
-                        <small>Please check your Cloudinary settings in the admin panel.</small>
-                    `
-                })
-                return
-            }
-        } catch (error) {
-            console.warn('Could not check Cloudinary status:', error)
-        }
+        // Files will be uploaded to local storage
 
         setUploading(true)
         let successCount = 0
@@ -167,7 +127,7 @@ const FileUpload = ({ onUploadComplete }) => {
             Swal.fire({
                 icon: 'success',
                 title: '🚀 Upload Successful - No Size Limits!',
-                text: `${successCount} file(s) uploaded to Cloudinary successfully! Large files automatically optimized.`,
+                text: `${successCount} file(s) uploaded to local storage successfully!`,
                 timer: 3000,
                 showConfirmButton: false
             })
@@ -180,26 +140,7 @@ const FileUpload = ({ onUploadComplete }) => {
         } else {
             // Check if all errors are 413 (file too large)
             const has413Errors = errors.some(error => error.includes('413'))
-            const hasAuthErrors = errors.some(error => error.includes('401') || error.includes('Unauthorized'))
-            
-            if (hasAuthErrors) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Authentication Error',
-                    html: `
-                        <p>Cloudinary authentication failed.</p>
-                        <br/>
-                        <p><strong>Solutions:</strong></p>
-                        <ul style="text-align: left; font-size: 0.9em;">
-                            <li>Check Cloudinary API credentials in settings</li>
-                            <li>Verify cloud name, API key, and API secret</li>
-                            <li>Ensure Cloudinary integration is enabled</li>
-                        </ul>
-                        <br/>
-                        <small>${errors.join('<br/>')}</small>
-                    `
-                })
-            } else if (has413Errors) {
+            if (has413Errors) {
                 Swal.fire({
                     icon: 'error',
                     title: 'File Size Error',
@@ -397,7 +338,7 @@ const FileUpload = ({ onUploadComplete }) => {
                 Swal.fire({
                     icon: 'success',
                     title: 'Upload Successful',
-                    html: `File uploaded from URL to ${data.cloudinary ? 'Cloudinary' : 'local storage'} successfully!<br/><small>Stored in: ${selectedFolder}</small>`,
+                    html: `File uploaded from URL to local storage successfully!<br/><small>Stored in: ${selectedFolder}</small>`,
                     timer: 2000,
                     showConfirmButton: false
                 })
@@ -421,38 +362,14 @@ const FileUpload = ({ onUploadComplete }) => {
     return (
         <div className="mb-4">
             {/* Storage Status Indicator */}
-            <div className="alert alert-info d-flex align-items-center justify-content-between mb-3">
+            <div className="alert alert-info d-flex align-items-center mb-3">
                 <div className="d-flex align-items-center">
-                    {cloudinaryStatus.enabled && cloudinaryStatus.configured ? (
-                        <>
-                            <Cloud className="me-2" size={20} />
-                            <span>✅ <strong>Cloudinary Active:</strong> All uploads will be stored in Cloudinary cloud storage</span>
-                        </>
-                    ) : (
-                        <>
-                            <HardDrive className="me-2" size={20} />
-                            <span>⚠️ <strong>Local Storage:</strong> Files will be stored locally (configure Cloudinary in settings for cloud storage)</span>
-                        </>
-                    )}
+                    <>
+                        <HardDrive className="me-2" size={20} />
+                        <span>✅ <strong>Local Storage:</strong> All uploads will be stored locally on the server</span>
+                    </>
                 </div>
-                <button 
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={async () => {
-                        console.log('Refreshing Cloudinary status...')
-                        try {
-                            const response = await fetch('/api/settings/cloudinary-status')
-                            if (response.ok) {
-                                const status = await response.json()
-                                console.log('Updated status:', status)
-                                setCloudinaryStatus(status)
-                            }
-                        } catch (error) {
-                            console.error('Error refreshing status:', error)
-                        }
-                    }}
-                >
-                    🔄 Refresh
-                </button>
+
             </div>
 
             <div className="d-flex flex-wrap gap-3 align-items-end">

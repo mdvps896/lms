@@ -8,8 +8,7 @@ const RecordingStats = ({ files }) => {
     
     const cameraRecordings = recordings.filter(r => r.recordingType === 'camera')
     const screenRecordings = recordings.filter(r => r.recordingType === 'screen')
-    const cloudinaryRecordings = recordings.filter(r => r.source === 'cloudinary')
-    const localRecordings = recordings.filter(r => r.source === 'local')
+    const localRecordings = recordings.filter(r => r.source === 'local' || !r.source)
     
     const totalSize = recordings.reduce((sum, file) => sum + (file.size || 0), 0)
     
@@ -49,19 +48,11 @@ const RecordingStats = ({ files }) => {
                     </div>
                 </div>
                 
-                <div className="col-md-2 col-sm-6">
+                <div className="col-md-3 col-sm-6">
                     <div className="text-center">
-                        <Cloud className="mb-2 text-info" size={24} />
-                        <div className="fw-bold">{cloudinaryRecordings.length}</div>
-                        <small className="text-muted">Cloud</small>
-                    </div>
-                </div>
-                
-                <div className="col-md-2 col-sm-6">
-                    <div className="text-center">
-                        <HardDrive className="mb-2 text-warning" size={24} />
+                        <HardDrive className="mb-2 text-success" size={24} />
                         <div className="fw-bold">{localRecordings.length}</div>
-                        <small className="text-muted">Local</small>
+                        <small className="text-muted">Local Storage</small>
                     </div>
                 </div>
                 
@@ -94,7 +85,7 @@ const RecordingStats = ({ files }) => {
                 </div>
                 <div className="col-md-6">
                     <small className="text-muted">
-                        <strong>Storage:</strong> {cloudinaryRecordings.length > 0 ? 'Using Cloudinary' : 'Local Storage Only'}
+                        <strong>Storage:</strong> Local Storage ({recordings.length} files)
                     </small>
                 </div>
             </div>

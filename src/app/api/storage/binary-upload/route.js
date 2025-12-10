@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { uploadToCloudinary, getCloudinaryStatus } from '@/utils/cloudinary';
+import { saveToLocalStorage } from '@/utils/localStorage';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -7,15 +7,6 @@ export const maxDuration = 300;
 export async function POST(request) {
     try {
         console.log('🎯 Binary upload API called...');
-        
-        // Check Cloudinary status
-        const cloudinaryStatus = await getCloudinaryStatus();
-        if (!cloudinaryStatus.enabled || !cloudinaryStatus.configured) {
-            return NextResponse.json(
-                { success: false, message: 'Cloudinary not configured' },
-                { status: 500 }
-            );
-        }
 
         // Get upload parameters from headers
         const fileName = request.headers.get('x-filename');
@@ -41,30 +32,20 @@ export async function POST(request) {
         // Convert to base64
         const base64File = `data:${mimeType};base64,${buffer.toString('base64')}`;
         
-        console.log('⬆️ Uploading to Cloudinary with enhanced system...');
+        console.log('⬆️ Uploading to local storage...');
         
-        // Use enhanced Cloudinary upload
-        const result = await uploadToCloudinary(base64File, folder, 'auto', fileName);
+        // Upload to local storage
+        const result = await saveToLocalStorage(base64File, folder, fileName);
         
-        if (result.success) {
-            console.log('🎉 Binary upload successful!');
-            return NextResponse.json({
-                success: true,
-                url: result.url,
-                publicId: result.publicId,
-                message: 'File uploaded successfully via binary method',
-                fileSize: buffer.length,
-                fileName: fileName,
-                compressed: result.compressed || false,
-                chunked: result.chunked || false
-            });
-        } else {
-            console.error('❌ Binary upload failed:', result.error);
-            return NextResponse.json(
-                { success: false, message: result.error },
-                { status: 500 }
-            );
-        }
+        console.log('🎉 Binary upload successful!');
+        return NextResponse.json({
+            success: true,
+            url: result.url,
+            fileName: result.fileName,
+            message: 'File uploaded successfully via binary method',
+            fileSize: result.size,
+            originalName: result.originalName
+        });
         
     } catch (error) {
         console.error('💥 Binary upload error:', error);

@@ -42,7 +42,7 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
-        // If it's a Cloudinary URL, return as-is
+        // Return the URL as-is
         if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath
         }
@@ -147,11 +147,9 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
                         )}
                         {/* Source badge */}
                         <div className="mt-1">
-                            {file.source === 'cloudinary' && (
-                                <span className="badge bg-info text-white me-1" style={{ fontSize: '0.65rem' }}>
-                                    ☁️ Cloud
-                                </span>
-                            )}
+                            <span className="badge bg-success text-white me-1" style={{ fontSize: '0.65rem' }}>
+                                📁 Local
+                            </span>
                             {file.category === 'exam-recording' && (
                                 <span className="badge bg-success text-white" style={{ fontSize: '0.65rem' }}>
                                     📹 Recording

@@ -371,7 +371,7 @@ export default function RecordedExamsPage() {
                                                                     {(attempt.recordings?.cameraVideo || attempt.recordings?.cameraRecordingId) && (
                                                                         <div className="col-md-6">
                                                                             <a
-                                                                                href={attempt.recordings?.cameraVideo || '#'}
+                                                                                href={attempt.recordings?.cameraVideo ? `/api/storage/secure-file?path=${encodeURIComponent(attempt.recordings.cameraVideo)}` : '#'}
                                                                                 className="btn btn-outline-primary btn-sm w-100"
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
@@ -389,7 +389,7 @@ export default function RecordedExamsPage() {
                                                                     {(attempt.recordings?.screenVideo || attempt.recordings?.screenRecordingId) && (
                                                                         <div className="col-md-6">
                                                                             <a
-                                                                                href={attempt.recordings?.screenVideo || '#'}
+                                                                                href={attempt.recordings?.screenVideo ? `/api/storage/secure-file?path=${encodeURIComponent(attempt.recordings.screenVideo)}` : '#'}
                                                                                 className="btn btn-outline-success btn-sm w-100"
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"

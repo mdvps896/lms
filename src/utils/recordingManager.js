@@ -52,10 +52,10 @@ class RecordingManager {
 
             console.log('Using MIME type:', mimeType);
 
-            // Start camera recording optimized for Cloudinary upload
+            // Start camera recording optimized for local storage
             this.cameraRecorder = new MediaRecorder(this.cameraStream, {
                 mimeType: mimeType,
-                videoBitsPerSecond: 1000000  // 1MB - good quality, Cloudinary will optimize
+                videoBitsPerSecond: 1000000  // 1MB - good quality for local storage
             });
 
             this.cameraRecorder.ondataavailable = (event) => {
@@ -69,7 +69,7 @@ class RecordingManager {
                 console.error('❌ Camera recorder error:', event.error);
             };
 
-            // Start screen recording optimized for Cloudinary upload
+            // Start screen recording optimized for local storage
             this.screenRecorder = new MediaRecorder(this.screenStream, {
                 mimeType: mimeType,
                 videoBitsPerSecond: 2000000  // 2MB - higher quality for screen content
@@ -183,13 +183,13 @@ class RecordingManager {
      */
     async saveRecordings() {
         try {
-            console.log('💾 Saving exam recordings to Cloudinary with unique IDs...');
+            console.log('💾 Saving exam recordings to local storage with unique IDs...');
             console.log('📹 Camera chunks:', this.cameraChunks.length);
             console.log('🖥️ Screen chunks:', this.screenChunks.length);
             
             // Create blobs
-            const cameraBlob = new Blob(this.cameraChunks, { type: 'video/webm' });
-            const screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
+            const cameraBlob = new Blob(this.cameraChunks, { type: 'video/mp4;codecs=avc1' });
+            const screenBlob = new Blob(this.screenChunks, { type: 'video/mp4;codecs=avc1' });
 
             console.log('Camera blob size:', cameraBlob.size, 'bytes');
             console.log('Screen blob size:', screenBlob.size, 'bytes');
@@ -206,17 +206,17 @@ class RecordingManager {
             console.log('🆔 Generated Camera ID:', cameraRecordingId);
             console.log('🆔 Generated Screen ID:', screenRecordingId);
 
-            // Cloudinary Enhanced Upload - No Size Limits!
+            // Local Storage Upload
             const totalSize = cameraBlob.size + screenBlob.size;
             console.log(`📊 Total recording size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-            console.log('☁️ Using Cloudinary enhanced upload system - no size restrictions!');
+            console.log('📁 Using local storage upload system!');
 
             // Create form data with all recordings and unique IDs
             const formData = new FormData();
             formData.append('attemptId', this.attemptId);
             formData.append('examId', this.examId);
             
-            // Upload all recordings with unique IDs - Cloudinary will handle optimization
+            // Upload all recordings with unique IDs to local storage
             if (cameraBlob.size > 0) {
                 const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd');
                 formData.append('cameraVideo', cameraBlob, cameraFilename);
@@ -230,9 +230,9 @@ class RecordingManager {
                 console.log(`🖥️ Screen video: ${(screenBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${screenRecordingId}`);
             }
 
-            console.log('⬆️ Uploading to Cloudinary enhanced system...');
+            console.log('⬆️ Uploading to local storage...');
 
-            // Upload to server with enhanced Cloudinary system
+            // Upload to server with local storage system
             const response = await fetch('/api/exams/save-recording', {
                 method: 'POST',
                 body: formData
@@ -241,12 +241,12 @@ class RecordingManager {
             const result = await response.json();
 
             if (response.ok) {
-                console.log('🎉 Exam recordings saved successfully to Cloudinary!');
+                console.log('🎉 Exam recordings saved successfully to local storage!');
                 console.log('📈 Upload stats:', result.recordingStats);
                 return result;
             } else {
                 console.error('❌ Failed to save recordings:', response.status, result);
-                // With enhanced Cloudinary, large files are handled automatically
+                // With local storage, files are saved directly to disk
                 console.log('🔄 Enhanced upload system handles large files automatically');
                 return { error: result.message || 'Upload failed', status: response.status };
             }

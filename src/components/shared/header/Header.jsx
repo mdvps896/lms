@@ -197,7 +197,7 @@ const Header = () => {
                                 </span>
                             </div>
                         </div>
-                        {user?.role !== 'student' && <NotificationsModal />}
+                        {user?.id && user?.role !== 'student' && <NotificationsModal />}
                         <ProfileModal />
                     </div>
                 </div>

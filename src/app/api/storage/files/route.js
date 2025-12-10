@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import connectDB from '@/lib/mongodb'
 import Settings from '@/models/Settings'
-import { v2 as cloudinary } from 'cloudinary'
+// Local storage only - no cloud dependencies needed
 
 // Helper function to get all files recursively
 function getAllFiles(dirPath, arrayOfFiles = []) {
@@ -60,8 +60,8 @@ export async function GET() {
         const publicDir = path.join(process.cwd(), 'public')
         const localFiles = getAllFiles(publicDir)
 
-        // Get Cloudinary files
-        const cloudinaryFiles = await getCloudinaryFiles()
+        // No cloud files - local storage only
+        const cloudinaryFiles = []
         
         // Get exam recordings
         const examRecordings = await getExamRecordings()
@@ -75,7 +75,7 @@ export async function GET() {
             count: allFiles.length,
             sources: {
                 local: localFiles.length,
-                cloudinary: cloudinaryFiles.length,
+                local: localFiles.length,
                 examRecordings: examRecordings.length
             }
         })
@@ -116,32 +116,17 @@ async function getExamRecordings() {
             const exam = attempt.exam || { name: 'Unknown Exam' }
             
             if (attempt.recordings?.cameraVideo) {
-                // Extract publicId from Cloudinary URL for deletion
-                let cameraPublicId = null
-                if (attempt.recordings.cameraVideo.includes('cloudinary')) {
-                    const urlParts = attempt.recordings.cameraVideo.split('/')
-                    const filenamePart = urlParts[urlParts.length - 1]
-                    cameraPublicId = filenamePart.split('.')[0]
-                    // If it includes folder, get the full path
-                    const folderIndex = urlParts.indexOf('exam-recordings')
-                    if (folderIndex !== -1 && folderIndex < urlParts.length - 1) {
-                        cameraPublicId = urlParts.slice(folderIndex).join('/').split('.')[0]
-                    }
-                }
-                
                 recordings.push({
                     name: `📹 Camera Recording - ${exam.name} (${user.name})`,
                     originalName: `Camera-${exam.name}-${user.name}-${attempt._id}.webm`,
                     path: attempt.recordings.cameraVideo,
                     fullPath: attempt.recordings.cameraVideo,
-                    publicId: cameraPublicId,
-                    cloudinaryId: cameraPublicId,
                     size: 0, // Size not available from URL
                     createdAt: attempt.createdAt || new Date(),
                     modifiedAt: attempt.updatedAt || new Date(),
                     type: 'video',
                     resourceType: 'video',
-                    source: attempt.recordings.cameraVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                    source: 'local',
                     category: 'exam-recording',
                     recordingType: 'camera',
                     examName: exam.name,
@@ -154,32 +139,17 @@ async function getExamRecordings() {
             }
             
             if (attempt.recordings?.screenVideo) {
-                // Extract publicId from Cloudinary URL for deletion
-                let screenPublicId = null
-                if (attempt.recordings.screenVideo.includes('cloudinary')) {
-                    const urlParts = attempt.recordings.screenVideo.split('/')
-                    const filenamePart = urlParts[urlParts.length - 1]
-                    screenPublicId = filenamePart.split('.')[0]
-                    // If it includes folder, get the full path
-                    const folderIndex = urlParts.indexOf('exam-recordings')
-                    if (folderIndex !== -1 && folderIndex < urlParts.length - 1) {
-                        screenPublicId = urlParts.slice(folderIndex).join('/').split('.')[0]
-                    }
-                }
-                
                 recordings.push({
                     name: `🖥️ Screen Recording - ${exam.name} (${user.name})`,
                     originalName: `Screen-${exam.name}-${user.name}-${attempt._id}.webm`,
                     path: attempt.recordings.screenVideo,
                     fullPath: attempt.recordings.screenVideo,
-                    publicId: screenPublicId,
-                    cloudinaryId: screenPublicId,
                     size: 0, // Size not available from URL
                     createdAt: attempt.createdAt || new Date(),
                     modifiedAt: attempt.updatedAt || new Date(),
                     type: 'video',
                     resourceType: 'video',
-                    source: attempt.recordings.screenVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                    source: 'local',
                     category: 'exam-recording',
                     recordingType: 'screen',
                     examName: exam.name,
@@ -219,7 +189,7 @@ async function getExamRecordings() {
                                     createdAt: attempt.submittedAt || attempt.startTime || new Date(),
                                     modifiedAt: attempt.submittedAt || attempt.startTime || new Date(),
                                     type: 'video',
-                                    source: attempt.recordings.cameraVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                                    source: 'local',
                                     category: 'exam-recording',
                                     recordingType: 'camera',
                                     examName: exam.name,
@@ -246,7 +216,7 @@ async function getExamRecordings() {
                                     createdAt: attempt.submittedAt || attempt.startTime || new Date(),
                                     modifiedAt: attempt.submittedAt || attempt.startTime || new Date(),
                                     type: 'video',
-                                    source: attempt.recordings.screenVideo.includes('cloudinary') ? 'cloudinary' : 'local',
+                                    source: 'local',
                                     category: 'exam-recording',
                                     recordingType: 'screen',
                                     examName: exam.name,
@@ -273,104 +243,6 @@ async function getExamRecordings() {
 }
 
 /**
- * Get all files from Cloudinary
+ * Local storage only - no cloud dependencies
  */
-async function getCloudinaryFiles() {
-    try {
-        // Check if Cloudinary is configured
-        const settings = await Settings.findOne()
-        
-        if (!settings?.integrations?.cloudinary?.enabled) {
-            console.log('Cloudinary not enabled')
-            return []
-        }
-
-        const { cloudName, apiKey, apiSecret } = settings.integrations.cloudinary
-
-        if (!cloudName || !apiKey || !apiSecret) {
-            console.log('Cloudinary credentials missing')
-            return []
-        }
-
-        // Configure Cloudinary
-        cloudinary.config({
-            cloud_name: cloudName,
-            api_key: apiKey,
-            api_secret: apiSecret,
-            secure: true
-        })
-
-        const cloudinaryFiles = []
-
-        // Get all resources from Cloudinary (images, videos, raw files)
-        const resourceTypes = ['image', 'video', 'raw']
-        
-        for (const resourceType of resourceTypes) {
-            try {
-                let hasMore = true
-                let nextCursor = null
-
-                while (hasMore) {
-                    const result = await cloudinary.api.resources({
-                        resource_type: resourceType,
-                        type: 'upload',
-                        max_results: 500,
-                        next_cursor: nextCursor
-                    })
-
-                    result.resources.forEach(resource => {
-                        const fileName = resource.public_id.split('/').pop()
-                        const ext = resource.format
-                        let displayName = `${fileName}.${ext}`
-                        let category = 'file'
-                        
-                        // Better labeling for exam recordings
-                        if (fileName.includes('camera-')) {
-                            displayName = `📹 Camera Recording - ${fileName.replace('camera-', '').replace(/\d{13}-\d+/g, 'Exam').replace('.webm', '')}.${ext}`
-                            category = 'exam-camera'
-                        } else if (fileName.includes('screen-')) {
-                            displayName = `🖥️ Screen Recording - ${fileName.replace('screen-', '').replace(/\d{13}-\d+/g, 'Exam').replace('.webm', '')}.${ext}`
-                            category = 'exam-screen'
-                        } else if (resource.public_id.includes('exam-recordings/')) {
-                            displayName = `🎥 Exam Recording - ${fileName}.${ext}`
-                            category = 'exam-recording'
-                        }
-                        
-                        cloudinaryFiles.push({
-                            name: displayName,
-                            originalName: `${fileName}.${ext}`,
-                            path: resource.secure_url,
-                            publicId: resource.public_id,
-                            fullPath: resource.secure_url,
-                            size: resource.bytes,
-                            createdAt: new Date(resource.created_at),
-                            modifiedAt: new Date(resource.created_at),
-                            type: getFileType(`${fileName}.${ext}`),
-                            category: category,
-                            source: 'cloudinary',
-                            resourceType: resource.resource_type,
-                            format: resource.format,
-                            width: resource.width,
-                            height: resource.height,
-                            folder: resource.public_id.includes('/') ? 
-                                   resource.public_id.substring(0, resource.public_id.lastIndexOf('/')) : 
-                                   'root'
-                        })
-                    })
-
-                    nextCursor = result.next_cursor
-                    hasMore = !!nextCursor
-                }
-            } catch (typeError) {
-                console.log(`No resources found for type: ${resourceType}`)
-            }
-        }
-
-        console.log(`Found ${cloudinaryFiles.length} files in Cloudinary`)
-        return cloudinaryFiles
-
-    } catch (error) {
-        console.error('Error fetching Cloudinary files:', error)
-        return []
-    }
-}
+// No cloud functions needed - using local storage only

@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
-import fs from 'fs'
-import { uploadToCloudinary, getCloudinaryStatus } from '@/utils/cloudinary'
+import { saveToLocalStorage } from '@/utils/localStorage'
 
 export async function POST(request) {
     try {
@@ -11,141 +9,70 @@ export async function POST(request) {
         const folder = formData.get('folder') || ''
         const fileUrl = formData.get('fileUrl')
 
-        // Check if Cloudinary is enabled
-        const cloudinaryStatus = await getCloudinaryStatus()
+        let fileData;
+        let fileName;
 
-        if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
-            // Use Cloudinary
-            let base64File;
-            let fileName;
-
-            if (fileUrl) {
-                // Handle URL upload
-                try {
-                    const response = await fetch(fileUrl)
-                    const blob = await response.blob()
-                    const buffer = Buffer.from(await blob.arrayBuffer())
-                    const base64 = buffer.toString('base64')
-                    const mimeType = blob.type || 'image/jpeg'
-                    base64File = `data:${mimeType};base64,${base64}`
-                    fileName = path.basename(new URL(fileUrl).pathname)
-                } catch (error) {
-                    return NextResponse.json(
-                        { success: false, message: 'Failed to download file from URL' },
-                        { status: 400 }
-                    )
-                }
-            } else if (file) {
-                // Handle file upload
-                const bytes = await file.arrayBuffer()
-                const buffer = Buffer.from(bytes)
-                const base64 = buffer.toString('base64')
-                const mimeType = file.type || 'image/jpeg'
-                base64File = `data:${mimeType};base64,${base64}`
-                fileName = file.name
-            } else {
-                return NextResponse.json(
-                    { success: false, message: 'No file provided' },
-                    { status: 400 }
-                )
-            }
-
-            try {
-                console.log('Attempting to upload to Cloudinary...')
-                console.log('File name:', fileName)
-                console.log('Folder:', folder)
-                console.log('Base64 size:', base64File ? base64File.length : 'null')
-                
-                const result = await uploadToCloudinary(base64File, folder, 'auto', fileName)
-                console.log('Cloudinary upload successful:', result)
-                
-                return NextResponse.json({
-                    success: true,
-                    message: 'File uploaded to Cloudinary successfully',
-                    path: result.url,
-                    publicId: result.publicId,
-                    cloudinary: true
-                })
-            } catch (error) {
-                console.error('Cloudinary upload error details:', {
-                    message: error.message,
-                    stack: error.stack,
-                    fileName: fileName,
-                    folder: folder
-                })
-                return NextResponse.json(
-                    { success: false, message: `Failed to upload to Cloudinary: ${error.message}` },
-                    { status: 500 }
-                )
-            }
-        }
-
-        // Fallback to local storage (for development)
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            return NextResponse.json(
-                { success: false, message: 'Local file storage not supported in production. Please enable Cloudinary in Settings.' },
-                { status: 400 }
-            )
-        }
-
-        // Handle URL upload (local)
         if (fileUrl) {
+            // Handle URL upload
             try {
                 const response = await fetch(fileUrl)
                 const blob = await response.blob()
                 const buffer = Buffer.from(await blob.arrayBuffer())
-                
-                const fileName = path.basename(new URL(fileUrl).pathname)
-                const uploadDir = path.join(process.cwd(), 'public', folder)
-                
-                // Ensure directory exists
-                if (!fs.existsSync(uploadDir)) {
-                    await mkdir(uploadDir, { recursive: true })
-                }
-
-                const filePath = path.join(uploadDir, fileName)
-                await writeFile(filePath, buffer)
-
-                return NextResponse.json({
-                    success: true,
-                    message: 'File uploaded from URL successfully',
-                    path: `/${folder}/${fileName}`.replace(/\/\//g, '/')
-                })
+                const base64 = buffer.toString('base64')
+                const mimeType = blob.type || 'image/jpeg'
+                fileData = `data:${mimeType};base64,${base64}`
+                fileName = path.basename(new URL(fileUrl).pathname) || `file_${Date.now()}`
             } catch (error) {
                 return NextResponse.json(
                     { success: false, message: 'Failed to download file from URL' },
                     { status: 400 }
                 )
             }
-        }
-
-        // Handle file upload
-        if (!file) {
+        } else if (file) {
+            // Handle file upload
+            const bytes = await file.arrayBuffer()
+            const buffer = Buffer.from(bytes)
+            const base64 = buffer.toString('base64')
+            const mimeType = file.type || 'application/octet-stream'
+            fileData = `data:${mimeType};base64,${base64}`
+            fileName = file.name
+        } else {
             return NextResponse.json(
                 { success: false, message: 'No file provided' },
                 { status: 400 }
             )
         }
 
-        const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-
-        // Define upload directory
-        const uploadDir = path.join(process.cwd(), 'public', folder)
-        
-        // Ensure directory exists
-        if (!fs.existsSync(uploadDir)) {
-            await mkdir(uploadDir, { recursive: true })
+        try {
+            console.log('Uploading to local storage...')
+            console.log('File name:', fileName)
+            console.log('Folder:', folder)
+            
+            const result = await saveToLocalStorage(fileData, folder, fileName)
+            console.log('Local storage upload successful:', result)
+            
+            return NextResponse.json({
+                success: true,
+                message: 'File uploaded successfully',
+                path: result.url,
+                fileName: result.fileName,
+                originalName: result.originalName,
+                size: result.size,
+                mimeType: result.mimeType,
+                local: true
+            })
+        } catch (error) {
+            console.error('Local storage upload error:', {
+                message: error.message,
+                stack: error.stack,
+                fileName: fileName,
+                folder: folder
+            })
+            return NextResponse.json(
+                { success: false, message: `Failed to upload: ${error.message}` },
+                { status: 500 }
+            )
         }
-
-        const filePath = path.join(uploadDir, file.name)
-        await writeFile(filePath, buffer)
-
-        return NextResponse.json({
-            success: true,
-            message: 'File uploaded successfully',
-            path: `/${folder}/${file.name}`.replace(/\/\//g, '/')
-        })
     } catch (error) {
         console.error('Error uploading file:', error)
         return NextResponse.json(

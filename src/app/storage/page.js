@@ -124,6 +124,8 @@ const StoragePage = () => {
 
     const handleDelete = async (filePathOrPublicId, resourceType = null) => {
         try {
+            console.log('🗑️ Attempting to delete:', { filePathOrPublicId, resourceType })
+            
             const response = await fetch('/api/storage/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -133,16 +135,21 @@ const StoragePage = () => {
                     resourceType: resourceType 
                 })
             })
+            
             const data = await response.json()
-            if (data.success) {
-                fetchFiles()
-                alert('File deleted successfully')
-            } else {
-                alert(data.message || 'Failed to delete file')
+            
+            console.log('Delete response:', data)
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to delete file')
             }
+            
+            // Refresh file list on success
+            fetchFiles()
+            return data
         } catch (error) {
             console.error('Error deleting file:', error)
-            alert('Error deleting file')
+            throw error // Re-throw to let FileCard handle the error display
         }
     }
 
@@ -194,7 +201,7 @@ const StoragePage = () => {
                                                         <li><strong>🖥️ Screen Recording</strong> - Records your screen activity during the exam</li>
                                                     </ul>
                                                     <small className="text-muted">
-                                                        This dual recording system ensures exam integrity and security. Both recordings are automatically saved to Cloudinary.
+                                                        This dual recording system ensures exam integrity and security. Both recordings are automatically saved to local storage.
                                                     </small>
                                                 </div>
                                             </div>

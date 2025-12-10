@@ -1,36 +1,25 @@
 import { NextResponse } from 'next/server';
-import { getCloudinaryStatus, initCloudinary } from '@/utils/cloudinary';
+import { getStorageStatus } from '@/utils/localStorage';
 
 export async function GET() {
     try {
-        console.log('🔍 Checking Cloudinary status...');
+        console.log('🔍 Checking local storage status...');
         
-        // Initialize and get status
-        const isInitialized = await initCloudinary();
-        const status = await getCloudinaryStatus();
+        const status = await getStorageStatus();
         
         return NextResponse.json({
             success: true,
-            cloudinary: {
-                initialized: isInitialized,
-                enabled: status.enabled,
-                configured: status.configured,
-                status: status.status || 'unknown'
-            },
+            data: status,
+            message: 'Storage status retrieved successfully',
             timestamp: new Date().toISOString()
         });
         
     } catch (error) {
-        console.error('❌ Error checking Cloudinary status:', error);
+        console.error('❌ Error checking storage status:', error);
         return NextResponse.json({
             success: false,
             error: error.message,
-            cloudinary: {
-                initialized: false,
-                enabled: false,
-                configured: false,
-                status: 'error'
-            }
+            message: 'Error getting storage status'
         }, { status: 500 });
     }
 }

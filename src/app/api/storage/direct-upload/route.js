@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { uploadToCloudinary, getCloudinaryStatus } from '@/utils/cloudinary';
+import { saveToLocalStorage } from '@/utils/localStorage';
 
 // Configure for large uploads
 export const runtime = 'nodejs';
@@ -7,16 +7,7 @@ export const maxDuration = 300;
 
 export async function POST(request) {
     try {
-        console.log('🚀 Direct Cloudinary upload started...');
-        
-        // Check if Cloudinary is enabled
-        const cloudinaryStatus = await getCloudinaryStatus();
-        if (!cloudinaryStatus.enabled || !cloudinaryStatus.configured) {
-            return NextResponse.json(
-                { success: false, message: 'Cloudinary not configured' },
-                { status: 500 }
-            );
-        }
+        console.log('🚀 Direct local storage upload started...');
 
         // Get the raw body as buffer to avoid size limits
         const body = await request.arrayBuffer();
@@ -85,29 +76,21 @@ export async function POST(request) {
         console.log(`📂 Folder: ${folder}`);
         console.log(`📋 Type: ${mimeType}`);
 
-        // Convert to base64 for Cloudinary
+        // Convert to base64 for local storage
         const base64File = `data:${mimeType};base64,${fileData.toString('base64')}`;
         
-        console.log('⬆️ Uploading to Cloudinary...');
-        const result = await uploadToCloudinary(base64File, folder, 'auto', fileName);
+        console.log('⬆️ Uploading to local storage...');
+        const result = await saveToLocalStorage(base64File, folder, fileName);
         
-        if (result.success) {
-            console.log('🎉 Direct upload successful!');
-            return NextResponse.json({
-                success: true,
-                url: result.url,
-                publicId: result.publicId,
-                message: 'File uploaded successfully via direct method',
-                fileSize: fileData.length,
-                fileName: fileName
-            });
-        } else {
-            console.error('❌ Upload failed:', result.error);
-            return NextResponse.json(
-                { success: false, message: result.error },
-                { status: 500 }
-            );
-        }
+        console.log('🎉 Direct upload successful!');
+        return NextResponse.json({
+            success: true,
+            url: result.url,
+            fileName: result.fileName,
+            message: 'File uploaded successfully via direct method',
+            fileSize: result.size,
+            originalName: result.originalName
+        });
         
     } catch (error) {
         console.error('💥 Direct upload error:', error);

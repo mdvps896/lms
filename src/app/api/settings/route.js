@@ -118,12 +118,10 @@ const defaultSettings = {
             siteKey: '',
             secretKey: ''
         },
-        cloudinary: {
-            enabled: false,
-            cloudName: '',
-            apiKey: '',
-            apiSecret: '',
-            folder: 'exam-portal'
+        localStorage: {
+            enabled: true,
+            maxSizeMB: 100,
+            compressionQuality: 80
         }
     },
     notifications: {

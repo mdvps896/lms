@@ -10,8 +10,8 @@ const NotificationsModal = () => {
     const { user: currentUser } = useAuth()
 
     useEffect(() => {
-        // Don't fetch if user is not authenticated
-        if (!currentUser) {
+        // Don't fetch if user is not authenticated or doesn't have an ID
+        if (!currentUser?.id) {
             setLoading(false)
             setNotifications([])
             setUnreadCount(0)
@@ -51,7 +51,7 @@ const NotificationsModal = () => {
         // Setup polling every 30 seconds
         const interval = setInterval(fetchNotifications, 30000)
         return () => clearInterval(interval)
-    }, [currentUser?._id])
+    }, [currentUser?.id])
 
     // Mark notification as read
     const markAsRead = async (notificationId) => {

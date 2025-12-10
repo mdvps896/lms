@@ -78,15 +78,8 @@ const settingsSchema = new mongoose.Schema({
     autoRefreshInterval: { type: Number, default: 5000 }, // milliseconds
     maxConcurrentExams: { type: Number, default: 100 },
     
-    // Integrations Settings
+    // Integrations Settings  
     integrations: {
-        cloudinary: {
-            enabled: { type: Boolean, default: false },
-            cloudName: { type: String, default: '' },
-            apiKey: { type: String, default: '' },
-            apiSecret: { type: String, default: '' },
-            folder: { type: String, default: 'exam-portal' }
-        },
         googleOAuth: {
             enabled: { type: Boolean, default: false },
             clientId: { type: String, default: '' },
@@ -97,6 +90,12 @@ const settingsSchema = new mongoose.Schema({
             siteKey: { type: String, default: '' },
             secretKey: { type: String, default: '' },
             version: { type: String, default: 'v2' }
+        },
+        localStorage: {
+            enabled: { type: Boolean, default: true },
+            maxImageSize: { type: Number, default: 10 }, // MB
+            maxVideoSize: { type: Number, default: 100 }, // MB
+            maxDocumentSize: { type: Number, default: 50 } // MB
         }
     },
     

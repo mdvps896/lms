@@ -15,15 +15,6 @@ const ExamCard = ({ exam }) => {
     const router = useRouter()
     const { user } = useAuth()
 
-    // Debug exam data
-    console.log('ExamCard - Exam Data:', {
-        name: exam.name,
-        totalQuestions: exam.totalQuestions,
-        questionGroups: exam.questionGroups,
-        questions: exam.questions,
-        fullExam: exam
-    })
-
     useEffect(() => {
         const updateTimer = () => {
             const now = new Date()

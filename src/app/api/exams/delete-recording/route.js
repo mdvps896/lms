@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import ExamAttempt from '@/models/ExamAttempt'
 import Exam from '@/models/Exam'
-import { deleteFromCloudinary, getCloudinaryStatus } from '@/utils/cloudinary'
-import { unlink } from 'fs/promises'
-import path from 'path'
+import { deleteFromLocalStorage } from '@/utils/localStorage'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,50 +51,21 @@ export async function POST(request) {
         }
 
         let deletionSuccess = false
-        let deletionMethod = null
+        let deletionMethod = 'local'
 
-        // If it's a Cloudinary URL, delete from Cloudinary
-        if (recordingUrl.includes('cloudinary')) {
-            deletionMethod = 'cloudinary'
-            const cloudinaryStatus = await getCloudinaryStatus()
+        // Delete from local storage
+        try {
+            console.log(`🗑️ Deleting exam recording from local storage: ${recordingUrl}`)
             
-            if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
-                try {
-                    // Extract publicId from URL
-                    const urlParts = recordingUrl.split('/')
-                    let publicId = urlParts[urlParts.length - 1].split('.')[0]
-                    
-                    // If it includes folder, get the full path
-                    const folderIndex = urlParts.indexOf('exam-recordings')
-                    if (folderIndex !== -1 && folderIndex < urlParts.length - 1) {
-                        publicId = urlParts.slice(folderIndex).join('/').split('.')[0]
-                    }
-                    
-                    console.log(`🗑️ Deleting exam recording from Cloudinary: ${publicId}`)
-                    
-                    const deleteResult = await deleteFromCloudinary(publicId, 'video')
-                    deletionSuccess = deleteResult.success
-                    
-                    if (!deletionSuccess) {
-                        console.warn('Failed to delete from Cloudinary, but continuing with database cleanup')
-                    }
-                } catch (error) {
-                    console.error('Cloudinary deletion error:', error)
-                    // Continue with database cleanup even if Cloudinary deletion fails
-                }
+            const deleteResult = await deleteFromLocalStorage(recordingUrl)
+            deletionSuccess = deleteResult.success
+            
+            if (!deletionSuccess) {
+                console.warn('Failed to delete from local storage, but continuing with database cleanup')
             }
-        } else if (recordingUrl.startsWith('/exam-videos/') || recordingUrl.startsWith('/exam-screen-videos/')) {
-            // It's a local file, delete from filesystem
-            deletionMethod = 'local'
-            try {
-                const filePath = path.join(process.cwd(), 'public', recordingUrl)
-                await unlink(filePath)
-                deletionSuccess = true
-                console.log(`🗑️ Deleted local exam recording: ${filePath}`)
-            } catch (error) {
-                console.error('Local file deletion error:', error)
-                // Continue with database cleanup even if file deletion fails
-            }
+        } catch (error) {
+            console.error('Local storage deletion error:', error)
+            // Continue with database cleanup even if file deletion fails
         }
 
         // Remove the recording URL from the database

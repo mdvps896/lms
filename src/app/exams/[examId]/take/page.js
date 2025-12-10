@@ -823,7 +823,6 @@ export default function TakeExamPage() {
 
             {/* Local Stream View - Disabled for students to avoid distraction during exam */}
             {/* Note: Recording is still active in background, preview is just hidden */}
-            {console.log('Recording status:', { recordingStarted, streamsDisabled: true })}
             {/* Stream preview completely disabled for students during exam */}
 
             {/* Saving Recordings Overlay */}

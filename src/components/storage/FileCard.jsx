@@ -42,7 +42,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
-        // If it's a Cloudinary URL, return as-is
+        // Return the URL as-is
         if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath
         }
@@ -74,7 +74,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     const handleDelete = () => {
         Swal.fire({
             title: 'Delete File?',
-            text: `Are you sure you want to delete "${file.name}"?${file.source === 'cloudinary' ? ' (from Cloudinary)' : ''}`,
+            text: `Are you sure you want to delete "${file.name}"?`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -103,13 +103,11 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         }
                     } else {
                         // For regular files, use the standard delete method
-                        const isCloudinaryFile = file.source === 'cloudinary' || file.path?.includes('cloudinary') || file.cloudinaryId
-                        const deleteIdentifier = isCloudinaryFile ? (file.publicId || file.cloudinaryId) : file.path
-                        const resourceType = isCloudinaryFile ? (file.resourceType || 'video') : null
+                        const deleteIdentifier = file.path || file.url
                         
-                        console.log('Deleting file:', { deleteIdentifier, resourceType, isCloudinaryFile, file })
+                        console.log('Deleting file:', { deleteIdentifier, file })
                         
-                        await onDelete(deleteIdentifier, resourceType)
+                        await onDelete(deleteIdentifier, file.resourceType || null)
                     }
                     
                     // Refresh the file list
@@ -125,10 +123,12 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         showConfirmButton: false
                     })
                 } catch (error) {
+                    console.error('Delete error:', error)
                     Swal.fire({
                         icon: 'error',
-                        title: 'Error',
-                        text: 'Failed to delete file'
+                        title: 'Failed to delete file',
+                        text: error.message || 'An error occurred while deleting the file',
+                        footer: 'Check console for more details'
                     })
                 }
             }
@@ -222,11 +222,9 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         {file.name}
                     </h6>
                     <div className="d-flex gap-1">
-                        {file.source === 'cloudinary' && (
-                            <span className="badge bg-info text-white" style={{ fontSize: '0.7rem' }}>
-                                ☁️ Cloud
-                            </span>
-                        )}
+                        <span className="badge bg-success text-white" style={{ fontSize: '0.7rem' }}>
+                            📁 Local
+                        </span>
                         {file.category === 'exam-recording' && (
                             <span className="badge bg-primary text-white" style={{ fontSize: '0.7rem' }}>
                                 📹 Recording
