@@ -32,87 +32,114 @@ export async function POST(request) {
 
         let cameraPath = null;
         let screenPath = null;
+        let storageMethod = null;
 
         if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
             // Use Cloudinary for storage with enhanced upload system
+            storageMethod = 'cloudinary';
             const timestamp = Date.now();
 
             if (cameraVideo) {
-                const cameraBytes = await cameraVideo.arrayBuffer();
-                const cameraBuffer = Buffer.from(cameraBytes);
-                const cameraBase64 = `data:video/webm;base64,${cameraBuffer.toString('base64')}`;
-                const cameraFileName = cameraRecordingId ? `${cameraRecordingId}.webm` : `camera-${attemptId}-${timestamp}.webm`;
-                
-                const cameraResult = await uploadToCloudinary(
-                    cameraBase64,
-                    'exam-recordings',
-                    'video',
-                    cameraFileName
-                );
-                
-                if (cameraResult.success) {
-                    cameraPath = cameraResult.url;
+                try {
+                    const cameraBytes = await cameraVideo.arrayBuffer();
+                    const cameraBuffer = Buffer.from(cameraBytes);
+                    const cameraBase64 = `data:video/webm;base64,${cameraBuffer.toString('base64')}`;
+                    const cameraFileName = cameraRecordingId ? `${cameraRecordingId}.webm` : `camera-${attemptId}-${timestamp}.webm`;
+                    
+                    const cameraResult = await uploadToCloudinary(
+                        cameraBase64,
+                        'exam-recordings',
+                        'video',
+                        cameraFileName
+                    );
+                    
+                    if (cameraResult.success) {
+                        cameraPath = cameraResult.url;
+                        console.log('✅ Camera video uploaded to Cloudinary:', cameraPath);
+                    } else {
+                        console.error('❌ Camera video upload failed:', cameraResult.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Camera video upload error:', error);
                 }
             }
 
             if (screenVideo) {
-                const screenBytes = await screenVideo.arrayBuffer();
-                const screenBuffer = Buffer.from(screenBytes);
-                const screenBase64 = `data:video/webm;base64,${screenBuffer.toString('base64')}`;
-                const screenFileName = screenRecordingId ? `${screenRecordingId}.webm` : `screen-${attemptId}-${timestamp}.webm`;
-                
-                const screenResult = await uploadToCloudinary(
-                    screenBase64,
-                    'exam-recordings',
-                    'video',
-                    screenFileName
-                );
-                
-                if (screenResult.success) {
-                    screenPath = screenResult.url;
+                try {
+                    const screenBytes = await screenVideo.arrayBuffer();
+                    const screenBuffer = Buffer.from(screenBytes);
+                    const screenBase64 = `data:video/webm;base64,${screenBuffer.toString('base64')}`;
+                    const screenFileName = screenRecordingId ? `${screenRecordingId}.webm` : `screen-${attemptId}-${timestamp}.webm`;
+                    
+                    const screenResult = await uploadToCloudinary(
+                        screenBase64,
+                        'exam-recordings',
+                        'video',
+                        screenFileName
+                    );
+                    
+                    if (screenResult.success) {
+                        screenPath = screenResult.url;
+                        console.log('✅ Screen video uploaded to Cloudinary:', screenPath);
+                    } else {
+                        console.error('❌ Screen video upload failed:', screenResult.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Screen video upload error:', error);
                 }
             }
-        } else if (!isProduction) {
-            // Development: Save locally
+        } else {
+            // Cloudinary is disabled - Save locally
+            storageMethod = 'local';
             const publicDir = path.join(process.cwd(), 'public');
             const examVideosDir = path.join(publicDir, 'exam-videos');
             const screenVideosDir = path.join(publicDir, 'exam-screen-videos');
 
-            await mkdir(examVideosDir, { recursive: true });
-            await mkdir(screenVideosDir, { recursive: true });
+            try {
+                await mkdir(examVideosDir, { recursive: true });
+                await mkdir(screenVideosDir, { recursive: true });
 
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-            // Save camera video
-            if (cameraVideo) {
-                const cameraBytes = await cameraVideo.arrayBuffer();
-                const cameraBuffer = Buffer.from(cameraBytes);
-                const cameraFileName = `camera-${attemptId}-${timestamp}.webm`;
-                const cameraFilePath = path.join(examVideosDir, cameraFileName);
-                await writeFile(cameraFilePath, cameraBuffer);
-                cameraPath = `/exam-videos/${cameraFileName}`;
+                // Save camera video
+                if (cameraVideo) {
+                    try {
+                        const cameraBytes = await cameraVideo.arrayBuffer();
+                        const cameraBuffer = Buffer.from(cameraBytes);
+                        const cameraFileName = cameraRecordingId ? `${cameraRecordingId}.webm` : `camera-${attemptId}-${timestamp}.webm`;
+                        const cameraFilePath = path.join(examVideosDir, cameraFileName);
+                        await writeFile(cameraFilePath, cameraBuffer);
+                        cameraPath = `/exam-videos/${cameraFileName}`;
+                        console.log('✅ Camera video saved locally:', cameraPath);
+                    } catch (error) {
+                        console.error('❌ Camera video save error:', error);
+                    }
+                }
 
+                // Save screen video
+                if (screenVideo) {
+                    try {
+                        const screenBytes = await screenVideo.arrayBuffer();
+                        const screenBuffer = Buffer.from(screenBytes);
+                        const screenFileName = screenRecordingId ? `${screenRecordingId}.webm` : `screen-${attemptId}-${timestamp}.webm`;
+                        const screenFilePath = path.join(screenVideosDir, screenFileName);
+                        await writeFile(screenFilePath, screenBuffer);
+                        screenPath = `/exam-screen-videos/${screenFileName}`;
+                        console.log('✅ Screen video saved locally:', screenPath);
+                    } catch (error) {
+                        console.error('❌ Screen video save error:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Local storage setup error:', error);
+                return NextResponse.json(
+                    { 
+                        message: 'Failed to create local storage directories',
+                        error: error.message
+                    },
+                    { status: 500 }
+                );
             }
-
-            // Save screen video
-            if (screenVideo) {
-                const screenBytes = await screenVideo.arrayBuffer();
-                const screenBuffer = Buffer.from(screenBytes);
-                const screenFileName = `screen-${attemptId}-${timestamp}.webm`;
-                const screenFilePath = path.join(screenVideosDir, screenFileName);
-                await writeFile(screenFilePath, screenBuffer);
-                screenPath = `/exam-screen-videos/${screenFileName}`;
-
-            }
-        } else {
-            // Production without Cloudinary - error
-            return NextResponse.json(
-                { 
-                    message: 'Cloud storage not configured. Please enable Cloudinary in settings.',
-                    error: 'CLOUD_STORAGE_REQUIRED'
-                },
-                { status: 500 }
-            );
         }
 
         // Update exam attempt with recording paths in both Exam and ExamAttempt models
@@ -181,11 +208,12 @@ export async function POST(request) {
 
         return NextResponse.json({
             success: true,
-            message: 'Exam recordings saved successfully to Cloudinary',
+            message: `Exam recordings saved successfully ${storageMethod === 'cloudinary' ? 'to Cloudinary' : 'locally'}`,
             cameraPath,
             screenPath,
             cameraRecordingId,
             screenRecordingId,
+            storageMethod,
             cloudinary: cloudinaryStatus.enabled && cloudinaryStatus.configured,
             recordingStats: {
                 cameraUploaded: !!cameraPath,

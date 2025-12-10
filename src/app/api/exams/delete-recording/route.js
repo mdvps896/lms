@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import ExamAttempt from '@/models/ExamAttempt'
+import Exam from '@/models/Exam'
 import { deleteFromCloudinary, getCloudinaryStatus } from '@/utils/cloudinary'
+import { unlink } from 'fs/promises'
+import path from 'path'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
     try {
@@ -16,8 +21,18 @@ export async function POST(request) {
             )
         }
 
-        // Find the exam attempt
-        const attempt = await ExamAttempt.findById(attemptId)
+        // Find the exam attempt in both models
+        let attempt = await ExamAttempt.findById(attemptId)
+        let examWithAttempt = null
+        
+        // If not found in ExamAttempt, check in Exam.attempts
+        if (!attempt) {
+            examWithAttempt = await Exam.findOne({ 'attempts._id': attemptId })
+            if (examWithAttempt) {
+                attempt = examWithAttempt.attempts.id(attemptId)
+            }
+        }
+        
         if (!attempt) {
             return NextResponse.json(
                 { success: false, message: 'Exam attempt not found' },
@@ -37,10 +52,12 @@ export async function POST(request) {
             )
         }
 
-        let cloudinaryDeleted = false
+        let deletionSuccess = false
+        let deletionMethod = null
 
         // If it's a Cloudinary URL, delete from Cloudinary
         if (recordingUrl.includes('cloudinary')) {
+            deletionMethod = 'cloudinary'
             const cloudinaryStatus = await getCloudinaryStatus()
             
             if (cloudinaryStatus.enabled && cloudinaryStatus.configured) {
@@ -58,15 +75,27 @@ export async function POST(request) {
                     console.log(`🗑️ Deleting exam recording from Cloudinary: ${publicId}`)
                     
                     const deleteResult = await deleteFromCloudinary(publicId, 'video')
-                    cloudinaryDeleted = deleteResult.success
+                    deletionSuccess = deleteResult.success
                     
-                    if (!cloudinaryDeleted) {
+                    if (!deletionSuccess) {
                         console.warn('Failed to delete from Cloudinary, but continuing with database cleanup')
                     }
                 } catch (error) {
                     console.error('Cloudinary deletion error:', error)
                     // Continue with database cleanup even if Cloudinary deletion fails
                 }
+            }
+        } else if (recordingUrl.startsWith('/exam-videos/') || recordingUrl.startsWith('/exam-screen-videos/')) {
+            // It's a local file, delete from filesystem
+            deletionMethod = 'local'
+            try {
+                const filePath = path.join(process.cwd(), 'public', recordingUrl)
+                await unlink(filePath)
+                deletionSuccess = true
+                console.log(`🗑️ Deleted local exam recording: ${filePath}`)
+            } catch (error) {
+                console.error('Local file deletion error:', error)
+                // Continue with database cleanup even if file deletion fails
             }
         }
 
@@ -75,17 +104,41 @@ export async function POST(request) {
             'recordings.cameraVideo' : 
             'recordings.screenVideo'
 
-        await ExamAttempt.updateOne(
-            { _id: attemptId },
-            { $unset: { [updateField]: "" } }
-        )
+        // Update ExamAttempt model if it exists
+        try {
+            const examAttemptUpdate = await ExamAttempt.updateOne(
+                { _id: attemptId },
+                { $unset: { [updateField]: "" } }
+            )
+            console.log(`📝 Updated ExamAttempt model: ${examAttemptUpdate.modifiedCount} records`)
+        } catch (error) {
+            console.log('ExamAttempt not found or error updating:', error.message)
+        }
+
+        // Update Exam.attempts if found there
+        if (examWithAttempt) {
+            try {
+                if (recordingType === 'camera') {
+                    attempt.recordings.cameraVideo = undefined
+                } else {
+                    attempt.recordings.screenVideo = undefined
+                }
+                
+                examWithAttempt.markModified('attempts')
+                await examWithAttempt.save()
+                console.log(`📝 Updated Exam.attempts model`)
+            } catch (error) {
+                console.error('Error updating Exam.attempts:', error)
+            }
+        }
 
         console.log(`✅ Exam recording deleted: ${recordingType} for attempt ${attemptId}`)
 
         return NextResponse.json({
             success: true,
-            message: `${recordingType} recording deleted successfully`,
-            cloudinaryDeleted: cloudinaryDeleted
+            message: `${recordingType} recording deleted successfully (${deletionMethod})`,
+            deletionMethod,
+            fileDeleted: deletionSuccess
         })
 
     } catch (error) {
