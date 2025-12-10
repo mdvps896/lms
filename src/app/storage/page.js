@@ -84,12 +84,16 @@ const StoragePage = () => {
         return 'other'
     }
 
-    const handleDelete = async (filePath) => {
+    const handleDelete = async (filePathOrPublicId, resourceType = null) => {
         try {
             const response = await fetch('/api/storage/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePath })
+                body: JSON.stringify({ 
+                    filePath: filePathOrPublicId,
+                    publicId: resourceType ? filePathOrPublicId : undefined,
+                    resourceType: resourceType 
+                })
             })
             const data = await response.json()
             if (data.success) {

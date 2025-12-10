@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import connectDB from '@/lib/mongodb'
+import Settings from '@/models/Settings'
+import { v2 as cloudinary } from 'cloudinary'
 
 // Helper function to get all files recursively
 function getAllFiles(dirPath, arrayOfFiles = []) {
@@ -51,15 +54,26 @@ function getFileType(filename) {
 
 export async function GET() {
     try {
-        const publicDir = path.join(process.cwd(), 'public')
+        await connectDB()
         
-        // Get all files from public directory
-        const allFiles = getAllFiles(publicDir)
+        // Get local files
+        const publicDir = path.join(process.cwd(), 'public')
+        const localFiles = getAllFiles(publicDir)
+
+        // Get Cloudinary files
+        const cloudinaryFiles = await getCloudinaryFiles()
+
+        // Merge both sources
+        const allFiles = [...localFiles, ...cloudinaryFiles]
 
         return NextResponse.json({
             success: true,
             files: allFiles,
-            count: allFiles.length
+            count: allFiles.length,
+            sources: {
+                local: localFiles.length,
+                cloudinary: cloudinaryFiles.length
+            }
         })
     } catch (error) {
         console.error('Error fetching files:', error)
@@ -67,5 +81,92 @@ export async function GET() {
             { success: false, message: 'Error fetching files' },
             { status: 500 }
         )
+    }
+}
+
+/**
+ * Get all files from Cloudinary
+ */
+async function getCloudinaryFiles() {
+    try {
+        // Check if Cloudinary is configured
+        const settings = await Settings.findOne()
+        
+        if (!settings?.integrations?.cloudinary?.enabled) {
+            console.log('Cloudinary not enabled')
+            return []
+        }
+
+        const { cloudName, apiKey, apiSecret } = settings.integrations.cloudinary
+
+        if (!cloudName || !apiKey || !apiSecret) {
+            console.log('Cloudinary credentials missing')
+            return []
+        }
+
+        // Configure Cloudinary
+        cloudinary.config({
+            cloud_name: cloudName,
+            api_key: apiKey,
+            api_secret: apiSecret,
+            secure: true
+        })
+
+        const cloudinaryFiles = []
+
+        // Get all resources from Cloudinary (images, videos, raw files)
+        const resourceTypes = ['image', 'video', 'raw']
+        
+        for (const resourceType of resourceTypes) {
+            try {
+                let hasMore = true
+                let nextCursor = null
+
+                while (hasMore) {
+                    const result = await cloudinary.api.resources({
+                        resource_type: resourceType,
+                        type: 'upload',
+                        max_results: 500,
+                        next_cursor: nextCursor
+                    })
+
+                    result.resources.forEach(resource => {
+                        const fileName = resource.public_id.split('/').pop()
+                        const ext = resource.format
+                        
+                        cloudinaryFiles.push({
+                            name: `${fileName}.${ext}`,
+                            path: resource.secure_url,
+                            publicId: resource.public_id,
+                            fullPath: resource.secure_url,
+                            size: resource.bytes,
+                            createdAt: new Date(resource.created_at),
+                            modifiedAt: new Date(resource.created_at),
+                            type: getFileType(`${fileName}.${ext}`),
+                            source: 'cloudinary',
+                            resourceType: resource.resource_type,
+                            format: resource.format,
+                            width: resource.width,
+                            height: resource.height,
+                            folder: resource.public_id.includes('/') ? 
+                                   resource.public_id.substring(0, resource.public_id.lastIndexOf('/')) : 
+                                   'root'
+                        })
+                    })
+
+                    nextCursor = result.next_cursor
+                    hasMore = !!nextCursor
+                }
+            } catch (typeError) {
+                console.log(`No resources found for type: ${resourceType}`)
+            }
+        }
+
+        console.log(`Found ${cloudinaryFiles.length} files in Cloudinary`)
+        return cloudinaryFiles
+
+    } catch (error) {
+        console.error('Error fetching Cloudinary files:', error)
+        return []
     }
 }

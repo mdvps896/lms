@@ -42,6 +42,10 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
+        // If it's a Cloudinary URL, return as-is
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            return filePath
+        }
         // Ensure path starts with /
         const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
         return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
@@ -70,7 +74,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     const handleDelete = () => {
         Swal.fire({
             title: 'Delete File?',
-            text: `Are you sure you want to delete "${file.name}"?`,
+            text: `Are you sure you want to delete "${file.name}"?${file.source === 'cloudinary' ? ' (from Cloudinary)' : ''}`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -79,7 +83,8 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await onDelete(file.path)
+                    // Pass publicId for Cloudinary files
+                    await onDelete(file.source === 'cloudinary' ? file.publicId : file.path, file.source === 'cloudinary' ? file.resourceType : null)
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -153,13 +158,27 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                 {renderThumbnail()}
             </div>
             <div className="card-body p-3">
-                <h6 className="mb-1 text-truncate" title={file.name}>
-                    {file.name}
-                </h6>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h6 className="mb-0 text-truncate flex-grow-1" title={file.name}>
+                        {file.name}
+                    </h6>
+                    {file.source === 'cloudinary' && (
+                        <span className="badge bg-info text-white ms-2" style={{ fontSize: '0.7rem' }}>
+                            ☁️ Cloud
+                        </span>
+                    )}
+                </div>
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <small className="text-muted">{formatFileSize(file.size)}</small>
                     <small className="text-muted">{formatDate(file.createdAt)}</small>
                 </div>
+                {file.folder && file.folder !== 'root' && (
+                    <div className="mb-2">
+                        <small className="badge bg-secondary" style={{ fontSize: '0.65rem' }}>
+                            📁 {file.folder}
+                        </small>
+                    </div>
+                )}
                 <div className="d-flex gap-2">
                     <button
                         className="btn btn-sm btn-outline-primary flex-fill"
