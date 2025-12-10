@@ -12,8 +12,8 @@ export async function initCloudinary() {
         await connectDB();
         const settings = await Settings.findOne();
         
-        if (settings?.cloudinarySettings?.enabled) {
-            const { cloudName, apiKey, apiSecret } = settings.cloudinarySettings;
+        if (settings?.integrations?.cloudinary?.enabled) {
+            const { cloudName, apiKey, apiSecret } = settings.integrations.cloudinary;
             
             if (cloudName && apiKey && apiSecret) {
                 cloudinary.config({
@@ -49,7 +49,7 @@ export async function uploadToCloudinary(file, folder = '', resourceType = 'auto
 
     try {
         const settings = await Settings.findOne();
-        const uploadFolder = folder || settings?.cloudinarySettings?.folder || 'exam-portal';
+        const uploadFolder = folder || settings?.integrations?.cloudinary?.folder || 'exam-portal';
         
         const result = await cloudinary.uploader.upload(file, {
             folder: uploadFolder,
@@ -109,10 +109,10 @@ export async function getCloudinaryStatus() {
         const settings = await Settings.findOne();
         
         return {
-            enabled: settings?.cloudinarySettings?.enabled || false,
-            configured: !!(settings?.cloudinarySettings?.cloudName && 
-                          settings?.cloudinarySettings?.apiKey && 
-                          settings?.cloudinarySettings?.apiSecret)
+            enabled: settings?.integrations?.cloudinary?.enabled || false,
+            configured: !!(settings?.integrations?.cloudinary?.cloudName && 
+                          settings?.integrations?.cloudinary?.apiKey && 
+                          settings?.integrations?.cloudinary?.apiSecret)
         };
     } catch (error) {
         console.error('Error getting Cloudinary status:', error);

@@ -22,7 +22,19 @@ class LiveStreamManager {
         this.attemptId = attemptId;
         this.isStudent = isStudent;
 
-        // Connect to Socket.io server
+        // Check if we're in production (Vercel)
+        const isProduction = typeof window !== 'undefined' && 
+                            (window.location.hostname.includes('vercel.app') || 
+                             window.location.hostname.includes('ex2-iota.vercel.app'));
+
+        if (isProduction) {
+            console.log('Production mode: Using HTTP polling for live monitoring');
+            // In production, use periodic API polling instead of WebSocket
+            this.startPollingMode();
+            return;
+        }
+
+        // Development: Use Socket.io
         this.socket = io({
             path: '/api/socket',
             transports: ['websocket', 'polling']
@@ -64,6 +76,19 @@ class LiveStreamManager {
         this.cameraStream = cameraStream;
         this.screenStream = screenStream;
 
+        // Check if production mode
+        const isProduction = typeof window !== 'undefined' && 
+                            (window.location.hostname.includes('vercel.app') || 
+                             !window.location.hostname.includes('localhost'));
+
+        if (isProduction) {
+            // Production: Start polling mode
+            console.log('Starting production polling mode');
+            this.startPollingMode();
+            return { success: true, mode: 'polling' };
+        }
+
+        // Development: WebRTC mode
         // Create peer connection
         this.peerConnection = new RTCPeerConnection({
             iceServers: [
@@ -158,14 +183,73 @@ class LiveStreamManager {
      * Stop streaming and cleanup
      */
     stopStreaming() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+        }
+        
         if (this.peerConnection) {
             this.peerConnection.close();
             this.peerConnection = null;
         }
-
+        
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
+        }
+    }
+
+    /**
+     * Production mode: Use HTTP polling for monitoring
+     */
+    startPollingMode() {
+        if (this.isStudent) {
+            // Student: Send snapshots periodically
+            this.pollingInterval = setInterval(() => {
+                this.sendSnapshotToServer();
+            }, 3000); // Every 3 seconds
+        }
+    }
+
+    /**
+     * Capture and send snapshot to server (Production mode)
+     */
+    async sendSnapshotToServer() {
+        try {
+            if (!this.cameraStream) return;
+
+            // Create canvas and capture frame
+            const video = document.createElement('video');
+            video.srcObject = this.cameraStream;
+            video.play();
+
+            await new Promise(resolve => {
+                video.onloadedmetadata = resolve;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to blob
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.7);
+            });
+
+            // Send to server
+            const formData = new FormData();
+            formData.append('snapshot', blob);
+            formData.append('attemptId', this.attemptId);
+            formData.append('timestamp', Date.now());
+
+            await fetch('/api/live-snapshot', {
+                method: 'POST',
+                body: formData
+            });
+
+        } catch (error) {
+            console.error('Error sending snapshot:', error);
         }
     }
 }

@@ -14,10 +14,15 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
                 arrayOfFiles = getAllFiles(filePath, arrayOfFiles)
             } else {
                 const stats = fs.statSync(filePath)
-                const relativePath = filePath.replace(path.join(process.cwd(), 'public'), '')
+                let relativePath = filePath.replace(path.join(process.cwd(), 'public'), '')
+                relativePath = relativePath.replace(/\\/g, '/')
+                // Ensure path starts with /
+                if (!relativePath.startsWith('/')) {
+                    relativePath = '/' + relativePath
+                }
                 arrayOfFiles.push({
                     name: file,
-                    path: relativePath.replace(/\\/g, '/'),
+                    path: relativePath,
                     fullPath: filePath,
                     size: stats.size,
                     createdAt: stats.birthtime,

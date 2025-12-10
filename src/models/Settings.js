@@ -51,14 +51,6 @@ const settingsSchema = new mongoose.Schema({
         digitLength: { type: Number, default: 4, min: 3, max: 8 },
         enabled: { type: Boolean, default: true }
     },
-    // Cloudinary Integration Settings
-    cloudinarySettings: {
-        enabled: { type: Boolean, default: false },
-        cloudName: { type: String, default: '' },
-        apiKey: { type: String, default: '' },
-        apiSecret: { type: String, default: '' },
-        folder: { type: String, default: 'exam-portal' }
-    },
     // General Settings
     autoRefreshInterval: { type: Number, default: 5000 }, // milliseconds
     maxConcurrentExams: { type: Number, default: 100 },

@@ -71,26 +71,30 @@ const NavigationManu = () => {
     const siteLogo = currentSettings?.general?.siteLogo;
     const siteSmallLogo = currentSettings?.general?.siteSmallLogo;
     
+    // Normalize logo paths to ensure they start with /
+    const normalizedSiteLogo = siteLogo?.startsWith('/') ? siteLogo : siteLogo ? '/' + siteLogo : null;
+    const normalizedSiteSmallLogo = siteSmallLogo?.startsWith('/') ? siteSmallLogo : siteSmallLogo ? '/' + siteSmallLogo : null;
+    
     return (
         <nav className={`nxl-navigation ${navigationOpen ? "mob-navigation-active" : ""}`}>
             <div className="navbar-wrapper">
                 <div className="m-header">
                     <Link href="/" className="b-brand">
                         {/* Dynamic Logo */}
-                        {siteLogo && (
+                        {normalizedSiteLogo && (
                             <Image 
                                 width={130} 
                                 height={55} 
-                                src={siteLogo} 
+                                src={normalizedSiteLogo} 
                                 alt="logo" 
                                 className="logo logo-lg" 
                             />
                         )}
-                        {siteSmallLogo && (
+                        {normalizedSiteSmallLogo && (
                             <Image 
                                 width={33} 
                                 height={40} 
-                                src={siteSmallLogo} 
+                                src={normalizedSiteSmallLogo} 
                                 alt="logo" 
                                 className="logo logo-sm" 
                             />

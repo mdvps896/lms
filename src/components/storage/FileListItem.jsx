@@ -42,7 +42,9 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
-        return `/api/storage/secure-file?path=${encodeURIComponent(filePath)}`
+        // Ensure path starts with /
+        const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
+        return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
     }
 
     const handleCopyLink = () => {

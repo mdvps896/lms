@@ -42,7 +42,9 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
-        return `/api/storage/secure-file?path=${encodeURIComponent(filePath)}`
+        // Ensure path starts with /
+        const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
+        return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
     }
 
     const handleCopyLink = () => {
@@ -106,6 +108,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         fill
                         style={{ objectFit: 'cover' }}
                         onError={() => setImageError(true)}
+                        loader={({ src }) => src}
                         unoptimized
                     />
                 </div>
