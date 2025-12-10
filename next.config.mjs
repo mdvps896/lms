@@ -3,18 +3,6 @@ const nextConfig = {
     output: 'standalone',
     experimental: {
         instrumentationHook: true,
-        isrMemoryCacheSize: 0,
-    },
-    // Enhanced file upload configuration
-    api: {
-        bodyParser: {
-            sizeLimit: '500mb', // Allow up to 500MB uploads
-        },
-        responseLimit: false,
-    },
-    // Server configuration for large files
-    serverRuntimeConfig: {
-        maxFileSize: 500 * 1024 * 1024, // 500MB
     },
     images: {
         remotePatterns: [
