@@ -30,6 +30,7 @@ export async function POST(request) {
         let cameraPath = null;
         let screenPath = null;
         let storageMethod = 'local';
+        let isReadOnlyFS = false;
 
         const timestamp = Date.now();
 
@@ -46,8 +47,13 @@ export async function POST(request) {
                     cameraFileName
                 );
                 
-                cameraPath = cameraResult.url;
-                console.log('✅ Camera video uploaded to local storage:', cameraPath);
+                if (cameraResult.readOnlyFS) {
+                    isReadOnlyFS = true;
+                    console.error('❌ Cannot save camera video - read-only filesystem detected');
+                } else {
+                    cameraPath = cameraResult.url;
+                    console.log('✅ Camera video uploaded to local storage:', cameraPath);
+                }
             } catch (error) {
                 console.error('❌ Camera video upload error:', error);
             }
@@ -67,11 +73,27 @@ export async function POST(request) {
                     screenFileName
                 );
                 
-                screenPath = screenResult.url;
-                console.log('✅ Screen video uploaded to local storage:', screenPath);
+                if (screenResult.readOnlyFS) {
+                    isReadOnlyFS = true;
+                    console.error('❌ Cannot save screen video - read-only filesystem detected');
+                } else {
+                    screenPath = screenResult.url;
+                    console.log('✅ Screen video uploaded to local storage:', screenPath);
+                }
             } catch (error) {
                 console.error('❌ Screen video upload error:', error);
             }
+        }
+        
+        // If running on read-only filesystem, return error
+        if (isReadOnlyFS) {
+            return NextResponse.json({
+                success: false,
+                message: 'Cannot save recordings on serverless platform',
+                error: 'READ_ONLY_FILESYSTEM',
+                details: 'This application is running on a read-only filesystem (Vercel/AWS Lambda). Please configure a cloud storage service like AWS S3, Azure Blob Storage, or Cloudinary to save exam recordings in production.',
+                requiresCloudStorage: true
+            }, { status: 500 });
         }
 
         // Update exam attempt with recording paths in both Exam and ExamAttempt models

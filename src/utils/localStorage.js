@@ -162,6 +162,24 @@ function validateFileSize(fileSize, fileName) {
  */
 export async function saveToLocalStorage(file, folder = '', fileName = '') {
     try {
+        // Check if we're on a read-only filesystem (serverless/Vercel)
+        const isReadOnlyFS = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || !fs.existsSync(process.cwd());
+        
+        if (isReadOnlyFS) {
+            console.warn('⚠️ Running on read-only filesystem - file cannot be saved locally');
+            console.warn('💡 Please configure a cloud storage service (AWS S3, Cloudinary, etc.) for production');
+            
+            return {
+                success: false,
+                error: 'Read-only filesystem',
+                message: 'Cannot save files on serverless platform. Please configure cloud storage.',
+                readOnlyFS: true,
+                url: null,
+                fileName: fileName,
+                originalName: fileName
+            };
+        }
+        
         // Initialize directories if they don't exist
         initializeDirectories();
         

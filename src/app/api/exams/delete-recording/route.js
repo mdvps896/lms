@@ -5,6 +5,7 @@ import Exam from '@/models/Exam'
 import { deleteFromLocalStorage } from '@/utils/localStorage'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request) {
     try {
