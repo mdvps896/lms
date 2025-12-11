@@ -20,26 +20,35 @@ class RecordingManager {
     /**
      * Request permissions and start all recordings
      */
-    async startRecording(attemptId, examId) {
+    async startRecording(attemptId, examId, settings = {}) {
         this.attemptId = attemptId;
         this.examId = examId;
+        this.settings = settings;
 
         try {
-            // Request camera and microphone
-            this.cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 1280, height: 720 },
-                audio: true
-            });
+            // Request camera and microphone only if enabled
+            if (settings.allowCam || settings.allowMic) {
+                const constraints = {};
+                if (settings.allowCam) {
+                    constraints.video = { width: 1280, height: 720 };
+                }
+                if (settings.allowMic) {
+                    constraints.audio = true;
+                }
+                this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            }
 
-            // Request screen recording
-            this.screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    width: 1920,
-                    height: 1080,
-                    frameRate: 30
-                },
-                audio: true
-            });
+            // Request screen recording only if enabled
+            if (settings.allowScreenShare) {
+                this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: 1920,
+                        height: 1080,
+                        frameRate: 30
+                    },
+                    audio: true
+                });
+            }
 
             // Determine best codec
             let mimeType = 'video/webm;codecs=vp9';
@@ -52,53 +61,62 @@ class RecordingManager {
 
             console.log('Using MIME type:', mimeType);
 
-            // Start camera recording optimized for local storage
-            this.cameraRecorder = new MediaRecorder(this.cameraStream, {
-                mimeType: mimeType,
-                videoBitsPerSecond: 1000000  // 1MB - good quality for local storage
-            });
+            // Start camera recording only if camera stream exists
+            if (this.cameraStream) {
+                this.cameraRecorder = new MediaRecorder(this.cameraStream, {
+                    mimeType: mimeType,
+                    videoBitsPerSecond: 1000000  // 1MB - good quality for local storage
+                });
 
-            this.cameraRecorder.ondataavailable = (event) => {
-                if (event.data && event.data.size > 0) {
-                    console.log('📹 Camera chunk received:', event.data.size, 'bytes');
-                    this.cameraChunks.push(event.data);
-                }
-            };
+                this.cameraRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        console.log('📹 Camera chunk received:', event.data.size, 'bytes');
+                        this.cameraChunks.push(event.data);
+                    }
+                };
 
-            this.cameraRecorder.onerror = (event) => {
-                console.error('❌ Camera recorder error:', event.error);
-            };
+                this.cameraRecorder.onerror = (event) => {
+                    console.error('❌ Camera recorder error:', event.error);
+                };
+            }
 
-            // Start screen recording optimized for local storage
-            this.screenRecorder = new MediaRecorder(this.screenStream, {
-                mimeType: mimeType,
-                videoBitsPerSecond: 2000000  // 2MB - higher quality for screen content
-            });
+            // Start screen recording only if screen stream exists
+            if (this.screenStream) {
+                this.screenRecorder = new MediaRecorder(this.screenStream, {
+                    mimeType: mimeType,
+                    videoBitsPerSecond: 2000000  // 2MB - higher quality for screen content
+                });
 
-            this.screenRecorder.ondataavailable = (event) => {
-                if (event.data && event.data.size > 0) {
-                    console.log('Screen chunk received:', event.data.size, 'bytes');
-                    this.screenChunks.push(event.data);
-                }
-            };
+                this.screenRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        console.log('Screen chunk received:', event.data.size, 'bytes');
+                        this.screenChunks.push(event.data);
+                    }
+                };
 
-            this.screenRecorder.onerror = (event) => {
-                console.error('Screen recorder error:', event.error);
-            };
+                this.screenRecorder.onerror = (event) => {
+                    console.error('Screen recorder error:', event.error);
+                };
+            }
 
-            // Start both recordings WITHOUT timeslice parameter
-            // This will create one continuous recording until stop() is called
-            this.cameraRecorder.start();
-            this.screenRecorder.start();
+            // Start recordings WITHOUT timeslice parameter
+            if (this.cameraRecorder) {
+                this.cameraRecorder.start();
+            }
+            if (this.screenRecorder) {
+                this.screenRecorder.start();
+            }
             this.isRecording = true;
 
             console.log('Recording started successfully');
 
-            // Handle stream end (user stops sharing)
-            this.screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-                console.warn('Screen sharing stopped by user');
-                this.handleScreenShareStopped();
-            });
+            // Handle stream end (user stops sharing) - only if screen recording is enabled
+            if (this.screenStream && this.screenStream.getVideoTracks().length > 0) {
+                this.screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    console.warn('Screen sharing stopped by user');
+                    this.handleScreenShareStopped();
+                });
+            }
 
             return {
                 success: true,
@@ -137,12 +155,12 @@ class RecordingManager {
 
         return new Promise((resolve) => {
             let stoppedCount = 0;
-            const totalRecorders = 2;
+            const totalRecorders = (this.cameraRecorder ? 1 : 0) + (this.screenRecorder ? 1 : 0);
 
             const checkComplete = () => {
                 stoppedCount++;
                 console.log(`Recorder stopped (${stoppedCount}/${totalRecorders})`);
-                if (stoppedCount === totalRecorders) {
+                if (stoppedCount === totalRecorders || totalRecorders === 0) {
                     // Wait a bit for all chunks to be collected
                     setTimeout(() => {
                         this.saveRecordings().then(resolve);
@@ -187,27 +205,37 @@ class RecordingManager {
             console.log('📹 Camera chunks:', this.cameraChunks.length);
             console.log('🖥️ Screen chunks:', this.screenChunks.length);
             
-            // Create blobs
-            const cameraBlob = new Blob(this.cameraChunks, { type: 'video/mp4;codecs=avc1' });
-            const screenBlob = new Blob(this.screenChunks, { type: 'video/mp4;codecs=avc1' });
+            // Create blobs only for enabled recordings
+            const cameraBlob = this.cameraChunks.length > 0 ? new Blob(this.cameraChunks, { type: 'video/mp4;codecs=avc1' }) : null;
+            const screenBlob = this.screenChunks.length > 0 ? new Blob(this.screenChunks, { type: 'video/mp4;codecs=avc1' }) : null;
 
-            console.log('Camera blob size:', cameraBlob.size, 'bytes');
-            console.log('Screen blob size:', screenBlob.size, 'bytes');
+            if (cameraBlob) {
+                console.log('Camera blob size:', cameraBlob.size, 'bytes');
+            }
+            if (screenBlob) {
+                console.log('Screen blob size:', screenBlob.size, 'bytes');
+            }
 
-            if (cameraBlob.size === 0 || screenBlob.size === 0) {
-                console.error('One or more recordings are empty!');
+            if (!cameraBlob && !screenBlob) {
+                console.error('No recordings available!');
                 return null;
             }
 
-            // Generate unique recording IDs
-            const cameraRecordingId = await generateRecordingId('vd', this.attemptId, this.examId);
-            const screenRecordingId = await generateRecordingId('sc', this.attemptId, this.examId);
+            // Generate unique recording IDs only for enabled recordings
+            let cameraRecordingId = null;
+            let screenRecordingId = null;
             
-            console.log('🆔 Generated Camera ID:', cameraRecordingId);
-            console.log('🆔 Generated Screen ID:', screenRecordingId);
+            if (cameraBlob && cameraBlob.size > 0) {
+                cameraRecordingId = await generateRecordingId('vd', this.attemptId, this.examId);
+                console.log('🆔 Generated Camera ID:', cameraRecordingId);
+            }
+            if (screenBlob && screenBlob.size > 0) {
+                screenRecordingId = await generateRecordingId('sc', this.attemptId, this.examId);
+                console.log('🆔 Generated Screen ID:', screenRecordingId);
+            }
 
             // Local Storage Upload
-            const totalSize = cameraBlob.size + screenBlob.size;
+            const totalSize = (cameraBlob?.size || 0) + (screenBlob?.size || 0);
             console.log(`📊 Total recording size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
             console.log('📁 Using local storage upload system!');
 
@@ -217,13 +245,13 @@ class RecordingManager {
             formData.append('examId', this.examId);
             
             // Upload all recordings with unique IDs to local storage
-            if (cameraBlob.size > 0) {
+            if (cameraBlob && cameraBlob.size > 0) {
                 const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd');
                 formData.append('cameraVideo', cameraBlob, cameraFilename);
                 formData.append('cameraRecordingId', cameraRecordingId);
                 console.log(`📹 Camera video: ${(cameraBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${cameraRecordingId}`);
             }
-            if (screenBlob.size > 0) {
+            if (screenBlob && screenBlob.size > 0) {
                 const screenFilename = generateRecordingFilename(screenRecordingId, 'sc');
                 formData.append('screenVideo', screenBlob, screenFilename);
                 formData.append('screenRecordingId', screenRecordingId);

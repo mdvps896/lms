@@ -40,6 +40,8 @@ const ExamForm = ({ type, initialData }) => {
             allowMic: false,
             allowCam: false,
             allowScreenShare: false,
+            allowCaptureId: false,
+            allowCaptureFace: false,
             allowTabSwitch: false,
             maxTabSwitches: 3,
             allowCopyPaste: false,
@@ -164,6 +166,8 @@ const ExamForm = ({ type, initialData }) => {
                     allowMic: initialData.settings?.allowMic || false,
                     allowCam: initialData.settings?.allowCam || false,
                     allowScreenShare: initialData.settings?.allowScreenShare || false,
+                    allowCaptureId: initialData.settings?.allowCaptureId || false,
+                    allowCaptureFace: initialData.settings?.allowCaptureFace || false,
                     allowTabSwitch: initialData.settings?.allowTabSwitch || false,
                     maxTabSwitches: initialData.settings?.maxTabSwitches ?? 3,
                     allowCopyPaste: initialData.settings?.allowCopyPaste || false,
@@ -549,6 +553,79 @@ const ExamForm = ({ type, initialData }) => {
                                     : `Students can attempt this exam ${formData.maxAttempts} time${formData.maxAttempts > 1 ? 's' : ''}`
                                 }
                             </small>
+                        </div>
+
+                        <hr />
+
+                        <h6 className="mb-2">Recording Settings</h6>
+                        <div className="form-check mb-2">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                name="settings.allowCam"
+                                checked={formData.settings.allowCam}
+                                onChange={handleChange}
+                                id="allowCam"
+                            />
+                            <label className="form-check-label" htmlFor="allowCam">
+                                Enable Camera Recording
+                            </label>
+                        </div>
+                        <div className="form-check mb-2">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                name="settings.allowMic"
+                                checked={formData.settings.allowMic}
+                                onChange={handleChange}
+                                id="allowMic"
+                            />
+                            <label className="form-check-label" htmlFor="allowMic">
+                                Enable Microphone Recording
+                            </label>
+                        </div>
+                        <div className="form-check mb-2">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                name="settings.allowScreenShare"
+                                checked={formData.settings.allowScreenShare}
+                                onChange={handleChange}
+                                id="allowScreenShare"
+                            />
+                            <label className="form-check-label" htmlFor="allowScreenShare">
+                                Enable Screen Recording
+                            </label>
+                        </div>
+
+                        <hr />
+
+                        <h6 className="mb-2">Identity Verification</h6>
+                        <div className="form-check mb-2">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                name="settings.allowCaptureId"
+                                checked={formData.settings.allowCaptureId}
+                                onChange={handleChange}
+                                id="allowCaptureId"
+                            />
+                            <label className="form-check-label" htmlFor="allowCaptureId">
+                                Allow Capture ID Card
+                            </label>
+                        </div>
+                        <div className="form-check mb-2">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                name="settings.allowCaptureFace"
+                                checked={formData.settings.allowCaptureFace}
+                                onChange={handleChange}
+                                id="allowCaptureFace"
+                            />
+                            <label className="form-check-label" htmlFor="allowCaptureFace">
+                                Allow Capture Face Photo
+                            </label>
                         </div>
 
                         <hr />

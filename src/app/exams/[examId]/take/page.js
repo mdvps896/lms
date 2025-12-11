@@ -57,7 +57,14 @@ export default function TakeExamPage() {
         // Initialize recording manager
         recordingManagerRef.current = new RecordingManager();
 
-        const result = await recordingManagerRef.current.startRecording(attemptId, params.examId);
+        // Pass exam settings to recording manager
+        const recordingSettings = {
+            allowCam: exam?.settings?.allowCam || false,
+            allowMic: exam?.settings?.allowMic || false,
+            allowScreenShare: exam?.settings?.allowScreenShare || false
+        };
+
+        const result = await recordingManagerRef.current.startRecording(attemptId, params.examId, recordingSettings);
 
         if (result.success) {
             setRecordingStarted(true);
@@ -74,11 +81,13 @@ export default function TakeExamPage() {
                 console.warn('Failed to get streams info:', streamError);
             }
 
-            // Setup screen share stop handler
-            window.onScreenShareStopped = () => {
-                toast.error('Screen sharing stopped! Please share your screen again.');
-                // Note: Screen stream preview already disabled for students
-            };
+            // Setup screen share stop handler only if screen recording is enabled
+            if (exam?.settings?.allowScreenShare) {
+                window.onScreenShareStopped = () => {
+                    toast.error('Screen sharing stopped! Please share your screen again.');
+                    // Note: Screen stream preview already disabled for students
+                };
+            }
 
             // Start server-side live streaming
             try {
