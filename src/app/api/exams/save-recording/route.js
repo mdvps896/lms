@@ -5,6 +5,11 @@ import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import { saveToLocalStorage } from '@/utils/localStorage';
 
+// Configure route to allow large file uploads
+export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes timeout
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
     try {
         await connectDB();

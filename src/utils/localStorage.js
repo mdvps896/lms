@@ -285,7 +285,7 @@ export async function deleteFromLocalStorage(filePath) {
         const normalizedFilePath = filePath.replace(/\\/g, '/');
         
         // Check if it's a true absolute path (has drive letter on Windows or starts with / on Unix)
-        const isTrueAbsolute = path.isAbsolute(normalizedFilePath) && !normalizedFilePath.startsWith('/uploads');
+        const isTrueAbsolute = path.isAbsolute(normalizedFilePath) && !normalizedFilePath.startsWith('/uploads') && !normalizedFilePath.startsWith('/images');
         
         if (isTrueAbsolute) {
             // It's a true absolute path (e.g., C:/path/to/file)
@@ -293,16 +293,20 @@ export async function deleteFromLocalStorage(filePath) {
         } else {
             // It's a relative path from public directory
             // Remove leading slash if present
-            const cleanPath = normalizedFilePath.startsWith('/') ? normalizedFilePath.slice(1) : normalizedFilePath;
+            let cleanPath = normalizedFilePath.startsWith('/') ? normalizedFilePath.slice(1) : normalizedFilePath;
             
-            // Try with Windows-style path separators
+            // If path doesn't start with 'uploads' or 'images', it might be missing
+            // Common cases: '/images/logo.png' should be 'public/images/logo.png'
+            // '/uploads/videos/...' should be 'public/uploads/videos/...'
+            
+            // Primary path - direct join
             const absolutePath = path.join(process.cwd(), 'public', cleanPath);
             pathsToTry.push(absolutePath);
             
-            // Also try with explicit Windows path (replace forward slashes with backslashes after join)
-            const windowsPath = path.join(process.cwd(), 'public', cleanPath.replace(/\//g, path.sep));
-            if (windowsPath !== absolutePath) {
-                pathsToTry.push(windowsPath);
+            // Try normalized version with proper separators
+            const normalizedPath = path.normalize(path.join(process.cwd(), 'public', cleanPath));
+            if (normalizedPath !== absolutePath && !pathsToTry.includes(normalizedPath)) {
+                pathsToTry.push(normalizedPath);
             }
             
             // Try to fix duplicate directory paths (e.g., /uploads/images/images/ -> /uploads/images/)
@@ -310,13 +314,27 @@ export async function deleteFromLocalStorage(filePath) {
             if (legacyPath !== normalizedFilePath) {
                 const legacyCleanPath = legacyPath.startsWith('/') ? legacyPath.slice(1) : legacyPath;
                 const legacyAbsolutePath = path.join(process.cwd(), 'public', legacyCleanPath);
-                pathsToTry.push(legacyAbsolutePath);
+                if (!pathsToTry.includes(legacyAbsolutePath)) {
+                    pathsToTry.push(legacyAbsolutePath);
+                }
             }
             
-            // Also try without the 'images' subdirectory completely (direct in uploads)
+            // Try without the 'images' subdirectory (direct in uploads)
             if (cleanPath.includes('images/images/')) {
                 const directPath = cleanPath.replace('images/images/', 'images/');
-                pathsToTry.push(path.join(process.cwd(), 'public', directPath));
+                const tryPath = path.join(process.cwd(), 'public', directPath);
+                if (!pathsToTry.includes(tryPath)) {
+                    pathsToTry.push(tryPath);
+                }
+            }
+            
+            // Try videos subdirectory variants
+            if (cleanPath.includes('videos/') && !cleanPath.includes('uploads/videos/')) {
+                const videosPath = 'uploads/' + cleanPath;
+                const tryPath = path.join(process.cwd(), 'public', videosPath);
+                if (!pathsToTry.includes(tryPath)) {
+                    pathsToTry.push(tryPath);
+                }
             }
         }
         
@@ -324,17 +342,41 @@ export async function deleteFromLocalStorage(filePath) {
         
         // Try each path until we find the file
         for (const tryPath of pathsToTry) {
-            console.log('   Checking:', tryPath, 'Exists?', fs.existsSync(tryPath));
-            if (fs.existsSync(tryPath)) {
+            const exists = fs.existsSync(tryPath);
+            console.log('   Checking:', tryPath, 'Exists?', exists);
+            
+            if (exists) {
+                // Check if it's a file or directory
+                const stats = fs.statSync(tryPath);
+                
+                if (stats.isDirectory()) {
+                    console.log('   ⚠️ Path is a directory, skipping');
+                    continue;
+                }
+                
                 try {
                     fs.unlinkSync(tryPath);
                     console.log('✅ File deleted successfully at:', tryPath);
                     
                     return {
                         success: true,
-                        message: 'File deleted successfully'
+                        message: 'File deleted successfully',
+                        deletedPath: tryPath
                     };
                 } catch (unlinkError) {
+                    console.error('   ❌ Failed to delete:', unlinkError.message);
+                    
+                    // Check if it's a permission error
+                    if (unlinkError.code === 'EACCES' || unlinkError.code === 'EPERM') {
+                        console.warn('⚠️ Permission denied. File exists but cannot be deleted:', tryPath);
+                        return {
+                            success: false,
+                            message: 'Permission denied - cannot delete file',
+                            error: unlinkError.message,
+                            path: tryPath
+                        };
+                    }
+                    
                     // Check if it's a read-only file system error
                     if (unlinkError.code === 'EROFS') {
                         console.warn('⚠️ Read-only file system detected. File exists but cannot be deleted:', tryPath);
@@ -351,12 +393,16 @@ export async function deleteFromLocalStorage(filePath) {
         }
         
         console.log('⚠️ File not found at any of these paths');
+        console.log('   Current working directory:', process.cwd());
+        console.log('   Public directory check:', fs.existsSync(path.join(process.cwd(), 'public')));
+        
         return {
             success: false,
             message: 'File not found',
             details: {
                 requestedPath: filePath,
-                triedPaths: pathsToTry
+                triedPaths: pathsToTry,
+                cwd: process.cwd()
             }
         };
         

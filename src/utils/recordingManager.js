@@ -266,7 +266,29 @@ class RecordingManager {
                 body: formData
             });
 
-            const result = await response.json();
+            console.log('📡 Response status:', response.status, response.statusText);
+            console.log('📡 Response headers:', {
+                contentType: response.headers.get('content-type'),
+                contentLength: response.headers.get('content-length')
+            });
+
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            let result;
+            
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                // Response is not JSON (might be HTML error page or plain text)
+                const textResponse = await response.text();
+                console.error('❌ Non-JSON response received:', textResponse.substring(0, 500));
+                
+                return { 
+                    error: `Server error: ${response.statusText}`, 
+                    status: response.status,
+                    details: textResponse.substring(0, 200)
+                };
+            }
 
             if (response.ok) {
                 console.log('🎉 Exam recordings saved successfully to local storage!');

@@ -5,6 +5,14 @@ export async function POST(request) {
     try {
         const { filePath, publicId, resourceType } = await request.json()
 
+        console.log('🗑️ Delete API called:', {
+            filePath,
+            publicId,
+            resourceType,
+            env: process.env.NODE_ENV,
+            cwd: process.cwd()
+        })
+
         if (!filePath && !publicId) {
             return NextResponse.json(
                 { success: false, message: 'File path is required' },
@@ -34,27 +42,43 @@ export async function POST(request) {
                 return NextResponse.json({
                     success: false,
                     message: result.message || 'Failed to delete file',
+                    details: result.details,
+                    error: result.error,
                     debug: {
                         requestedPath: pathToDelete,
-                        resourceType: resourceType
+                        resourceType: resourceType,
+                        env: process.env.NODE_ENV
                     }
-                }, { status: 404 })
+                }, { status: result.error ? 500 : 404 })
+            }
+            
+            // If it's a read-only filesystem, return success with warning
+            if (result.readOnlyFS) {
+                return NextResponse.json({
+                    success: true,
+                    message: result.message,
+                    warning: result.warning,
+                    readOnlyFS: true
+                })
             }
             
             return NextResponse.json({
                 success: true,
-                message: 'File deleted successfully'
+                message: 'File deleted successfully',
+                deletedPath: result.deletedPath
             })
         } catch (error) {
             console.error('Local storage delete error:', error)
+            console.error('Stack trace:', error.stack)
             return NextResponse.json(
                 { 
                     success: false, 
                     message: `Error deleting file: ${error.message}`,
                     debug: {
                         error: error.message,
-                        stack: error.stack,
-                        path: pathToDelete
+                        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+                        path: pathToDelete,
+                        env: process.env.NODE_ENV
                     }
                 },
                 { status: 500 }
@@ -62,8 +86,13 @@ export async function POST(request) {
         }
     } catch (error) {
         console.error('Error deleting file:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
-            { success: false, message: error.message || 'Error deleting file' },
+            { 
+                success: false, 
+                message: error.message || 'Error deleting file',
+                debug: process.env.NODE_ENV === 'development' ? { stack: error.stack } : undefined
+            },
             { status: 500 }
         )
     }

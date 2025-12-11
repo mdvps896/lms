@@ -4,6 +4,10 @@ const nextConfig = {
     experimental: {
         instrumentationHook: true,
     },
+    // Increase body size limit for API routes (for video uploads)
+    serverRuntimeConfig: {
+        bodySizeLimit: '50mb',
+    },
     images: {
         remotePatterns: [
             {
