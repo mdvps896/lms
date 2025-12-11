@@ -276,6 +276,7 @@ export async function GET(request, { params }) {
             attempt: formattedAttempt,
             exam: {
                 _id: exam._id,
+                name: exam.name,
                 title: exam.name,
                 subject: subject,
                 duration: exam.duration,

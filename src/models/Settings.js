@@ -41,7 +41,10 @@ const settingsSchema = new mongoose.Schema({
         showSeal: { type: Boolean, default: true },
         showCertificateId: { type: Boolean, default: true },
         showDate: { type: Boolean, default: true },
-        fontFamily: { type: String, default: 'Georgia, serif' }
+        fontFamily: { type: String, default: 'Georgia, serif' },
+        logo: { type: String, default: '' },
+        signatureImage1: { type: String, default: '' },
+        signatureImage2: { type: String, default: '' }
     },
     // Roll Number Settings
     rollNumberSettings: {

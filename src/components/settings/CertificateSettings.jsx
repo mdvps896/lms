@@ -25,8 +25,13 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
         showSeal: true,
         showCertificateId: true,
         showDate: true,
-        fontFamily: 'Georgia, serif'
+        fontFamily: 'Georgia, serif',
+        logo: '',
+        signatureImage1: '',
+        signatureImage2: ''
     });
+
+    const [uploading, setUploading] = useState(false);
 
     const [previewData, setPreviewData] = useState({
         studentName: 'John Doe',
@@ -47,9 +52,44 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
         setCertificateConfig(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleImageUpload = async (file, field) => {
+        if (!file) return;
+        
+        try {
+            setUploading(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'certificates');
+
+            const response = await fetch('/api/storage/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                const updatedConfig = { ...certificateConfig, [field]: data.url };
+                setCertificateConfig(updatedConfig);
+                
+                // Automatically save to database
+                await onUpdate(updatedConfig);
+                toast.success('Image uploaded and saved successfully');
+            } else {
+                throw new Error(data.message || 'Upload failed');
+            }
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            toast.error('Failed to upload image');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleSave = async () => {
         try {
             await onUpdate(certificateConfig);
+            toast.success('Certificate settings saved successfully');
         } catch (error) {
             console.error('Error saving certificate settings:', error);
             toast.error('Failed to save certificate settings');
@@ -89,6 +129,30 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
                                     onChange={(e) => handleChange('tagline', e.target.value)}
                                     placeholder="Excellence in Education"
                                 />
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Certificate Logo (Top Left)</label>
+                                <input
+                                    type="file"
+                                    className="form-control mb-2"
+                                    accept="image/*"
+                                    onChange={(e) => handleImageUpload(e.target.files[0], 'logo')}
+                                    disabled={uploading}
+                                />
+                                <input
+                                    type="url"
+                                    className="form-control"
+                                    value={certificateConfig.logo}
+                                    onChange={(e) => handleChange('logo', e.target.value)}
+                                    placeholder="Or enter image URL"
+                                />
+                                {certificateConfig.logo && (
+                                    <div className="mt-2">
+                                        <img src={certificateConfig.logo} alt="Logo" style={{ height: '50px' }} />
+                                    </div>
+                                )}
+                                <small className="text-muted">Upload file or enter URL</small>
                             </div>
                         </div>
 
@@ -199,32 +263,10 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
 
                         {/* Signatures */}
                         <div className="mb-4">
-                            <h6 className="text-primary mb-3">Signatures</h6>
+                            <h6 className="text-primary mb-3">Signature</h6>
                             
                             <div className="mb-3">
-                                <label className="form-label">Left Signature Title</label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={certificateConfig.signatureTitle1}
-                                    onChange={(e) => handleChange('signatureTitle1', e.target.value)}
-                                    placeholder="Administrator"
-                                />
-                            </div>
-
-                            <div className="mb-3">
-                                <label className="form-label">Left Signature Subtitle</label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={certificateConfig.signatureSubtitle1}
-                                    onChange={(e) => handleChange('signatureSubtitle1', e.target.value)}
-                                    placeholder="Optional subtitle"
-                                />
-                            </div>
-
-                            <div className="mb-3">
-                                <label className="form-label">Right Signature Title</label>
+                                <label className="form-label">Signature Title</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -235,7 +277,7 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
                             </div>
 
                             <div className="mb-3">
-                                <label className="form-label">Right Signature Subtitle</label>
+                                <label className="form-label">Signature Subtitle</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -243,6 +285,30 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
                                     onChange={(e) => handleChange('signatureSubtitle2', e.target.value)}
                                     placeholder="Authorized Signatory"
                                 />
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Signature Image</label>
+                                <input
+                                    type="file"
+                                    className="form-control mb-2"
+                                    accept="image/*"
+                                    onChange={(e) => handleImageUpload(e.target.files[0], 'signatureImage2')}
+                                    disabled={uploading}
+                                />
+                                <input
+                                    type="url"
+                                    className="form-control"
+                                    value={certificateConfig.signatureImage2}
+                                    onChange={(e) => handleChange('signatureImage2', e.target.value)}
+                                    placeholder="Or enter image URL"
+                                />
+                                {certificateConfig.signatureImage2 && (
+                                    <div className="mt-2">
+                                        <img src={certificateConfig.signatureImage2} alt="Signature" style={{ height: '40px' }} />
+                                    </div>
+                                )}
+                                <small className="text-muted">Upload file or enter URL</small>
                             </div>
                         </div>
 
@@ -343,192 +409,231 @@ const CertificateSettings = ({ settings, onUpdate, saving }) => {
                             <div style={{
                                 width: '1122px',
                                 height: '794px',
-                                padding: '60px',
-                                background: `linear-gradient(135deg, ${certificateConfig.backgroundColor} 0%, #f8f9fa 100%)`,
-                                border: `${certificateConfig.borderWidth}px solid ${certificateConfig.borderColor}`,
+                                padding: '0',
+                                background: '#f5f5f5',
                                 position: 'relative',
                                 fontFamily: certificateConfig.fontFamily,
-                                boxSizing: 'border-box'
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}>
-                                {/* Decorative Border */}
                                 <div style={{
-                                    position: 'absolute',
-                                    top: '40px',
-                                    left: '40px',
-                                    right: '40px',
-                                    bottom: '40px',
-                                    border: `3px solid ${certificateConfig.secondaryColor}`
-                                }} />
-
-                                {/* Watermark */}
-                                {certificateConfig.watermarkEnabled && (
+                                    width: '1042px',
+                                    height: '714px',
+                                    background: 'white',
+                                    border: `20px solid ${certificateConfig.borderColor}`,
+                                    position: 'relative'
+                                }}>
+                                    {/* Inner Border */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        fontSize: '180px',
-                                        fontWeight: 'bold',
-                                        color: `rgba(0, 0, 0, ${certificateConfig.watermarkOpacity})`,
-                                        zIndex: 0,
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                        {certificateConfig.siteName.toUpperCase()}
-                                    </div>
-                                )}
-
-                                {/* Content */}
-                                <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-                                    {/* Header */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                                        {certificateConfig.showCertificateId && (
-                                            <div style={{ fontSize: '12px', color: '#666' }}>
-                                                <strong>Certificate ID:</strong> CERT-12345678
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Site Name */}
-                                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                                        <h1 style={{
-                                            fontSize: '32px',
-                                            fontWeight: 'bold',
-                                            color: certificateConfig.primaryColor,
-                                            margin: '0',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '2px'
-                                        }}>
-                                            {certificateConfig.siteName || 'Your Institution'}
-                                        </h1>
-                                        <p style={{ fontSize: '14px', color: '#666', margin: '5px 0 0 0' }}>
-                                            {certificateConfig.tagline}
-                                        </p>
-                                    </div>
-
-                                    {/* Certificate Title */}
-                                    <div style={{ textAlign: 'center', marginBottom: '30px', marginTop: '30px' }}>
-                                        <h2 style={{
-                                            fontSize: `${certificateConfig.titleFontSize}px`,
-                                            fontWeight: 'bold',
-                                            color: certificateConfig.secondaryColor,
-                                            margin: '0',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '4px'
-                                        }}>
-                                            CERTIFICATE
-                                        </h2>
-                                        <div style={{
-                                            width: '200px',
-                                            height: '3px',
-                                            background: certificateConfig.primaryColor,
-                                            margin: '15px auto'
-                                        }} />
-                                        <p style={{ fontSize: '18px', color: '#666', margin: '10px 0 0 0', fontStyle: 'italic' }}>
-                                            of Achievement
-                                        </p>
-                                    </div>
-
-                                    {/* Body */}
-                                    <div style={{ textAlign: 'center', marginTop: '40px', marginBottom: '40px' }}>
-                                        <p style={{ fontSize: `${certificateConfig.bodyFontSize}px`, color: '#333', marginBottom: '20px' }}>
-                                            This is to certify that
-                                        </p>
-                                        
-                                        <h3 style={{
-                                            fontSize: `${certificateConfig.nameFontSize}px`,
-                                            fontWeight: 'bold',
-                                            color: '#000',
-                                            margin: '20px 0',
-                                            fontFamily: certificateConfig.fontFamily,
-                                            fontStyle: 'italic',
-                                            borderBottom: `2px solid ${certificateConfig.primaryColor}`,
-                                            paddingBottom: '10px',
-                                            display: 'inline-block'
-                                        }}>
-                                            {previewData.studentName}
-                                        </h3>
-
-                                        <p style={{ 
-                                            fontSize: `${certificateConfig.bodyFontSize}px`, 
-                                            color: '#333', 
-                                            margin: '30px 60px', 
-                                            lineHeight: '1.8' 
-                                        }}>
-                                            has successfully completed the examination titled<br/>
-                                            <strong style={{ fontSize: `${certificateConfig.bodyFontSize + 4}px`, color: certificateConfig.primaryColor }}>
-                                                "{previewData.examName}"
-                                            </strong><br/>
-                                            and achieved a score of<br/>
-                                            <strong style={{ fontSize: `${certificateConfig.bodyFontSize + 10}px`, color: certificateConfig.secondaryColor }}>
-                                                {previewData.score}%
-                                            </strong>
-                                        </p>
-
-                                        {certificateConfig.showDate && (
-                                            <p style={{ fontSize: '16px', color: '#666', marginTop: '30px' }}>
-                                                Awarded on <strong>{previewData.date}</strong>
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Footer Signatures */}
-                                    <div style={{
-                                        position: 'absolute',
-                                        bottom: '0',
-                                        left: '0',
-                                        right: '0',
+                                        top: '20px',
+                                        left: '20px',
+                                        right: '20px',
+                                        bottom: '20px',
+                                        border: `8px solid ${certificateConfig.secondaryColor}`,
+                                        padding: '40px',
                                         display: 'flex',
-                                        justifyContent: 'space-around',
-                                        paddingTop: '20px',
-                                        borderTop: `2px solid ${certificateConfig.primaryColor}`
+                                        flexDirection: 'column'
                                     }}>
-                                        <div style={{ textAlign: 'center', flex: 1 }}>
-                                            <div style={{ borderTop: '2px solid #333', width: '200px', margin: '0 auto 10px' }} />
-                                            <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
-                                                {certificateConfig.signatureTitle1}
-                                            </p>
-                                            {certificateConfig.signatureSubtitle1 && (
-                                                <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
-                                                    {certificateConfig.signatureSubtitle1}
-                                                </p>
-                                            )}
-                                        </div>
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                            {/* Header */}
+                                            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                                <h1 style={{
+                                                    fontSize: '24px',
+                                                    fontWeight: '600',
+                                                    color: '#333',
+                                                    margin: '0',
+                                                    letterSpacing: '1px'
+                                                }}>
+                                                    {certificateConfig.siteName || 'Your Institution'}
+                                                </h1>
+                                            </div>
 
-                                        {certificateConfig.showSeal && (
-                                            <div style={{ textAlign: 'center', flex: 1 }}>
+                                            {/* Certificate Title */}
+                                            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                                <h2 style={{
+                                                    fontSize: `${certificateConfig.titleFontSize}px`,
+                                                    color: '#6b7280',
+                                                    margin: '0 0 10px 0',
+                                                    fontWeight: '400',
+                                                    letterSpacing: '2px'
+                                                }}>
+                                                    Certificate of Participation
+                                                </h2>
+                                            </div>
+
+                                            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                                                <p style={{
+                                                    fontSize: '14px',
+                                                    color: '#9ca3af',
+                                                    margin: '0',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    This certificate is proudly presented to
+                                                </p>
+                                            </div>
+
+                                            {/* Student Name */}
+                                            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                                <h3 style={{
+                                                    fontSize: `${certificateConfig.nameFontSize}px`,
+                                                    fontWeight: 'bold',
+                                                    color: certificateConfig.secondaryColor,
+                                                    margin: '0',
+                                                    letterSpacing: '1px'
+                                                }}>
+                                                    {previewData.studentName}
+                                                </h3>
+                                            </div>
+
+                                            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                                                <p style={{
+                                                    fontSize: '12px',
+                                                    color: '#6b7280',
+                                                    margin: '0 0 5px 0'
+                                                }}>
+                                                    for participating in the examination
+                                                </p>
+                                                <p style={{
+                                                    fontSize: '16px',
+                                                    fontWeight: 'bold',
+                                                    color: '#1f2937',
+                                                    margin: '0'
+                                                }}>
+                                                    ({previewData.examName})
+                                                </p>
+                                            </div>
+
+                                            {/* Metrics Row */}
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-around',
+                                                marginTop: '30px',
+                                                marginBottom: '30px',
+                                                padding: '0 40px'
+                                            }}>
+                                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '24px',
+                                                        fontWeight: 'bold',
+                                                        color: '#ef4444',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        {previewData.score}%
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Score</div>
+                                                </div>
+                                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '24px',
+                                                        fontWeight: 'bold',
+                                                        color: '#1f2937',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        8/10
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Marks</div>
+                                                </div>
+                                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '20px',
+                                                        fontWeight: 'bold',
+                                                        color: '#ef4444',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        PASSED
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Status</div>
+                                                </div>
+                                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '20px',
+                                                        fontWeight: 'bold',
+                                                        color: '#1f2937',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        1.5 min
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Duration</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Participated Badge */}
+                                            <div style={{ textAlign: 'center', marginTop: '15px', marginBottom: '30px' }}>
                                                 <div style={{
-                                                    width: '80px',
-                                                    height: '80px',
-                                                    border: `3px solid ${certificateConfig.primaryColor}`,
-                                                    borderRadius: '50%',
-                                                    margin: '0 auto 10px',
-                                                    display: 'flex',
+                                                    display: 'inline-flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    background: 'white'
+                                                    width: '80px',
+                                                    height: '80px',
+                                                    borderRadius: '50%',
+                                                    background: '#3b82f6',
+                                                    position: 'relative'
                                                 }}>
+                                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                                                        <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    </svg>
                                                     <div style={{
-                                                        fontSize: '12px',
-                                                        fontWeight: 'bold',
-                                                        color: certificateConfig.primaryColor,
-                                                        textAlign: 'center'
+                                                        position: 'absolute',
+                                                        bottom: '-20px',
+                                                        background: '#3b82f6',
+                                                        color: 'white',
+                                                        padding: '3px 12px',
+                                                        borderRadius: '12px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 'bold'
                                                     }}>
-                                                        {certificateConfig.sealText.split(' ').map((word, i) => (
-                                                            <div key={i}>{word}</div>
-                                                        ))}
+                                                        PARTICIPATED
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        <div style={{ textAlign: 'center', flex: 1 }}>
-                                            <div style={{ borderTop: '2px solid #333', width: '200px', margin: '0 auto 10px' }} />
-                                            <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
-                                                {certificateConfig.signatureTitle2}
-                                            </p>
-                                            <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
-                                                {certificateConfig.signatureSubtitle2}
-                                            </p>
+                                            {/* Footer */}
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'flex-end',
+                                                marginTop: 'auto',
+                                                paddingTop: '20px',
+                                                borderTop: '1px solid #e5e7eb'
+                                            }}>
+                                                <div style={{ textAlign: 'left', flex: 1 }}>
+                                                    {certificateConfig.signatureImage2 && (
+                                                        <img src={certificateConfig.signatureImage2} alt="Signature" style={{ height: '30px', width: 'auto', marginBottom: '5px' }} />
+                                                    )}
+                                                    <div style={{
+                                                        borderTop: '2px solid #333',
+                                                        width: '120px',
+                                                        marginBottom: '5px'
+                                                    }} />
+                                                    <p style={{ margin: '0', fontSize: '10px', color: '#1f2937', fontWeight: '600' }}>
+                                                        Authorized Signatory
+                                                    </p>
+                                                </div>
+                                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        color: '#1f2937',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        {previewData.date}
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Issue Date</div>
+                                                </div>
+                                                <div style={{ textAlign: 'right', flex: 1 }}>
+                                                    <div style={{
+                                                        fontSize: '18px',
+                                                        fontWeight: 'bold',
+                                                        color: '#1f2937',
+                                                        marginBottom: '5px'
+                                                    }}>
+                                                        90%
+                                                    </div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>Passing Grade</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

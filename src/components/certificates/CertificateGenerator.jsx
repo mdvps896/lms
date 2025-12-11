@@ -5,12 +5,87 @@ import { FiDownload } from 'react-icons/fi';
 const CertificateGenerator = ({ attempt, exam, user, settings }) => {
     const certificateRef = useRef(null);
 
+    const convertImageToBase64 = (url) => {
+        return new Promise((resolve, reject) => {
+            if (!url) {
+                resolve('');
+                return;
+            }
+            
+            // Convert relative URLs to absolute
+            let absoluteUrl = url;
+            if (url.startsWith('/')) {
+                absoluteUrl = window.location.origin + url;
+            }
+            
+            console.log('Loading image for base64 conversion:', absoluteUrl);
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const dataURL = canvas.toDataURL('image/png');
+                    console.log('Successfully converted to base64:', absoluteUrl);
+                    resolve(dataURL);
+                } catch (error) {
+                    console.error('Failed to convert image to base64:', absoluteUrl, error);
+                    resolve(''); // Return empty string on failure
+                }
+            };
+            
+            img.onerror = (e) => {
+                console.error('Failed to load image for conversion:', absoluteUrl, e);
+                resolve(''); // Return empty string on failure
+            };
+            
+            img.src = absoluteUrl;
+        });
+    };
+
     const handleDownload = async () => {
         try {
             console.log('Starting certificate download...');
             console.log('Attempt:', attempt);
             console.log('Exam:', exam);
+            console.log('Exam Name:', exam?.name);
             console.log('User:', user);
+            console.log('Settings:', settings);
+            console.log('Certificate Config:', settings?.certificateSettings);
+            console.log('Signature Image 1:', settings?.certificateSettings?.signatureImage1);
+            console.log('Signature Image 2:', settings?.certificateSettings?.signatureImage2);
+            
+            // Get certificate config
+            const certConfig = settings?.certificateSettings || {};
+            const signatureImage2 = certConfig.signatureImage2 || '';
+            const siteLogo = settings?.siteSettings?.logo || certConfig.logo || '';
+            
+            console.log('Site Logo URL:', siteLogo || 'No logo set');
+            console.log('Signature Image URL:', signatureImage2 || 'No signature set');
+            
+            console.log('Converting images to base64...');
+            const convertPromises = [];
+            
+            if (siteLogo) {
+                convertPromises.push(convertImageToBase64(siteLogo));
+            } else {
+                convertPromises.push(Promise.resolve(''));
+            }
+            
+            if (signatureImage2) {
+                convertPromises.push(convertImageToBase64(signatureImage2));
+            } else {
+                convertPromises.push(Promise.resolve(''));
+            }
+            
+            const [logoBase64, signatureBase64] = await Promise.all(convertPromises);
+            console.log('Logo Base64:', logoBase64 ? 'Converted successfully' : 'Failed');
+            console.log('Signature Base64:', signatureBase64 ? 'Converted successfully' : 'Failed');
             
             // Dynamic import for client-side only
             const html2canvas = (await import('html2canvas')).default;
@@ -24,14 +99,49 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                 return;
             }
             
+            // Replace image sources with base64
+            const images = element.querySelectorAll('img');
+            const originalSrcs = [];
+            console.log('Found', images.length, 'images in certificate');
+            
+            images.forEach((img, index) => {
+                originalSrcs.push(img.src);
+                console.log(`Image ${index}: alt="${img.alt}", src="${img.src}"`);
+                
+                if (img.alt === 'Logo') {
+                    if (logoBase64) {
+                        console.log('Replacing logo with base64');
+                        img.src = logoBase64;
+                    } else {
+                        console.warn('Logo base64 is empty, keeping original');
+                    }
+                } else if (img.alt === 'Signature') {
+                    if (signatureBase64) {
+                        console.log('Replacing signature with base64');
+                        img.src = signatureBase64;
+                    } else {
+                        console.warn('Signature base64 is empty, keeping original');
+                    }
+                }
+            });
+            
+            // Wait for images to update
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
             console.log('Generating canvas from HTML...');
             
             // Generate canvas from HTML
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
+                allowTaint: true,
                 logging: true,
                 backgroundColor: '#ffffff'
+            });
+            
+            // Restore original image sources
+            images.forEach((img, index) => {
+                img.src = originalSrcs[index];
             });
 
             console.log('Canvas generated, creating PDF...');
@@ -64,23 +174,23 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
 
     // Get site colors from settings
     const certConfig = settings?.certificateSettings || {};
-    const primaryColor = certConfig.primaryColor || settings?.siteSettings?.primaryColor || '#0891b2';
-    const secondaryColor = certConfig.secondaryColor || settings?.siteSettings?.secondaryColor || '#4361ee';
+    const primaryColor = certConfig.primaryColor || settings?.siteSettings?.primaryColor || '#d946ef'; // Pink/Magenta
+    const secondaryColor = certConfig.secondaryColor || settings?.siteSettings?.secondaryColor || '#8b5cf6'; // Purple
     const backgroundColor = certConfig.backgroundColor || '#ffffff';
     const borderColor = certConfig.borderColor || primaryColor;
     const borderWidth = certConfig.borderWidth || 20;
     const siteName = certConfig.siteName || settings?.siteSettings?.siteName || 'Exam Portal';
     const tagline = certConfig.tagline || 'Excellence in Education';
-    const siteLogo = settings?.siteSettings?.logo || '/images/logo/logo.png';
+    const siteLogo = settings?.siteSettings?.logo || certConfig.logo || '/images/logo/logo.png';
     
     // Font settings
-    const fontFamily = certConfig.fontFamily || 'Georgia, serif';
-    const titleFontSize = certConfig.titleFontSize || 48;
-    const nameFontSize = certConfig.nameFontSize || 42;
-    const bodyFontSize = certConfig.bodyFontSize || 18;
+    const fontFamily = certConfig.fontFamily || 'Arial, sans-serif';
+    const titleFontSize = certConfig.titleFontSize || 28;
+    const nameFontSize = certConfig.nameFontSize || 48;
+    const bodyFontSize = certConfig.bodyFontSize || 16;
     
     // Watermark settings
-    const watermarkEnabled = certConfig.watermarkEnabled !== false;
+    const watermarkEnabled = false; // Disabled like the reference image
     const watermarkOpacity = certConfig.watermarkOpacity || 0.03;
     
     // Signature settings
@@ -88,12 +198,23 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
     const signatureSubtitle1 = certConfig.signatureSubtitle1 || siteName;
     const signatureTitle2 = certConfig.signatureTitle2 || 'Examiner';
     const signatureSubtitle2 = certConfig.signatureSubtitle2 || 'Authorized Signatory';
+    const signatureImage1 = certConfig.signatureImage1 || '';
+    const signatureImage2 = certConfig.signatureImage2 || '';
     
     // Display settings
     const showSeal = certConfig.showSeal !== false;
     const sealText = certConfig.sealText || 'OFFICIAL SEAL';
     const showCertificateId = certConfig.showCertificateId !== false;
     const showDate = certConfig.showDate !== false;
+    
+    // Calculate exam metrics
+    const totalMarks = attempt?.totalQuestions || exam?.questions?.length || 0;
+    const correctAnswers = attempt?.correctAnswers || 0;
+    const obtainedMarks = correctAnswers;
+    const duration = attempt?.timeTaken ? (attempt.timeTaken / 60).toFixed(1) : '0.0';
+    const passingGrade = exam?.passingScore || 90;
+    const status = (attempt?.score || 0) >= passingGrade ? 'PASSED' : 'FAILED';
+    const statusColor = status === 'PASSED' ? '#22c55e' : '#ef4444';
 
     const certificateDate = attempt?.submittedAt 
         ? new Date(attempt.submittedAt).toLocaleDateString('en-US', { 
@@ -129,261 +250,297 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                     style={{
                         width: '1122px',
                         height: '794px',
-                        padding: '60px',
-                        background: backgroundColor,
-                        border: `${borderWidth}px solid ${borderColor}`,
-                        borderRadius: '0',
+                        padding: '0',
+                        background: '#f5f5f5',
                         position: 'relative',
-                        fontFamily: fontFamily
+                        fontFamily: fontFamily,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                     }}
                 >
-                    {/* Decorative Border */}
+                    {/* Outer Border - Dynamic Color */}
                     <div style={{
-                        position: 'absolute',
-                        top: '40px',
-                        left: '40px',
-                        right: '40px',
-                        bottom: '40px',
-                        border: `3px solid ${secondaryColor}`,
-                        borderRadius: '0'
-                    }} />
-
-                    {/* Watermark */}
-                    {watermarkEnabled && (
+                        width: '1042px',
+                        height: '714px',
+                        background: 'white',
+                        border: `20px solid ${borderColor}`,
+                        position: 'relative'
+                    }}>
+                        {/* Inner Border - Secondary Color */}
                         <div style={{
                             position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            fontSize: '180px',
-                            fontWeight: 'bold',
-                            color: `rgba(0, 0, 0, ${watermarkOpacity})`,
-                            zIndex: 0,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            {siteName.toUpperCase()}
-                        </div>
-                    )}
-
-                    {/* Content Container */}
-                    <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-                        {/* Header */}
-                        {showCertificateId && (
-                            <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center',
-                                marginBottom: '30px'
-                            }}>
-                                <div style={{ fontSize: '12px', color: '#666' }}>
-                                    <strong>Certificate ID:</strong> {certificateId}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Site Name */}
-                        <div style={{ 
-                            textAlign: 'center',
-                            marginBottom: '20px'
-                        }}>
-                            <h1 style={{
-                                fontSize: '32px',
-                                fontWeight: 'bold',
-                                color: primaryColor,
-                                margin: '0',
-                                textTransform: 'uppercase',
-                                letterSpacing: '2px'
-                            }}>
-                                {siteName}
-                            </h1>
-                            <p style={{ 
-                                fontSize: '14px', 
-                                color: '#666',
-                                margin: '5px 0 0 0'
-                            }}>
-                                {tagline}
-                            </p>
-                        </div>
-
-                        {/* Certificate Title */}
-                        <div style={{ 
-                            textAlign: 'center',
-                            marginBottom: '30px',
-                            marginTop: '30px'
-                        }}>
-                            <h2 style={{
-                                fontSize: `${titleFontSize}px`,
-                                fontWeight: 'bold',
-                                color: secondaryColor,
-                                margin: '0',
-                                textTransform: 'uppercase',
-                                letterSpacing: '4px'
-                            }}>
-                                CERTIFICATE
-                            </h2>
-                            <div style={{
-                                width: '200px',
-                                height: '3px',
-                                background: primaryColor,
-                                margin: '15px auto'
-                            }} />
-                            <p style={{ 
-                                fontSize: '18px', 
-                                color: '#666',
-                                margin: '10px 0 0 0',
-                                fontStyle: 'italic'
-                            }}>
-                                of Achievement
-                            </p>
-                        </div>
-
-                        {/* Certificate Body */}
-                        <div style={{ 
-                            textAlign: 'center',
-                            marginTop: '40px',
-                            marginBottom: '40px'
-                        }}>
-                            <p style={{ 
-                                fontSize: `${bodyFontSize}px`, 
-                                color: '#333',
-                                marginBottom: '20px'
-                            }}>
-                                This is to certify that
-                            </p>
-                            
-                            <h3 style={{
-                                fontSize: `${nameFontSize}px`,
-                                fontWeight: 'bold',
-                                color: '#000',
-                                margin: '20px 0',
-                                fontFamily: fontFamily,
-                                fontStyle: 'italic',
-                                borderBottom: `2px solid ${primaryColor}`,
-                                paddingBottom: '10px',
-                                display: 'inline-block'
-                            }}>
-                                {user?.name || 'Student Name'}
-                            </h3>
-
-                            <p style={{ 
-                                fontSize: `${bodyFontSize}px`, 
-                                color: '#333',
-                                margin: '30px 60px',
-                                lineHeight: '1.8'
-                            }}>
-                                has successfully completed the examination titled<br/>
-                                <strong style={{ 
-                                    fontSize: `${bodyFontSize + 4}px`, 
-                                    color: primaryColor 
-                                }}>
-                                    "{exam?.name || 'Exam Name'}"
-                                </strong><br/>
-                                and achieved a score of<br/>
-                                <strong style={{ 
-                                    fontSize: `${bodyFontSize + 10}px`, 
-                                    color: secondaryColor 
-                                }}>
-                                    {attempt?.score?.toFixed(2) || '0.00'}%
-                                </strong>
-                            </p>
-
-                            {showDate && (
-                                <p style={{ 
-                                    fontSize: '16px', 
-                                    color: '#666',
-                                    marginTop: '30px'
-                                }}>
-                                    Awarded on <strong>{certificateDate}</strong>
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Footer Signatures */}
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '0',
-                            left: '0',
-                            right: '0',
+                            top: '20px',
+                            left: '20px',
+                            right: '20px',
+                            bottom: '20px',
+                            border: `8px solid ${secondaryColor}`,
+                            padding: '40px',
                             display: 'flex',
-                            justifyContent: 'space-around',
-                            paddingTop: '20px',
-                            borderTop: `2px solid ${primaryColor}`
+                            flexDirection: 'column'
                         }}>
-                            <div style={{ textAlign: 'center', flex: 1 }}>
-                                <div style={{
-                                    borderTop: '2px solid #333',
-                                    width: '200px',
-                                    margin: '0 auto 10px'
-                                }} />
-                                <p style={{ 
-                                    margin: '0', 
-                                    fontSize: '14px', 
-                                    fontWeight: 'bold',
-                                    color: '#333'
-                                }}>
-                                    {signatureTitle1}
-                                </p>
-                                {signatureSubtitle1 && (
-                                    <p style={{ 
-                                        margin: '0', 
-                                        fontSize: '12px',
-                                        color: '#666'
-                                    }}>
-                                        {signatureSubtitle1}
-                                    </p>
-                                )}
-                            </div>
+                            {/* Content Container */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 
-                            {showSeal && (
-                                <div style={{ textAlign: 'center', flex: 1 }}>
-                                    <div style={{
-                                        width: '80px',
-                                        height: '80px',
-                                        border: `3px solid ${primaryColor}`,
-                                        borderRadius: '50%',
-                                        margin: '0 auto 10px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: 'white'
+                                {/* Header - Site Name (No Logo) */}
+                                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                    <h1 style={{
+                                        fontSize: '24px',
+                                        fontWeight: '600',
+                                        color: '#333',
+                                        margin: '0',
+                                        letterSpacing: '1px'
                                     }}>
+                                        {siteName}
+                                    </h1>
+                                </div>
+
+                                {/* Certificate Title */}
+                                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                                    <h2 style={{
+                                        fontSize: `${titleFontSize}px`,
+                                        color: '#6b7280',
+                                        margin: '0 0 10px 0',
+                                        fontWeight: '400',
+                                        letterSpacing: '2px'
+                                    }}>
+                                        Certificate of Participation
+                                    </h2>
+                                </div>
+
+                                {/* This certificate is proudly presented to */}
+                                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                    <p style={{
+                                        fontSize: '16px',
+                                        color: '#9ca3af',
+                                        margin: '0',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        This certificate is proudly presented to
+                                    </p>
+                                </div>
+
+                                {/* Student Name */}
+                                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                                    <h3 style={{
+                                        fontSize: `${nameFontSize}px`,
+                                        fontWeight: 'bold',
+                                        color: secondaryColor,
+                                        margin: '0',
+                                        letterSpacing: '1px'
+                                    }}>
+                                        {user?.name || 'Student Name'}
+                                    </h3>
+                                </div>
+
+                                {/* For participating in examination */}
+                                <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                                    <p style={{
+                                        fontSize: '14px',
+                                        color: '#6b7280',
+                                        margin: '0 0 5px 0'
+                                    }}>
+                                        for participating in the examination
+                                    </p>
+                                    <p style={{
+                                        fontSize: '20px',
+                                        fontWeight: 'bold',
+                                        color: '#1f2937',
+                                        margin: '0'
+                                    }}>
+                                        ({exam?.name || exam?.examName || attempt?.examName || 'Exam Name'})
+                                    </p>
+                                </div>
+
+                                {/* Metrics Row */}
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-around',
+                                    alignItems: 'center',
+                                    marginTop: '40px',
+                                    marginBottom: '40px',
+                                    padding: '0 60px'
+                                }}>
+                                    {/* Score */}
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
                                         <div style={{
-                                            fontSize: '12px',
+                                            fontSize: '32px',
                                             fontWeight: 'bold',
-                                            color: primaryColor,
-                                            textAlign: 'center'
+                                            color: statusColor,
+                                            marginBottom: '5px'
                                         }}>
-                                            {sealText.split(' ').map((word, i) => (
-                                                <React.Fragment key={i}>
-                                                    {word}{i < sealText.split(' ').length - 1 && <br/>}
-                                                </React.Fragment>
-                                            ))}
+                                            {attempt?.score?.toFixed(2) || '0.00'}%
+                                        </div>
+                                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                            Score
+                                        </div>
+                                    </div>
+
+                                    {/* Marks */}
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '32px',
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginBottom: '5px'
+                                        }}>
+                                            {obtainedMarks}/{totalMarks}
+                                        </div>
+                                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                            Marks
+                                        </div>
+                                    </div>
+
+                                    {/* Status */}
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '28px',
+                                            fontWeight: 'bold',
+                                            color: statusColor,
+                                            marginBottom: '5px'
+                                        }}>
+                                            {status}
+                                        </div>
+                                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                            Status
+                                        </div>
+                                    </div>
+
+                                    {/* Duration */}
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '28px',
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginBottom: '5px'
+                                        }}>
+                                            {duration} min
+                                        </div>
+                                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                            Duration
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div style={{ textAlign: 'center', flex: 1 }}>
+                                {/* Participated Badge */}
                                 <div style={{
-                                    borderTop: '2px solid #333',
-                                    width: '200px',
-                                    margin: '0 auto 10px'
-                                }} />
-                                <p style={{ 
-                                    margin: '0', 
-                                    fontSize: '14px', 
-                                    fontWeight: 'bold',
-                                    color: '#333'
+                                    textAlign: 'center',
+                                    marginTop: '20px',
+                                    marginBottom: '40px'
                                 }}>
-                                    {signatureTitle2}
-                                </p>
-                                <p style={{ 
-                                    margin: '0', 
-                                    fontSize: '12px',
-                                    color: '#666'
+                                    <div style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '100px',
+                                        height: '100px',
+                                        borderRadius: '50%',
+                                        background: '#3b82f6',
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '50%',
+                                            left: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                            width: '60px',
+                                            height: '60px',
+                                            borderRadius: '50%',
+                                            background: '#3b82f6',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style={{ color: 'white' }}>
+                                                <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '-25px',
+                                            background: '#3b82f6',
+                                            color: 'white',
+                                            padding: '4px 16px',
+                                            borderRadius: '12px',
+                                            fontSize: '12px',
+                                            fontWeight: 'bold',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            PARTICIPATED
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer Section */}
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-end',
+                                    marginTop: 'auto',
+                                    paddingTop: '30px',
+                                    borderTop: '1px solid #e5e7eb'
                                 }}>
-                                    {signatureSubtitle2}
-                                </p>
+                                    {/* Left - Signature */}
+                                    <div style={{ textAlign: 'left', flex: 1 }}>
+                                        {signatureImage2 && (
+                                            <img 
+                                                src={signatureImage2} 
+                                                alt="Signature" 
+                                                crossOrigin="anonymous"
+                                                onError={(e) => console.error('Failed to load signature2:', signatureImage2)}
+                                                onLoad={() => console.log('Signature2 loaded:', signatureImage2)}
+                                                style={{ 
+                                                    height: '40px', 
+                                                    width: 'auto',
+                                                    marginBottom: '5px'
+                                                }} 
+                                            />
+                                        )}
+                                        <div style={{
+                                            borderTop: '2px solid #333',
+                                            width: '150px',
+                                            marginBottom: '5px'
+                                        }} />
+                                        <p style={{ 
+                                            margin: '0', 
+                                            fontSize: '12px',
+                                            color: '#1f2937',
+                                            fontWeight: '600'
+                                        }}>
+                                            Authorized Signatory
+                                        </p>
+                                    </div>
+
+                                    {/* Center - Date */}
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '18px',
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginBottom: '5px'
+                                        }}>
+                                            {certificateDate}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                            Issue Date
+                                        </div>
+                                    </div>
+
+                                    {/* Right - Passing Grade */}
+                                    <div style={{ textAlign: 'right', flex: 1 }}>
+                                        <div style={{
+                                            fontSize: '24px',
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginBottom: '5px'
+                                        }}>
+                                            {passingGrade}%
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                            Passing Grade
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

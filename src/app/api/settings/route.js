@@ -162,7 +162,10 @@ const defaultSettings = {
         showSeal: true,
         showCertificateId: true,
         showDate: true,
-        fontFamily: 'Georgia, serif'
+        fontFamily: 'Georgia, serif',
+        logo: '',
+        signatureImage1: '',
+        signatureImage2: ''
     }
 };
 
