@@ -99,22 +99,10 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                 </div>
             </div>
 
-            {/* File Type Filter */}
-            <div className="d-flex flex-wrap gap-2 mb-3">
-                {fileTypes.map(type => {
-                    const IconComponent = type.icon
-                    return (
-                        <button
-                            key={type.value}
-                            className={`btn ${filters.type === type.value ? 'btn-primary' : 'btn-outline-primary'}`}
-                            onClick={() => handleTypeFilter(type.value)}
-                        >
-                            <IconComponent size={16} className="me-2" />
-                            {type.label}
-                        </button>
-                    )
-                })}
-            </div>
+            {/* File Type Filter - Moved to Sidebar */}
+            {/* <div className="d-flex flex-wrap gap-2 mb-3">
+               ... moved to sidebar ...
+            </div> */}
 
             {/* Advanced Filters */}
             {showAdvanced && (

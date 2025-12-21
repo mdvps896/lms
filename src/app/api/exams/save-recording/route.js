@@ -3,11 +3,12 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
+// import { saveToCloudinary } from '@/utils/cloudinary';
 import { saveToLocalStorage } from '@/utils/localStorage';
 
 // Configure route to allow large file uploads
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes timeout
+export const maxDuration = 900; // 15 minutes timeout
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -22,6 +23,9 @@ export async function POST(request) {
         const cameraRecordingId = formData.get('cameraRecordingId');
         const screenRecordingId = formData.get('screenRecordingId');
 
+        let cameraPath = null;
+        let screenPath = null;
+
 
 
         if (!attemptId || !examId) {
@@ -31,36 +35,44 @@ export async function POST(request) {
             );
         }
 
-        // Use local storage for all recordings
-        let cameraPath = null;
-        let screenPath = null;
-        let storageMethod = 'local';
-        let isReadOnlyFS = false;
 
+        // Removed Cloudinary config check
         const timestamp = Date.now();
+
 
         if (cameraVideo) {
             try {
                 const cameraBytes = await cameraVideo.arrayBuffer();
                 const cameraBuffer = Buffer.from(cameraBytes);
-                const cameraBase64 = `data:video/webm;base64,${cameraBuffer.toString('base64')}`;
-                const cameraFileName = cameraRecordingId ? `${cameraRecordingId}.mp4` : `camera-${attemptId}-${timestamp}.mp4`;
-                
+                const cameraMimeType = cameraVideo.type || 'video/webm';
+                const cameraBase64 = `data:${cameraMimeType};base64,${cameraBuffer.toString('base64')}`;
+
+                // Determing extension from mimetype
+                const ext = cameraMimeType === 'video/mp4' ? '.mp4' : '.webm';
+
+                // Keep original filename structure but use as public_id base
+                let cameraFileName = cameraRecordingId ?
+                    `${cameraRecordingId}` :
+                    `camera-${attemptId}-${timestamp}`;
+
+                // Ensure filename has correct extension
+                if (!cameraFileName.endsWith(ext)) {
+                    cameraFileName += ext;
+                }
+
+                console.log('Saving camera video locally...');
                 const cameraResult = await saveToLocalStorage(
                     cameraBase64,
                     'exam-recordings',
                     cameraFileName
                 );
-                
-                if (cameraResult.readOnlyFS) {
-                    isReadOnlyFS = true;
-                    console.error('❌ Cannot save camera video - read-only filesystem detected');
-                } else {
-                    cameraPath = cameraResult.url;
-                    console.log('✅ Camera video uploaded to local storage:', cameraPath);
-                }
+
+                cameraPath = cameraResult.url;
+                console.log('✅ Camera video saved locally:', cameraPath);
+
             } catch (error) {
                 console.error('❌ Camera video upload error:', error);
+                throw error; // Propagate error to fail the request
             }
         }
 
@@ -69,36 +81,34 @@ export async function POST(request) {
             try {
                 const screenBytes = await screenVideo.arrayBuffer();
                 const screenBuffer = Buffer.from(screenBytes);
-                const screenBase64 = `data:video/webm;base64,${screenBuffer.toString('base64')}`;
-                const screenFileName = screenRecordingId ? `${screenRecordingId}.mp4` : `screen-${attemptId}-${timestamp}.mp4`;
-                
+                const screenMimeType = screenVideo.type || 'video/webm';
+                const screenBase64 = `data:${screenMimeType};base64,${screenBuffer.toString('base64')}`;
+
+                const ext = screenMimeType === 'video/mp4' ? '.mp4' : '.webm';
+
+                let screenFileName = screenRecordingId ?
+                    `${screenRecordingId}` :
+                    `screen-${attemptId}-${timestamp}`;
+
+                // Ensure filename has correct extension
+                if (!screenFileName.endsWith(ext)) {
+                    screenFileName += ext;
+                }
+
+                console.log('Saving screen video locally...');
                 const screenResult = await saveToLocalStorage(
                     screenBase64,
-                    'exam-recordings', 
+                    'exam-recordings',
                     screenFileName
                 );
-                
-                if (screenResult.readOnlyFS) {
-                    isReadOnlyFS = true;
-                    console.error('❌ Cannot save screen video - read-only filesystem detected');
-                } else {
-                    screenPath = screenResult.url;
-                    console.log('✅ Screen video uploaded to local storage:', screenPath);
-                }
+
+                screenPath = screenResult.url;
+                console.log('✅ Screen video saved locally:', screenPath);
+
             } catch (error) {
                 console.error('❌ Screen video upload error:', error);
+                throw error; // Propagate error to fail the request
             }
-        }
-        
-        // If running on read-only filesystem, return error
-        if (isReadOnlyFS) {
-            return NextResponse.json({
-                success: false,
-                message: 'Cannot save recordings on serverless platform',
-                error: 'READ_ONLY_FILESYSTEM',
-                details: 'This application is running on a read-only filesystem (Vercel/AWS Lambda). Please configure a cloud storage service like AWS S3, Azure Blob Storage, or Cloudinary to save exam recordings in production.',
-                requiresCloudStorage: true
-            }, { status: 500 });
         }
 
         // Update exam attempt with recording paths in both Exam and ExamAttempt models
@@ -110,7 +120,7 @@ export async function POST(request) {
                 if (!attempt.recordings) {
                     attempt.recordings = {};
                 }
-                
+
                 // Set the recording paths
                 if (cameraPath) {
                     attempt.recordings.cameraVideo = cameraPath;
@@ -121,10 +131,10 @@ export async function POST(request) {
                     attempt.recordings.screenRecordingId = screenRecordingId;
                 }
                 attempt.recordings.recordedAt = new Date();
-                
+
                 // Mark the field as modified to ensure Mongoose saves it
                 exam.markModified('attempts');
-                
+
                 await exam.save();
                 console.log('✅ Recordings saved to Exam attempt:', {
                     attemptId,
@@ -147,7 +157,7 @@ export async function POST(request) {
                 if (!examAttempt.recordings) {
                     examAttempt.recordings = {};
                 }
-                
+
                 if (cameraPath) {
                     examAttempt.recordings.cameraVideo = cameraPath;
                     examAttempt.recordings.cameraRecordingId = cameraRecordingId;
@@ -157,9 +167,9 @@ export async function POST(request) {
                     examAttempt.recordings.screenRecordingId = screenRecordingId;
                 }
                 examAttempt.recordings.recordedAt = new Date();
-                
+
                 await examAttempt.save();
-        
+
             }
         } catch (error) {
 
@@ -167,7 +177,7 @@ export async function POST(request) {
 
         return NextResponse.json({
             success: true,
-            message: 'Exam recordings saved successfully to local storage',
+            message: 'Exam recordings saved successfully to Local Storage',
             cameraPath,
             screenPath,
             cameraRecordingId,

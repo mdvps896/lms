@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 // Import Category to ensure it's registered before User model references it
 import Category from './Category.js';
 
+delete mongoose.models.User;
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -87,7 +89,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
-    default: null,
   },
   createdAt: {
     type: Date,

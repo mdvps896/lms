@@ -52,12 +52,22 @@ class RecordingManager {
 
             // Determine best codec
             let mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
+            this.fileExtension = 'webm';
+
+            if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) {
+                mimeType = 'video/mp4;codecs=avc1';
+                this.fileExtension = 'mp4';
+            } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                mimeType = 'video/mp4';
+                this.fileExtension = 'mp4';
+            } else if (!MediaRecorder.isTypeSupported(mimeType)) {
                 mimeType = 'video/webm;codecs=vp8';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = 'video/webm';
                 }
             }
+
+            this.selectedMimeType = mimeType;
 
             console.log('Using MIME type:', mimeType);
 
@@ -201,13 +211,14 @@ class RecordingManager {
      */
     async saveRecordings() {
         try {
-            console.log('💾 Saving exam recordings to local storage with unique IDs...');
+            console.log('💾 Saving exam recordings with unique IDs...');
             console.log('📹 Camera chunks:', this.cameraChunks.length);
             console.log('🖥️ Screen chunks:', this.screenChunks.length);
-            
+
             // Create blobs only for enabled recordings
-            const cameraBlob = this.cameraChunks.length > 0 ? new Blob(this.cameraChunks, { type: 'video/mp4;codecs=avc1' }) : null;
-            const screenBlob = this.screenChunks.length > 0 ? new Blob(this.screenChunks, { type: 'video/mp4;codecs=avc1' }) : null;
+            const blobType = this.selectedMimeType || 'video/webm';
+            const cameraBlob = this.cameraChunks.length > 0 ? new Blob(this.cameraChunks, { type: blobType }) : null;
+            const screenBlob = this.screenChunks.length > 0 ? new Blob(this.screenChunks, { type: blobType }) : null;
 
             if (cameraBlob) {
                 console.log('Camera blob size:', cameraBlob.size, 'bytes');
@@ -224,7 +235,7 @@ class RecordingManager {
             // Generate unique recording IDs only for enabled recordings
             let cameraRecordingId = null;
             let screenRecordingId = null;
-            
+
             if (cameraBlob && cameraBlob.size > 0) {
                 cameraRecordingId = await generateRecordingId('vd', this.attemptId, this.examId);
                 console.log('🆔 Generated Camera ID:', cameraRecordingId);
@@ -237,28 +248,30 @@ class RecordingManager {
             // Local Storage Upload
             const totalSize = (cameraBlob?.size || 0) + (screenBlob?.size || 0);
             console.log(`📊 Total recording size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-            console.log('📁 Using local storage upload system!');
+            console.log('📁 Using Local Storage upload system!');
 
             // Create form data with all recordings and unique IDs
             const formData = new FormData();
             formData.append('attemptId', this.attemptId);
             formData.append('examId', this.examId);
-            
+
+            const extension = this.fileExtension || 'webm';
+
             // Upload all recordings with unique IDs to local storage
             if (cameraBlob && cameraBlob.size > 0) {
-                const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd');
+                const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd', extension);
                 formData.append('cameraVideo', cameraBlob, cameraFilename);
                 formData.append('cameraRecordingId', cameraRecordingId);
                 console.log(`📹 Camera video: ${(cameraBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${cameraRecordingId}`);
             }
             if (screenBlob && screenBlob.size > 0) {
-                const screenFilename = generateRecordingFilename(screenRecordingId, 'sc');
+                const screenFilename = generateRecordingFilename(screenRecordingId, 'sc', extension);
                 formData.append('screenVideo', screenBlob, screenFilename);
                 formData.append('screenRecordingId', screenRecordingId);
                 console.log(`🖥️ Screen video: ${(screenBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${screenRecordingId}`);
             }
 
-            console.log('⬆️ Uploading to local storage...');
+            console.log('⬆️ Uploading to backend...');
 
             // Upload to server with local storage system
             const response = await fetch('/api/exams/save-recording', {
@@ -275,23 +288,23 @@ class RecordingManager {
             // Check if response is JSON
             const contentType = response.headers.get('content-type');
             let result;
-            
+
             if (contentType && contentType.includes('application/json')) {
                 result = await response.json();
             } else {
                 // Response is not JSON (might be HTML error page or plain text)
                 const textResponse = await response.text();
                 console.error('❌ Non-JSON response received:', textResponse.substring(0, 500));
-                
-                return { 
-                    error: `Server error: ${response.statusText}`, 
+
+                return {
+                    error: `Server error: ${response.statusText}`,
                     status: response.status,
                     details: textResponse.substring(0, 200)
                 };
             }
 
             if (response.ok) {
-                console.log('🎉 Exam recordings saved successfully to local storage!');
+                console.log('🎉 Exam recordings saved successfully!');
                 console.log('📈 Upload stats:', result.recordingStats);
                 return result;
             } else {

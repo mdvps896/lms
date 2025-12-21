@@ -27,31 +27,32 @@ export async function POST(request) {
         // Read the raw body as buffer
         const arrayBuffer = await request.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        
+
         const fileSizeMB = (buffer.length / 1024 / 1024).toFixed(2);
         console.log(`📊 File size: ${fileSizeMB} MB`);
 
         // Create base64 data URL
         const base64File = `data:${mimeType || 'application/octet-stream'};base64,${buffer.toString('base64')}`;
-        
-        console.log('🚀 Uploading to local storage...');
-        
-        // Upload to local storage
+
+        console.log('🚀 Saving to Local Storage...');
+
+        // Upload to Local Storage
         const result = await saveToLocalStorage(base64File, folder, fileName);
-        
-        console.log('✅ Simple upload successful:', result.url);
+
+        console.log('✅ Simple upload successful to Local Storage:', result.url);
         return NextResponse.json({
             success: true,
             url: result.url,
-            fileName: result.fileName,
+            fileName: result.fileName, // Public ID
             message: `File uploaded successfully (${fileSizeMB} MB)`,
             size: result.size,
-            type: result.mimeType
+            type: result.mimeType,
+            publicId: result.publicId
         });
 
     } catch (error) {
         console.error('💥 Simple upload error:', error);
-        
+
         return NextResponse.json(
             { success: false, message: error.message || 'Upload failed' },
             { status: 500 }

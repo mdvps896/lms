@@ -35,9 +35,9 @@ const FileUpload = ({ onUploadComplete }) => {
             const file = files[i]
             const fileSize = file.size
             const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2)
-            
+
             console.log(`📁 Uploading ${file.name} (${fileSizeMB} MB)`)
-            
+
             // Show progress bar
             setUploadProgress({
                 show: true,
@@ -47,7 +47,7 @@ const FileUpload = ({ onUploadComplete }) => {
                 totalChunks: 1,
                 isChunked: fileSize > 50 * 1024 * 1024
             })
-            
+
             try {
                 // Use different upload strategies based on file size
                 if (fileSize > 100 * 1024 * 1024) {
@@ -72,13 +72,13 @@ const FileUpload = ({ onUploadComplete }) => {
                 } else if (fileSize > 50 * 1024 * 1024) {
                     console.log('🔄 Using chunked upload for large file...')
                     let result = await uploadLargeFile(file, selectedFolder)
-                    
+
                     // If chunked upload fails, try simple upload as fallback
                     if (!result.success && !result.message?.includes('413')) {
                         console.log('⚡ Chunked upload failed, trying simple upload fallback...')
                         result = await uploadSimple(file, selectedFolder)
                     }
-                    
+
                     if (result.success) {
                         successCount++
                         console.log('✅ Large file upload successful!')
@@ -89,10 +89,10 @@ const FileUpload = ({ onUploadComplete }) => {
                 } else {
                     // Regular upload for smaller files
                     console.log('📤 Using regular upload...')
-                    
+
                     // Show progress for regular upload
                     setUploadProgress(prev => ({ ...prev, progress: 50 }))
-                    
+
                     const formData = new FormData()
                     formData.append('file', file)
                     formData.append('folder', selectedFolder)
@@ -122,7 +122,7 @@ const FileUpload = ({ onUploadComplete }) => {
         setUploading(false)
         setUploadProgress({ show: false, fileName: '', progress: 0, currentChunk: 0, totalChunks: 0, isChunked: false })
         e.target.value = ''
-        
+
         if (errorCount === 0) {
             Swal.fire({
                 icon: 'success',
@@ -174,7 +174,7 @@ const FileUpload = ({ onUploadComplete }) => {
         const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunks to avoid 413 errors
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
         const fileId = `${Date.now()}_${Math.random().toString(36).substring(2)}`
-        
+
         console.log(`🔧 Splitting ${file.name} into ${totalChunks} chunks of ~2MB each`)
 
         // Update progress bar for chunked upload
@@ -184,7 +184,7 @@ const FileUpload = ({ onUploadComplete }) => {
             const start = chunkIndex * CHUNK_SIZE
             const end = Math.min(start + CHUNK_SIZE, file.size)
             const chunk = file.slice(start, end)
-            
+
             const formData = new FormData()
             formData.append('file', new File([chunk], file.name, { type: file.type }))
             formData.append('folder', folder)
@@ -192,59 +192,59 @@ const FileUpload = ({ onUploadComplete }) => {
             formData.append('totalChunks', totalChunks.toString())
             formData.append('fileName', file.name)
             formData.append('fileId', fileId)
-            
+
             console.log(`📦 Uploading chunk ${chunkIndex + 1}/${totalChunks}...`)
-            
+
             try {
                 const response = await fetch('/api/storage/chunked-upload', {
                     method: 'POST',
                     body: formData
                 })
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`)
                 }
-                
+
                 const result = await response.json()
-                
+
                 if (!result.success) {
                     console.error(`❌ Chunk ${chunkIndex + 1} failed:`, result.message)
                     throw new Error(result.message || 'Chunk upload failed')
                 }
-                
+
                 // Update progress for each chunk
-                setUploadProgress(prev => ({ 
-                    ...prev, 
+                setUploadProgress(prev => ({
+                    ...prev,
                     currentChunk: chunkIndex + 1,
                     progress: Math.round(((chunkIndex + 1) / totalChunks) * 100)
                 }))
-                
+
                 // If this was the last chunk, return the final result
                 if (chunkIndex === totalChunks - 1) {
                     console.log('🎉 All chunks uploaded successfully!')
                     return result
                 }
-                
+
             } catch (error) {
                 console.error(`❌ Chunk ${chunkIndex + 1} upload error:`, error)
                 return { success: false, message: error.message }
             }
         }
-        
+
         return { success: false, message: 'Unexpected end of chunked upload' }
     }
 
     // Simple upload method for fallback
     const uploadSimple = async (file, folder) => {
         console.log(`⚡ Simple uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
-        
+
         // Set progress to indeterminate for simple upload
         setUploadProgress(prev => ({ ...prev, progress: 75 }))
-        
+
         try {
             // Read file as array buffer
             const arrayBuffer = await file.arrayBuffer()
-            
+
             const response = await fetch('/api/storage/simple-upload', {
                 method: 'POST',
                 headers: {
@@ -255,9 +255,9 @@ const FileUpload = ({ onUploadComplete }) => {
                 },
                 body: arrayBuffer
             })
-            
+
             const result = await response.json()
-            
+
             if (result.success) {
                 console.log('🎉 Simple upload completed successfully!')
                 setUploadProgress(prev => ({ ...prev, progress: 100 }))
@@ -266,7 +266,7 @@ const FileUpload = ({ onUploadComplete }) => {
                 console.error('❌ Simple upload failed:', result.message)
                 return result
             }
-            
+
         } catch (error) {
             console.error('💥 Simple upload error:', error)
             return { success: false, message: error.message }
@@ -276,14 +276,14 @@ const FileUpload = ({ onUploadComplete }) => {
     // Binary upload method that sends raw file data with headers
     const uploadDirectly = async (file, folder) => {
         console.log(`🎯 Binary uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
-        
+
         // Set progress to indeterminate for direct upload
         setUploadProgress(prev => ({ ...prev, progress: 50 }))
-        
+
         try {
             // Read file as array buffer
             const arrayBuffer = await file.arrayBuffer()
-            
+
             const response = await fetch('/api/storage/binary-upload', {
                 method: 'POST',
                 headers: {
@@ -294,9 +294,9 @@ const FileUpload = ({ onUploadComplete }) => {
                 },
                 body: arrayBuffer
             })
-            
+
             const result = await response.json()
-            
+
             if (result.success) {
                 console.log('🎉 Binary upload completed successfully!')
                 setUploadProgress(prev => ({ ...prev, progress: 100 }))
@@ -305,7 +305,7 @@ const FileUpload = ({ onUploadComplete }) => {
                 console.error('❌ Binary upload failed:', result.message)
                 return result
             }
-            
+
         } catch (error) {
             console.error('💥 Binary upload error:', error)
             return { success: false, message: error.message }
@@ -362,20 +362,12 @@ const FileUpload = ({ onUploadComplete }) => {
     return (
         <div className="mb-4">
             {/* Storage Status Indicator */}
-            <div className="alert alert-info d-flex align-items-center mb-3">
-                <div className="d-flex align-items-center">
-                    <>
-                        <HardDrive className="me-2" size={20} />
-                        <span>✅ <strong>Local Storage:</strong> All uploads will be stored locally on the server</span>
-                    </>
-                </div>
 
-            </div>
 
             <div className="d-flex flex-wrap gap-3 align-items-end">
                 <div>
                     <label className="form-label">Select Folder</label>
-                    <select 
+                    <select
                         className="form-select"
                         value={selectedFolder}
                         onChange={(e) => setSelectedFolder(e.target.value)}
@@ -429,18 +421,18 @@ const FileUpload = ({ onUploadComplete }) => {
                                 <i className="fas fa-cloud-upload-alt me-2 text-primary"></i>
                                 <span className="text-truncate">Uploading: {uploadProgress.fileName}</span>
                             </h6>
-                            
+
                             <div className="upload-progress-bar mb-2">
-                                <div 
+                                <div
                                     className="upload-progress-fill"
                                     style={{ width: `${uploadProgress.progress}%` }}
-                                    role="progressbar" 
-                                    aria-valuenow={uploadProgress.progress} 
-                                    aria-valuemin="0" 
+                                    role="progressbar"
+                                    aria-valuenow={uploadProgress.progress}
+                                    aria-valuemin="0"
                                     aria-valuemax="100"
                                 ></div>
                             </div>
-                            
+
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="upload-chunk-indicator">
                                     {uploadProgress.isChunked ? (

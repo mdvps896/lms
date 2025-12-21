@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import { writeFile } from 'fs/promises';
-import fs from 'fs';
+import { saveToLocalStorage } from '@/utils/localStorage';
 
 export const POST = async (req) => {
   try {
@@ -15,43 +14,58 @@ export const POST = async (req) => {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const filename = Date.now() + '_' + file.name.replaceAll(' ', '_');
-    
+
     // Determine upload directory based on field
     let uploadSubDir = 'questions'; // default
     if (field && ['siteLogo', 'siteFavIcon', 'siteSmallLogo', 'digitalSignature'].includes(field)) {
       uploadSubDir = 'settings';
     }
-    
-    // Ensure directory exists
-    const uploadDir = path.join(process.cwd(), `public/images/${uploadSubDir}`);
-    if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-    }
 
-    const filePath = path.join(uploadDir, filename);
-    
-    await writeFile(filePath, buffer);
+    // Prepare for Local Storage
+    const base64 = buffer.toString('base64');
+    const mimeType = file.type || 'application/octet-stream';
+    const fileData = `data:${mimeType};base64,${base64}`;
 
-    // Return appropriate response format
-    if (field) {
-      return NextResponse.json({ 
+    try {
+      const result = await saveToLocalStorage(fileData, uploadSubDir, filename);
+
+      // Return appropriate response format matching previous implementation
+      // Previous implementation returned: { success: true, url: ..., message: ... } for field case
+      // and { message: 'Success', url: ... } for other case.
+
+      const responseUrl = result.url;
+
+      if (field) {
+        return NextResponse.json({
+          success: true,
+          url: responseUrl,
+          publicId: result.publicId,
+          message: 'File uploaded successfully'
+        }, { status: 201 });
+      }
+
+      return NextResponse.json({
         success: true,
-        url: `/images/${uploadSubDir}/${filename}`,
-        message: 'File uploaded successfully'
+        message: 'Success',
+        url: responseUrl,
+        publicId: result.publicId
       }, { status: 201 });
-    }
 
-    return NextResponse.json({ 
-      message: 'Success', 
-      url: `/images/${uploadSubDir}/${filename}` 
-    }, { status: 201 });
+    } catch (uploadError) {
+      console.error('Local upload error', uploadError);
+      return NextResponse.json({
+        success: false,
+        message: 'Failed',
+        error: uploadError.message
+      }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Error occurred ', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: false,
-      message: 'Failed', 
-      error: error.message 
+      message: 'Failed',
+      error: error.message
     }, { status: 500 });
   }
 };

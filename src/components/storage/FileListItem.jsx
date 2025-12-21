@@ -5,7 +5,7 @@ import Swal from 'sweetalert2'
 import { Eye, Copy, Trash2, Image as ImageIcon, Video, Music, FileText, File } from 'feather-icons-react'
 
 const FileListItem = ({ file, onDelete, onRefresh }) => {
-    
+
     const getFileIcon = (type) => {
         switch (type) {
             case 'image':
@@ -83,7 +83,8 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await onDelete(file.path)
+                    const deleteIdentifier = file.publicId || file.path || file.url
+                    await onDelete(deleteIdentifier, file.resourceType || null, file.source || null)
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -112,13 +113,13 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
             <td>
                 <div className="d-flex align-items-center">
                     {file.type === 'image' && (
-                        <img 
-                            src={getSecureUrl(file.path)} 
+                        <img
+                            src={getSecureUrl(file.path)}
                             alt={file.name}
-                            style={{ 
-                                width: '40px', 
-                                height: '40px', 
-                                objectFit: 'cover', 
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                objectFit: 'cover',
                                 borderRadius: '4px',
                                 marginRight: '10px'
                             }}

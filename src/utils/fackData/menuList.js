@@ -89,6 +89,14 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 10.5,
+        name: "PDF management",
+        path: "/pdf",
+        icon: 'feather-file',
+        roles: ['admin'], // Only admin
+        dropdownMenu: []
+    },
+    {
         id: 11,
         name: "settings",
         path: "/settings",

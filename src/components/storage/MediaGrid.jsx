@@ -54,9 +54,9 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
     return (
         <div className="row g-3 mt-3">
             {files.map((file, index) => (
-                <div key={index} className="col-xxl-2 col-xl-3 col-lg-4 col-md-6">
-                    <FileCard 
-                        file={file} 
+                <div key={index} className="col-home-5 col-xl-3 col-lg-4 col-md-6 mb-3">
+                    <FileCard
+                        file={file}
                         onDelete={onDelete}
                         onRefresh={onRefresh}
                     />

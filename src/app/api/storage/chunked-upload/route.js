@@ -7,7 +7,7 @@ export const maxDuration = 300; // 5 minutes timeout for large uploads
 
 export async function POST(request) {
     try {
-        console.log('🚀 Starting local storage upload process...');
+        console.log('🚀 Starting Local upload process...');
 
         const formData = await request.formData();
         const file = formData.get('file');
@@ -26,22 +26,23 @@ export async function POST(request) {
         // Convert file to buffer
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        
+
         console.log(`📊 File size: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 
-        // Upload to local storage
+        // Upload to Local Storage
         const base64File = `data:${file.type};base64,${buffer.toString('base64')}`;
-        
-        console.log('📤 Uploading to local storage...');
+
+        console.log('📤 Saving to Local Storage...');
         const result = await saveToLocalStorage(base64File, folder, fileName);
-        
-        console.log('✅ File upload successful!');
+
+        console.log('✅ File upload successful to Local Storage!');
         return NextResponse.json({
             success: true,
             url: result.url,
-            fileName: result.fileName,
+            fileName: result.fileName, // Public ID
             message: 'File uploaded successfully',
-            size: result.size
+            size: result.size,
+            publicId: result.publicId
         });
     } catch (error) {
         console.error('💥 Upload error:', error);

@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
     try {
         // Check if user is authenticated
         const userCookie = request.cookies.get('user')
-        
+
         if (!userCookie) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized. Please login to access files.' },
@@ -59,7 +59,7 @@ export async function GET(request, { params }) {
         // Read file and return
         const fileBuffer = fs.readFileSync(fullPath)
         const ext = path.extname(filePath).toLowerCase()
-        
+
         // Set appropriate content type
         const contentTypes = {
             '.jpg': 'image/jpeg',
@@ -83,6 +83,7 @@ export async function GET(request, { params }) {
         return new NextResponse(fileBuffer, {
             headers: {
                 'Content-Type': contentType,
+                'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`,
                 'Cache-Control': 'private, no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0'

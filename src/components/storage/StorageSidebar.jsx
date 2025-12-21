@@ -1,128 +1,79 @@
+'use client'
+
 import React from 'react'
-import { FiBell, FiClock, FiFolder, FiHome, FiImage, FiInfo, FiPlus, FiSettings, FiShare2, FiStar, FiUpload, FiVideo, FiX } from 'react-icons/fi'
-import Checkbox from '@/components/shared/Checkbox'
-import PerfectScrollbar from "react-perfect-scrollbar";
+import { Grid, Image, Video, Music, FileText, File, MoreHorizontal, HardDrive } from 'feather-icons-react'
 
-const filterMembers = ["Alls", "Users", "Editor", "Admin", "Contributor", "Administrator"]
+const StorageSidebar = ({ filters, setFilters, totalFiles }) => {
+  const fileTypes = [
+    { value: 'all', label: 'All Files', icon: Grid },
+    { value: 'image', label: 'Images', icon: Image },
+    { value: 'video', label: 'Videos', icon: Video },
+    { value: 'audio', label: 'Audio', icon: Music },
+    { value: 'pdf', label: 'PDF', icon: FileText },
+    { value: 'document', label: 'Documents', icon: File },
+    { value: 'exam-recording', label: 'Exam Recordings', icon: Video },
+    { value: 'other', label: 'Other', icon: MoreHorizontal }
+  ]
 
-const StorageSidebar = ({sidebarOpen, setSidebarOpen}) => {
+  const handleTypeFilter = (type) => {
+    setFilters({ ...filters, type })
+  }
+
   return (
-    <div className={`content-sidebar content-sidebar-md ${sidebarOpen ? "app-sidebar-open" : ""}`}>
-      <PerfectScrollbar>
-        <div className="content-sidebar-header bg-white sticky-top hstack justify-content-between">
-          <h4 className="fw-bolder mb-0">Storage</h4>
-          <a href="#" className="app-sidebar-close-trigger d-flex" onClick={() => setSidebarOpen(false)}>
-            <i><FiX /></i>
-          </a>
+    <div className="card" style={{ position: 'sticky', top: '100px' }}>
+      <div className="card-body p-0">
+        <div className="p-4 border-bottom">
+          <h5 className="mb-0 d-flex align-items-center">
+            <HardDrive className="me-2 text-primary" size={20} />
+            My Storage
+          </h5>
+          {/* Optional: Add Upload Button here if desired for "New" action style */}
         </div>
-        <div className="content-sidebar-header">
-          <a href="#" className="btn btn-primary w-100">
-            <FiUpload size={16} className="me-2" />
-            <span>Upload Files</span>
-          </a>
+
+        <div className="p-3">
+          <p className="text-muted text-uppercase small fw-bold px-3 mb-2">File Types</p>
+          <div className="list-group list-group-flush rounded-0">
+            {fileTypes.map(type => {
+              const IconComponent = type.icon
+              const isActive = filters?.type === type.value
+
+              return (
+                <button
+                  key={type.value}
+                  className={`list-group-item list-group-item-action border-0 rounded-3 mb-1 d-flex align-items-center px-3 py-2 ${isActive ? 'bg-primary text-white' : 'bg-transparent text-secondary'
+                    }`}
+                  onClick={() => handleTypeFilter(type.value)}
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <IconComponent
+                    size={18}
+                    className={`me-3 ${isActive ? 'text-white' : 'text-primary'}`}
+                  />
+                  <span>{type.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-        <div className="content-sidebar-body">
-          <ul className="nav flex-column nxl-content-sidebar-item">
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiHome size={16} strokeWidth={1.6} />
-                <span>Home</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiImage size={16} strokeWidth={1.6} />
-                <span>Images</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiVideo size={16} strokeWidth={1.6} />
-                <span>Videos</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link d-flex align-items-center justify-content-between" href="#">
-                <span className="d-flex align-items-center">
-                  <FiFolder size={16} strokeWidth={1.6} className="me-3" />
-                  <span>Folders</span>
-                </span>
-                <span className="badge bg-soft-danger text-danger">7</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiClock size={16} strokeWidth={1.6} />
-                <span>History</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiSettings size={16} strokeWidth={1.6} />
-                <span>Settings</span>
-              </a>
-            </li>
-          </ul>
-          <ul className="nav flex-column nxl-content-sidebar-item">
-            <li className="px-4 my-2 fs-10 fw-bold text-uppercase text-muted text-spacing-1 d-flex align-items-center justify-content-between">
-              <span>Members</span>
-              <a href="#">
-                <span className="avatar-text avatar-sm" data-toggle="tooltip" data-bs-trigger="hover" data-title="Add New"> <FiPlus /> </span>
-              </a>
-            </li>
-            {
-              filterMembers.map((name, index) => (
-                <li key={index} className="nav-item">
-                  <div className="nav-link">
-                    <Checkbox name={name} id={index} checked={index === 3 || index === 5} />
-                  </div>
-                </li>
-              ))
-            }
-          </ul>
-          <ul className="nav flex-column nxl-content-sidebar-item">
-            <li className="px-4 mx-2 my-2 fs-10 fw-bold text-uppercase text-muted text-spacing-1 d-flex align-items-center justify-content-between">
-              <span>Filter</span>
-              <a href="#">
-                <span className="avatar-text avatar-sm" data-toggle="tooltip" data-bs-trigger="hover" data-title="Add New"> <FiPlus /> </span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiClock size={16} strokeWidth={1.6} />
-                <span>Recent</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiStar size={16} strokeWidth={1.6} />
-                <span>Favorite</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiBell size={16} strokeWidth={1.6} />
-                <span>Snoozed</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link d-flex align-items-center justify-content-between" href="#">
-                <span className="d-flex align-items-center">
-                  <FiInfo size={16} strokeWidth={1.6} className='me-3' />
-                  <span>Important</span>
-                </span>
-                <span className="badge bg-soft-success text-success">3</span>
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <FiShare2 size={16} strokeWidth={1.6} />
-                <span>Shared Files</span>
-              </a>
-            </li>
-          </ul>
-        </div>
-      </PerfectScrollbar>
+
+        {/* Optional: Add storage usage summary here later */}
+        {/* <div className="p-4 mt-auto border-top">
+                    <div className="d-flex justify-content-between mb-2">
+                        <span className="small text-muted">Storage Used</span>
+                        <span className="small fw-bold">75%</span>
+                    </div>
+                    <div className="progress" style={{ height: '6px' }}>
+                        <div 
+                            className="progress-bar bg-warning" 
+                            role="progressbar" 
+                            style={{ width: '75%' }}
+                        ></div>
+                    </div>
+                </div> */}
+      </div>
     </div>
   )
 }

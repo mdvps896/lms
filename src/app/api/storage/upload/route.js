@@ -42,27 +42,27 @@ export async function POST(request) {
                 { status: 400 }
             )
         }
-
         try {
-            console.log('Uploading to local storage...')
+            console.log('Uploading to Local Storage...')
             console.log('File name:', fileName)
             console.log('Folder:', folder)
-            
+
             const result = await saveToLocalStorage(fileData, folder, fileName)
-            console.log('Local storage upload successful:', result)
-            
+            console.log('Local upload successful:', result.publicId)
+
             return NextResponse.json({
                 success: true,
                 message: 'File uploaded successfully',
-                path: result.url,
-                fileName: result.fileName,
+                path: result.url, // Return full URL
+                fileName: result.fileName, // This is the public_id
                 originalName: result.originalName,
                 size: result.size,
                 mimeType: result.mimeType,
-                local: true
+                local: true,
+                publicId: result.publicId
             })
         } catch (error) {
-            console.error('Local storage upload error:', {
+            console.error('Local upload error:', {
                 message: error.message,
                 stack: error.stack,
                 fileName: fileName,

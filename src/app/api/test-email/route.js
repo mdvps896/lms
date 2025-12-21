@@ -27,21 +27,30 @@ export async function POST(request) {
             console.log('Could not fetch site settings, using default name');
         }
 
+        // Parse options ensuring correct types
+        const port = parseInt(smtpPort) || 587;
+        // Logic: Force secure=true for 465, otherwise rely on the passed flag or default to false
+        // Note: secure: false means "use STARTTLS" (upgrade later), which is correct for 587
+        const isSecure = port === 465 ? true : (Boolean(smtpSecure) || false);
+
         // Create transporter with improved configuration
         const transporter = nodemailer.createTransport({
             host: smtpHost,
-            port: parseInt(smtpPort) || 587,
-            secure: smtpPort == 465 ? true : smtpSecure, // true for 465, false for other ports
+            port: port,
+            secure: isSecure,
             auth: {
                 user: smtpUsername,
                 pass: smtpPassword,
             },
             tls: {
-                rejectUnauthorized: false // Allow self-signed certificates
+                rejectUnauthorized: false, // Allow self-signed certificates
+                ciphers: 'SSLv3' // Sometimes helps with legacy servers
             },
-            connectionTimeout: 10000, // 10 seconds
-            greetingTimeout: 10000,
-            socketTimeout: 10000,
+            debug: process.env.NODE_ENV === 'development', // Show debug output in logs
+            logger: process.env.NODE_ENV === 'development', // Log information to console
+            connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 30000,
         });
 
         // Verify connection
@@ -106,9 +115,9 @@ Time: ${new Date().toLocaleString()}
 
     } catch (error) {
         console.error('SMTP Test Error:', error);
-        
+
         let errorMessage = 'Failed to send test email';
-        
+
         if (error.code === 'EAUTH') {
             errorMessage = 'Authentication failed. Please check your username and password.';
         } else if (error.code === 'ECONNECTION' || error.code === 'ECONNREFUSED') {

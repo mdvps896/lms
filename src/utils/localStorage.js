@@ -10,10 +10,10 @@ const VIDEOS_DIR = path.join(UPLOAD_BASE_DIR, 'videos');
 const DOCUMENTS_DIR = path.join(UPLOAD_BASE_DIR, 'documents');
 const ASSETS_DIR = path.join(UPLOAD_BASE_DIR, 'assets');
 
-// File size constants
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
-const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024; // 50MB
+// File size constants - Effectively unlimited (5GB)
+const MAX_IMAGE_SIZE = 5000 * 1024 * 1024; // 5GB
+const MAX_VIDEO_SIZE = 5000 * 1024 * 1024; // 5GB
+const MAX_DOCUMENT_SIZE = 5000 * 1024 * 1024; // 5GB
 const IMAGE_COMPRESSION_QUALITY = 80;
 
 /**
@@ -21,7 +21,7 @@ const IMAGE_COMPRESSION_QUALITY = 80;
  */
 function initializeDirectories() {
     const directories = [UPLOAD_BASE_DIR, IMAGES_DIR, VIDEOS_DIR, DOCUMENTS_DIR, ASSETS_DIR];
-    
+
     directories.forEach(dir => {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -110,18 +110,18 @@ function generateUniqueFileName(originalName) {
 async function compressImage(inputBuffer, fileName) {
     try {
         console.log('🗜️ Compressing image:', fileName);
-        
+
         const compressedBuffer = await sharp(inputBuffer)
-            .resize(2048, 2048, { 
+            .resize(2048, 2048, {
                 fit: 'inside',
-                withoutEnlargement: true 
+                withoutEnlargement: true
             })
-            .jpeg({ 
-                quality: IMAGE_COMPRESSION_QUALITY, 
-                progressive: true 
+            .jpeg({
+                quality: IMAGE_COMPRESSION_QUALITY,
+                progressive: true
             })
             .toBuffer();
-            
+
         console.log(`✅ Image compressed: ${inputBuffer.length} → ${compressedBuffer.length} bytes`);
         return compressedBuffer;
     } catch (error) {
@@ -135,7 +135,7 @@ async function compressImage(inputBuffer, fileName) {
  */
 function validateFileSize(fileSize, fileName) {
     let maxSize;
-    
+
     if (isImage(fileName)) {
         maxSize = MAX_IMAGE_SIZE;
     } else if (isVideo(fileName)) {
@@ -145,12 +145,12 @@ function validateFileSize(fileSize, fileName) {
     } else {
         maxSize = MAX_DOCUMENT_SIZE; // Default for other files
     }
-    
+
     if (fileSize > maxSize) {
         const maxSizeMB = (maxSize / 1024 / 1024).toFixed(1);
         throw new Error(`File size exceeds ${maxSizeMB}MB limit for ${fileName}`);
     }
-    
+
     return true;
 }
 
@@ -164,11 +164,11 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
     try {
         // Check if we're on a read-only filesystem (serverless/Vercel)
         const isReadOnlyFS = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || !fs.existsSync(process.cwd());
-        
+
         if (isReadOnlyFS) {
             console.warn('⚠️ Running on read-only filesystem - file cannot be saved locally');
             console.warn('💡 Please configure a cloud storage service (AWS S3, Cloudinary, etc.) for production');
-            
+
             return {
                 success: false,
                 error: 'Read-only filesystem',
@@ -179,18 +179,18 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
                 originalName: fileName
             };
         }
-        
+
         // Initialize directories if they don't exist
         initializeDirectories();
-        
+
         let fileBuffer;
         let originalFileName = fileName;
-        
+
         // Handle Base64 input
         if (typeof file === 'string' && file.startsWith('data:')) {
             const base64Data = file.split(',')[1];
             fileBuffer = Buffer.from(base64Data, 'base64');
-            
+
             // Extract filename from data URL if not provided
             if (!originalFileName) {
                 const mimeMatch = file.match(/data:([^;]+)/);
@@ -205,26 +205,26 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         } else {
             throw new Error('Invalid file format. Expected Base64 string or Buffer.');
         }
-        
+
         if (!originalFileName) {
             originalFileName = `file_${Date.now()}`;
         }
-        
+
         const fileSize = fileBuffer.length;
         console.log(`📊 File size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
-        
+
         // Validate file size
         validateFileSize(fileSize, originalFileName);
-        
+
         // Compress image if needed and file is large
         if (isImage(originalFileName) && fileSize > 2 * 1024 * 1024) { // 2MB threshold
             console.log('🔄 Large image detected, applying compression...');
             fileBuffer = await compressImage(fileBuffer, originalFileName);
         }
-        
+
         // Determine target directory
         const targetDir = getTargetDirectory(originalFileName);
-        
+
         // Create subfolder if specified, but avoid redundant folder names
         let finalDir = targetDir;
         if (folder) {
@@ -237,22 +237,22 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         if (!fs.existsSync(finalDir)) {
             fs.mkdirSync(finalDir, { recursive: true });
         }
-        
+
         // Generate unique filename
         const uniqueFileName = generateUniqueFileName(originalFileName);
         const filePath = path.join(finalDir, uniqueFileName);
-        
+
         // Save file
         fs.writeFileSync(filePath, fileBuffer);
-        
+
         // Generate public URL (relative to public directory)
         const relativePath = path.relative(path.join(process.cwd(), 'public'), filePath);
         const publicUrl = `/${relativePath.replace(/\\/g, '/')}`; // Ensure forward slashes for URLs
-        
+
         console.log('✅ File saved successfully to local storage');
         console.log('📁 Path:', filePath);
         console.log('🔗 Public URL:', publicUrl);
-        
+
         return {
             success: true,
             url: publicUrl,
@@ -264,7 +264,7 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
             relativePath: relativePath.replace(/\\/g, '/'),
             folder: folder
         };
-        
+
     } catch (error) {
         console.error('💥 Save to local storage failed:', error);
         throw error;
@@ -278,15 +278,15 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
 export async function deleteFromLocalStorage(filePath) {
     try {
         console.log('🗑️ Delete request for:', filePath);
-        
+
         const pathsToTry = [];
-        
+
         // Normalize the path to use forward slashes
         const normalizedFilePath = filePath.replace(/\\/g, '/');
-        
+
         // Check if it's a true absolute path (has drive letter on Windows or starts with / on Unix)
         const isTrueAbsolute = path.isAbsolute(normalizedFilePath) && !normalizedFilePath.startsWith('/uploads') && !normalizedFilePath.startsWith('/images');
-        
+
         if (isTrueAbsolute) {
             // It's a true absolute path (e.g., C:/path/to/file)
             pathsToTry.push(normalizedFilePath);
@@ -294,21 +294,21 @@ export async function deleteFromLocalStorage(filePath) {
             // It's a relative path from public directory
             // Remove leading slash if present
             let cleanPath = normalizedFilePath.startsWith('/') ? normalizedFilePath.slice(1) : normalizedFilePath;
-            
+
             // If path doesn't start with 'uploads' or 'images', it might be missing
             // Common cases: '/images/logo.png' should be 'public/images/logo.png'
             // '/uploads/videos/...' should be 'public/uploads/videos/...'
-            
+
             // Primary path - direct join
             const absolutePath = path.join(process.cwd(), 'public', cleanPath);
             pathsToTry.push(absolutePath);
-            
+
             // Try normalized version with proper separators
             const normalizedPath = path.normalize(path.join(process.cwd(), 'public', cleanPath));
             if (normalizedPath !== absolutePath && !pathsToTry.includes(normalizedPath)) {
                 pathsToTry.push(normalizedPath);
             }
-            
+
             // Try to fix duplicate directory paths (e.g., /uploads/images/images/ -> /uploads/images/)
             const legacyPath = normalizedFilePath.replace(/\/([^\/]+)\/\1\//, '/$1/');
             if (legacyPath !== normalizedFilePath) {
@@ -318,7 +318,7 @@ export async function deleteFromLocalStorage(filePath) {
                     pathsToTry.push(legacyAbsolutePath);
                 }
             }
-            
+
             // Try without the 'images' subdirectory (direct in uploads)
             if (cleanPath.includes('images/images/')) {
                 const directPath = cleanPath.replace('images/images/', 'images/');
@@ -327,7 +327,7 @@ export async function deleteFromLocalStorage(filePath) {
                     pathsToTry.push(tryPath);
                 }
             }
-            
+
             // Try videos subdirectory variants
             if (cleanPath.includes('videos/') && !cleanPath.includes('uploads/videos/')) {
                 const videosPath = 'uploads/' + cleanPath;
@@ -337,27 +337,27 @@ export async function deleteFromLocalStorage(filePath) {
                 }
             }
         }
-        
+
         console.log('🔍 Will try these paths:', pathsToTry);
-        
+
         // Try each path until we find the file
         for (const tryPath of pathsToTry) {
             const exists = fs.existsSync(tryPath);
             console.log('   Checking:', tryPath, 'Exists?', exists);
-            
+
             if (exists) {
                 // Check if it's a file or directory
                 const stats = fs.statSync(tryPath);
-                
+
                 if (stats.isDirectory()) {
                     console.log('   ⚠️ Path is a directory, skipping');
                     continue;
                 }
-                
+
                 try {
                     fs.unlinkSync(tryPath);
                     console.log('✅ File deleted successfully at:', tryPath);
-                    
+
                     return {
                         success: true,
                         message: 'File deleted successfully',
@@ -365,7 +365,7 @@ export async function deleteFromLocalStorage(filePath) {
                     };
                 } catch (unlinkError) {
                     console.error('   ❌ Failed to delete:', unlinkError.message);
-                    
+
                     // Check if it's a permission error
                     if (unlinkError.code === 'EACCES' || unlinkError.code === 'EPERM') {
                         console.warn('⚠️ Permission denied. File exists but cannot be deleted:', tryPath);
@@ -376,7 +376,7 @@ export async function deleteFromLocalStorage(filePath) {
                             path: tryPath
                         };
                     }
-                    
+
                     // Check if it's a read-only file system error
                     if (unlinkError.code === 'EROFS') {
                         console.warn('⚠️ Read-only file system detected. File exists but cannot be deleted:', tryPath);
@@ -391,11 +391,11 @@ export async function deleteFromLocalStorage(filePath) {
                 }
             }
         }
-        
+
         console.log('⚠️ File not found at any of these paths');
         console.log('   Current working directory:', process.cwd());
         console.log('   Public directory check:', fs.existsSync(path.join(process.cwd(), 'public')));
-        
+
         return {
             success: false,
             message: 'File not found',
@@ -405,7 +405,7 @@ export async function deleteFromLocalStorage(filePath) {
                 cwd: process.cwd()
             }
         };
-        
+
     } catch (error) {
         console.error('❌ Error deleting file:', error);
         return {
@@ -425,14 +425,14 @@ export async function getFileInfo(filePath) {
         // Remove leading slash if present
         const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
         const absolutePath = path.join(process.cwd(), 'public', cleanPath);
-        
+
         if (!fs.existsSync(absolutePath)) {
             throw new Error('File not found');
         }
-        
+
         const stats = fs.statSync(absolutePath);
         const fileName = path.basename(absolutePath);
-        
+
         return {
             fileName,
             size: stats.size,
@@ -443,7 +443,7 @@ export async function getFileInfo(filePath) {
             isVideo: isVideo(fileName),
             isDocument: isDocument(fileName)
         };
-        
+
     } catch (error) {
         console.error('❌ Error getting file info:', error);
         throw error;
@@ -458,7 +458,7 @@ export async function getFileInfo(filePath) {
 export async function listFiles(folder = '', type = 'all') {
     try {
         initializeDirectories();
-        
+
         let searchDir;
         switch (type) {
             case 'images':
@@ -476,21 +476,21 @@ export async function listFiles(folder = '', type = 'all') {
             default:
                 searchDir = folder ? path.join(UPLOAD_BASE_DIR, folder) : UPLOAD_BASE_DIR;
         }
-        
+
         if (!fs.existsSync(searchDir)) {
             return [];
         }
-        
+
         const files = fs.readdirSync(searchDir, { withFileTypes: true });
         const fileList = [];
-        
+
         for (const file of files) {
             if (file.isFile()) {
                 const filePath = path.join(searchDir, file.name);
                 const relativePath = path.relative(path.join(process.cwd(), 'public'), filePath);
                 const publicUrl = `/${relativePath.replace(/\\/g, '/')}`;
                 const stats = fs.statSync(filePath);
-                
+
                 fileList.push({
                     name: file.name,
                     url: publicUrl,
@@ -504,9 +504,9 @@ export async function listFiles(folder = '', type = 'all') {
                 });
             }
         }
-        
+
         return fileList;
-        
+
     } catch (error) {
         console.error('❌ Error listing files:', error);
         throw error;
@@ -519,11 +519,11 @@ export async function listFiles(folder = '', type = 'all') {
 export async function getStorageStatus() {
     try {
         initializeDirectories();
-        
+
         const getDirectorySize = (dirPath) => {
             let totalSize = 0;
             let fileCount = 0;
-            
+
             if (fs.existsSync(dirPath)) {
                 const files = fs.readdirSync(dirPath, { withFileTypes: true });
                 for (const file of files) {
@@ -539,20 +539,20 @@ export async function getStorageStatus() {
                     }
                 }
             }
-            
+
             return { size: totalSize, count: fileCount };
         };
-        
+
         const images = getDirectorySize(IMAGES_DIR);
         const videos = getDirectorySize(VIDEOS_DIR);
         const documents = getDirectorySize(DOCUMENTS_DIR);
         const assets = getDirectorySize(ASSETS_DIR);
-        
+
         const total = {
             size: images.size + videos.size + documents.size + assets.size,
             count: images.count + videos.count + documents.count + assets.count
         };
-        
+
         return {
             total: {
                 size: total.size,
@@ -582,7 +582,7 @@ export async function getStorageStatus() {
             enabled: true,
             configured: true
         };
-        
+
     } catch (error) {
         console.error('❌ Error getting storage status:', error);
         throw error;
@@ -594,12 +594,12 @@ export async function getStorageStatus() {
  */
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
+
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }

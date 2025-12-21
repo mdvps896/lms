@@ -12,7 +12,7 @@ export async function POST(request) {
         const fileName = request.headers.get('x-filename');
         const folder = request.headers.get('x-folder') || 'binary-uploads';
         const mimeType = request.headers.get('x-mime-type') || 'application/octet-stream';
-        
+
         if (!fileName) {
             return NextResponse.json(
                 { success: false, message: 'Missing filename header' },
@@ -23,7 +23,7 @@ export async function POST(request) {
         // Read the raw binary data
         const arrayBuffer = await request.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        
+
         console.log(`📁 File: ${fileName}`);
         console.log(`📏 Size: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
         console.log(`📂 Folder: ${folder}`);
@@ -31,22 +31,23 @@ export async function POST(request) {
 
         // Convert to base64
         const base64File = `data:${mimeType};base64,${buffer.toString('base64')}`;
-        
-        console.log('⬆️ Uploading to local storage...');
-        
-        // Upload to local storage
+
+        console.log('⬆️ Saving to Local Storage...');
+
+        // Upload to Local Storage
         const result = await saveToLocalStorage(base64File, folder, fileName);
-        
-        console.log('🎉 Binary upload successful!');
+
+        console.log('🎉 Binary upload successful to Local Storage!');
         return NextResponse.json({
             success: true,
             url: result.url,
-            fileName: result.fileName,
+            fileName: result.fileName, // Public ID
             message: 'File uploaded successfully via binary method',
             fileSize: result.size,
-            originalName: result.originalName
+            originalName: result.originalName,
+            publicId: result.publicId
         });
-        
+
     } catch (error) {
         console.error('💥 Binary upload error:', error);
         return NextResponse.json(

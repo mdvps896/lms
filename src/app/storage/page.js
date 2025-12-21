@@ -6,6 +6,7 @@ import MediaGrid from '@/components/storage/MediaGrid'
 import FileUpload from '@/components/storage/FileUpload'
 import FileFilter from '@/components/storage/FileFilter'
 import RecordingStats from '@/components/storage/RecordingStats'
+import StorageSidebar from '@/components/storage/StorageSidebar'
 import Header from '@/components/shared/header/Header'
 import NavigationManu from '@/components/shared/navigationMenu/NavigationMenu'
 import SupportDetails from '@/components/supportDetails'
@@ -24,6 +25,7 @@ const StoragePage = () => {
         dateRange: null,
         sort: 'date-new'
     })
+    const [deleting, setDeleting] = useState(false)
 
     // Fetch files from API
     const fetchFiles = async () => {
@@ -57,7 +59,7 @@ const StoragePage = () => {
                 if (filters.type === 'exam-recording') {
                     return file.category === 'exam-recording'
                 }
-                
+
                 const fileType = file.type || getFileType(file.name)
                 return fileType === filters.type
             })
@@ -122,34 +124,40 @@ const StoragePage = () => {
         return 'other'
     }
 
-    const handleDelete = async (filePathOrPublicId, resourceType = null) => {
+    const handleDelete = async (filePathOrPublicId, resourceType = null, source = null) => {
         try {
-            console.log('🗑️ Attempting to delete:', { filePathOrPublicId, resourceType })
-            
+            setDeleting(true)
+            console.log('🗑️ Attempting to delete:', { filePathOrPublicId, resourceType, source })
+
+            const isCloudinary = source === 'cloudinary'
+
             const response = await fetch('/api/storage/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     filePath: filePathOrPublicId,
-                    publicId: resourceType ? filePathOrPublicId : undefined,
-                    resourceType: resourceType 
+                    publicId: isCloudinary || resourceType ? filePathOrPublicId : undefined,
+                    resourceType: resourceType,
+                    local: isCloudinary ? false : undefined
                 })
             })
-            
+
             const data = await response.json()
-            
+
             console.log('Delete response:', data)
-            
+
             if (!data.success) {
                 throw new Error(data.message || 'Failed to delete file')
             }
-            
+
             // Refresh file list on success
             fetchFiles()
             return data
         } catch (error) {
             console.error('Error deleting file:', error)
             throw error // Re-throw to let FileCard handle the error display
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -169,6 +177,29 @@ const StoragePage = () => {
             <Header />
             <NavigationManu />
             <main className="nxl-container">
+                {/* Deleting Overlay */}
+                {deleting && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backdropFilter: 'blur(5px)'
+                    }}>
+                        <div className="spinner-border text-danger mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 className="text-danger fw-bold">Deleting File...</h4>
+                        <p className="text-muted">Please wait while we remove the file permanently.</p>
+                    </div>
+                )}
                 <div className="nxl-content">
                     <PageHeader
                         title="Media & Storage"
@@ -179,13 +210,23 @@ const StoragePage = () => {
                     />
 
                     <div className="row">
-                        <div className="col-12">
+                        {/* Sidebar Column */}
+                        <div className="col-lg-3 col-xl-2 d-none d-lg-block">
+                            <StorageSidebar
+                                filters={filters}
+                                setFilters={setFilters}
+                                totalFiles={files.length}
+                            />
+                        </div>
+
+                        {/* Main Content Column */}
+                        <div className="col-lg-9 col-xl-10">
                             <div className="card">
                                 <div className="card-body">
                                     <FileUpload onUploadComplete={fetchFiles} />
-                                    
-                                    {/* Exam Recording Info Banner */}
-                                    {files.some(file => file.category?.includes('exam')) && (
+
+                                    {/* Exam Recording Info Banner - Only show if not filtering or specific exam recording filter */}
+                                    {(filters.type === 'all' || filters.type === 'exam-recording') && files.some(file => file.category?.includes('exam')) && (
                                         <div className="alert alert-info border-0 mb-4">
                                             <div className="d-flex align-items-start">
                                                 <div className="me-3">
@@ -207,11 +248,11 @@ const StoragePage = () => {
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     <RecordingStats files={files} />
-                                    
-                                    <FileFilter 
-                                        filters={filters} 
+
+                                    <FileFilter
+                                        filters={filters}
                                         setFilters={setFilters}
                                         totalFiles={files.length}
                                         filteredCount={filteredFiles.length}
@@ -244,10 +285,9 @@ const StoragePage = () => {
                                                             Previous
                                                         </button>
                                                     </li>
-                                                    
+
                                                     {[...Array(totalPages)].map((_, index) => {
                                                         const pageNumber = index + 1
-                                                        // Show first page, last page, current page, and pages around current
                                                         if (
                                                             pageNumber === 1 ||
                                                             pageNumber === totalPages ||

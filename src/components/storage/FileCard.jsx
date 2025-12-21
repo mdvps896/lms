@@ -5,7 +5,7 @@ import Swal from 'sweetalert2'
 import Image from 'next/image'
 import { Eye, Copy, Trash2, PlayCircle, Image as ImageIcon, Video, Music, FileText, File } from 'feather-icons-react'
 
-const FileCard = ({ file, onDelete, onRefresh }) => {
+const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
     const [imageError, setImageError] = useState(false)
 
     const getFileIcon = (type) => {
@@ -86,7 +86,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                     // Special handling for exam recordings
                     if (file.category === 'exam-recording' && file.attemptId && file.recordingType) {
                         console.log('Deleting exam recording:', file)
-                        
+
                         const response = await fetch('/api/exams/delete-recording', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -95,26 +95,27 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                                 recordingType: file.recordingType
                             })
                         })
-                        
+
                         const result = await response.json()
-                        
+
                         if (!result.success) {
                             throw new Error(result.message || 'Failed to delete recording')
                         }
                     } else {
                         // For regular files, use the standard delete method
-                        const deleteIdentifier = file.path || file.url
-                        
+                        // Use publicId if available (for Cloudinary), otherwise path/url
+                        const deleteIdentifier = file.publicId || file.path || file.url
+
                         console.log('Deleting file:', { deleteIdentifier, file })
-                        
-                        await onDelete(deleteIdentifier, file.resourceType || null)
+
+                        await onDelete(deleteIdentifier, file.resourceType || null, file.source || null)
                     }
-                    
+
                     // Refresh the file list
                     if (onRefresh) {
                         await onRefresh()
                     }
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -137,6 +138,25 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
 
     const renderThumbnail = () => {
         if (file.type === 'image' && !imageError) {
+            // If fluidHeight is enabled, render standard img tag for natural aspect ratio
+            if (props.fluidHeight) {
+                return (
+                    <div style={{ position: 'relative', width: '100%' }}>
+                        <img
+                            src={getSecureUrl(file.path)}
+                            alt={file.name}
+                            style={{
+                                width: '100%',
+                                height: 'auto',
+                                display: 'block',
+                                objectFit: 'cover'
+                            }}
+                            onError={() => setImageError(true)}
+                        />
+                    </div>
+                )
+            }
+            // Default fixed height behavior
             return (
                 <div style={{ position: 'relative', width: '100%', height: '150px' }}>
                     <Image
@@ -185,10 +205,10 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
     }
 
     return (
-        <div className="card h-100 file-card">
+        <div className={`card file-card ${!props.fluidHeight ? 'h-100' : ''}`}>
             <div className="position-relative thumbnail-container" style={{ cursor: 'pointer' }}>
                 {renderThumbnail()}
-                
+
                 {/* Overlay with action buttons */}
                 <div className="overlay-actions">
                     <div className="d-flex justify-content-center gap-2">
@@ -249,7 +269,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         </small>
                     )}
                 </div>
-                
+
                 {/* Exam recording details */}
                 {file.category === 'exam-recording' && (
                     <div className="mb-2">
@@ -265,7 +285,7 @@ const FileCard = ({ file, onDelete, onRefresh }) => {
                         )}
                         {(file.recordingId || file.cameraRecordingId || file.screenRecordingId) && (
                             <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                <strong>Recording ID:</strong> 
+                                <strong>Recording ID:</strong>
                                 <span className="badge bg-info text-white ms-1" style={{ fontSize: '0.65rem' }}>
                                     {file.recordingId || file.cameraRecordingId || file.screenRecordingId}
                                 </span>

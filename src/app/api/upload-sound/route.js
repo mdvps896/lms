@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { saveToLocalStorage } from '@/utils/localStorage';
 import path from 'path';
 
 export async function POST(request) {
@@ -19,33 +19,33 @@ export async function POST(request) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Create sounds directory if it doesn't exist
-        const soundsDir = path.join(process.cwd(), 'public', 'sounds');
-        try {
-            await mkdir(soundsDir, { recursive: true });
-        } catch (error) {
-            // Directory might already exist
-        }
+        const base64 = buffer.toString('base64');
+        const mimeType = file.type || 'audio/mpeg'; // Default to mp3 if unknown, or auto
+        const fileData = `data:${mimeType};base64,${base64}`;
 
         // Generate unique filename
         const timestamp = Date.now();
         const fileExtension = file.name.split('.').pop();
         const fileName = `${type}-${timestamp}.${fileExtension}`;
-        const filePath = path.join(soundsDir, fileName);
 
-        // Write file
-        await writeFile(filePath, buffer);
+        console.log('Saving sound locally:', fileName);
+
+        // Upload to Local Storage
+        const result = await saveToLocalStorage(fileData, 'sounds', fileName);
+
+        console.log('Sound saved:', result.url);
 
         // Return the public URL
-        const publicPath = `/sounds/${fileName}`;
+        // Cloudinary returns full URL, which is good.
 
         return NextResponse.json({
             success: true,
-            filePath: publicPath,
-            message: 'File uploaded successfully'
+            filePath: result.url,
+            message: 'File uploaded successfully',
+            publicId: result.publicId
         });
     } catch (error) {
-        console.error('Error uploading file:', error);
+        console.error('Error uploading file to Cloudinary:', error);
         return NextResponse.json(
             { message: 'Failed to upload file', error: error.message, success: false },
             { status: 500 }

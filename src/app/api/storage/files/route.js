@@ -3,16 +3,18 @@ import fs from 'fs'
 import path from 'path'
 import connectDB from '@/lib/mongodb'
 import Settings from '@/models/Settings'
-// Local storage only - no cloud dependencies needed
+import { listCloudinaryResources } from '@/utils/cloudinary'
 
-// Helper function to get all files recursively
+// Helper function to get all files recursively (Local)
 function getAllFiles(dirPath, arrayOfFiles = []) {
     try {
+        if (!fs.existsSync(dirPath)) return arrayOfFiles;
+
         const files = fs.readdirSync(dirPath)
 
         files.forEach((file) => {
             const filePath = path.join(dirPath, file)
-            
+
             if (fs.statSync(filePath).isDirectory()) {
                 arrayOfFiles = getAllFiles(filePath, arrayOfFiles)
             } else {
@@ -26,11 +28,12 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
                 arrayOfFiles.push({
                     name: file,
                     path: relativePath,
-                    fullPath: filePath,
+                    fullPath: filePath, // This is local absolute path
                     size: stats.size,
                     createdAt: stats.birthtime,
                     modifiedAt: stats.mtime,
-                    type: getFileType(file)
+                    type: getFileType(file),
+                    source: 'local'
                 })
             }
         })
@@ -43,6 +46,7 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
 }
 
 function getFileType(filename) {
+    if (!filename) return 'other';
     const ext = filename.split('.').pop().toLowerCase()
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico'].includes(ext)) return 'image'
     if (['mp4', 'webm', 'avi', 'mov', 'mkv'].includes(ext)) return 'video'
@@ -55,19 +59,58 @@ function getFileType(filename) {
 export async function GET() {
     try {
         await connectDB()
-        
-        // Get local files
+
+        // 1. Get local files (Legacy support & backups)
         const publicDir = path.join(process.cwd(), 'public')
         const localFiles = getAllFiles(publicDir)
 
-        // No cloud files - local storage only
-        const cloudinaryFiles = []
-        
-        // Get exam recordings
+        // 2. Get Cloudinary files (Primary storage) - DISABLED for Local Storage Mode
+        let cloudinaryFiles = [];
+        // try {
+        //     console.log('Fetching Cloudinary resources...');
+        //     const cloudResources = await listCloudinaryResources();
+        //     // ... mapping logic ...
+        // } catch (cloudError) {
+        //     console.error('Failed to fetch Cloudinary files:', cloudError.message);
+        // }
+
+        // 3. Get exam recordings (from DB)
         const examRecordings = await getExamRecordings()
 
+        // Deduplicate and merge: Prefer examRecordings (rich metadata) but fill size from localFiles
+        const localFilesMap = new Map();
+        localFiles.forEach(file => localFilesMap.set(file.path, file));
+
+        const finalExamRecordings = examRecordings.map(recording => {
+            // Try to find matching local file
+            // Recording path might be absolute URL or relative path
+            let lookupPath = recording.path;
+
+            // If it's a full URL (which it shouldn't be for local, but just in case)
+            // or if it doesn't start with /, normalize it matching getAllFiles output
+            if (!lookupPath.startsWith('/')) {
+                lookupPath = '/' + lookupPath;
+            }
+
+            const localFile = localFilesMap.get(lookupPath);
+            if (localFile) {
+                // Found physical file! Update size and stats
+                localFilesMap.delete(lookupPath); // Remove from local files to avoid duplicate
+                return {
+                    ...recording,
+                    size: localFile.size,
+                    createdAt: localFile.createdAt,
+                    modifiedAt: localFile.modifiedAt
+                };
+            }
+            return recording;
+        });
+
+        // Remaining local files that weren't matched to an exam recording
+        const uniqueLocalFiles = Array.from(localFilesMap.values());
+
         // Merge all sources
-        const allFiles = [...localFiles, ...cloudinaryFiles, ...examRecordings]
+        const allFiles = [...cloudinaryFiles, ...uniqueLocalFiles, ...finalExamRecordings]
 
         return NextResponse.json({
             success: true,
@@ -75,7 +118,7 @@ export async function GET() {
             count: allFiles.length,
             sources: {
                 local: localFiles.length,
-                local: localFiles.length,
+                cloudinary: cloudinaryFiles.length,
                 examRecordings: examRecordings.length
             }
         })
@@ -97,9 +140,9 @@ async function getExamRecordings() {
         const ExamAttempt = (await import('@/models/ExamAttempt')).default
         const Exam = (await import('@/models/Exam')).default
         const User = (await import('@/models/User')).default
-        
+
         const recordings = []
-        
+
         // Get recordings from ExamAttempt collection
         const attempts = await ExamAttempt.find({
             $or: [
@@ -107,14 +150,14 @@ async function getExamRecordings() {
                 { 'recordings.screenVideo': { $exists: true, $ne: null, $ne: '' } }
             ]
         })
-        .populate('user', 'name email')
-        .populate('exam', 'name')
-        .lean()
-        
+            .populate('user', 'name email')
+            .populate('exam', 'name')
+            .lean()
+
         for (const attempt of attempts) {
             const user = attempt.user || { name: 'Unknown User', email: 'N/A' }
             const exam = attempt.exam || { name: 'Unknown Exam' }
-            
+
             if (attempt.recordings?.cameraVideo) {
                 recordings.push({
                     name: `📹 Camera Recording - ${exam.name} (${user.name})`,
@@ -137,7 +180,7 @@ async function getExamRecordings() {
                     folder: 'exam-recordings'
                 })
             }
-            
+
             if (attempt.recordings?.screenVideo) {
                 recordings.push({
                     name: `🖥️ Screen Recording - ${exam.name} (${user.name})`,
@@ -161,12 +204,12 @@ async function getExamRecordings() {
                 })
             }
         }
-        
+
         // Also check embedded attempts in Exam collection
         const examsWithAttempts = await Exam.find({
             'attempts.recordings': { $exists: true }
         }).lean()
-        
+
         for (const exam of examsWithAttempts) {
             if (exam.attempts) {
                 for (const attempt of exam.attempts) {
@@ -174,12 +217,12 @@ async function getExamRecordings() {
                         // Get user info
                         const user = await User.findById(attempt.userId).select('name email').lean()
                         const userName = user?.name || 'Unknown User'
-                        
+
                         if (attempt.recordings.cameraVideo) {
-                            const existingCamera = recordings.find(r => 
+                            const existingCamera = recordings.find(r =>
                                 r.attemptId === attempt._id.toString() && r.recordingType === 'camera'
                             )
-                            
+
                             if (!existingCamera) {
                                 recordings.push({
                                     name: `Camera-${exam.name}-${userName}-${attempt._id}.webm`,
@@ -201,12 +244,12 @@ async function getExamRecordings() {
                                 })
                             }
                         }
-                        
+
                         if (attempt.recordings.screenVideo) {
-                            const existingScreen = recordings.find(r => 
+                            const existingScreen = recordings.find(r =>
                                 r.attemptId === attempt._id.toString() && r.recordingType === 'screen'
                             )
-                            
+
                             if (!existingScreen) {
                                 recordings.push({
                                     name: `Screen-${exam.name}-${userName}-${attempt._id}.webm`,
@@ -232,10 +275,10 @@ async function getExamRecordings() {
                 }
             }
         }
-        
+
         console.log(`Found ${recordings.length} exam recordings`)
         return recordings
-        
+
     } catch (error) {
         console.error('Error fetching exam recordings:', error)
         return []

@@ -3,9 +3,9 @@ const nextConfig = {
     output: 'standalone',
     experimental: {
         instrumentationHook: true,
-        // Increase body size limit for API routes (for video uploads)
+        // Increase body size limit for API routes
         serverActions: {
-            bodySizeLimit: '50mb',
+            bodySizeLimit: '5000mb',
         },
     },
     images: {
