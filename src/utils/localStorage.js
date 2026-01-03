@@ -262,7 +262,8 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
             mimeType: getMimeType(originalFileName),
             localPath: filePath,
             relativePath: relativePath.replace(/\\/g, '/'),
-            folder: folder
+            folder: folder,
+            publicId: relativePath.replace(/\\/g, '/') // Alias for compatibility with code expecting Cloudinary-like response
         };
 
     } catch (error) {

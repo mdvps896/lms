@@ -49,6 +49,10 @@ const examAttemptSchema = new mongoose.Schema({
     percentage: {
         type: Number
     },
+    passed: {
+        type: Boolean,
+        default: false
+    },
     // Recording information
     recordings: {
         cameraVideo: {

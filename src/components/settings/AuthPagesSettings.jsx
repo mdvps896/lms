@@ -3,7 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { FiSave, FiRefreshCw, FiUpload, FiImage, FiFileText, FiToggleLeft } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 
-const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
+const JoditEditor = dynamic(() => import('jodit-react'), {
+    ssr: false,
+    loading: () => <div className="text-center p-4">Loading editor...</div>
+});
 
 const AuthPagesSettings = ({ settings, onUpdate, saving }) => {
     const [formData, setFormData] = useState({
@@ -129,9 +132,9 @@ const AuthPagesSettings = ({ settings, onUpdate, saving }) => {
                         <div className="card-body">
                             {formData.loginBgImage && (
                                 <div className="mb-3">
-                                    <img 
-                                        src={formData.loginBgImage} 
-                                        alt="Login Background" 
+                                    <img
+                                        src={formData.loginBgImage}
+                                        alt="Login Background"
                                         className="img-fluid rounded"
                                         style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
                                     />
@@ -177,9 +180,9 @@ const AuthPagesSettings = ({ settings, onUpdate, saving }) => {
                         <div className="card-body">
                             {formData.registerBgImage && (
                                 <div className="mb-3">
-                                    <img 
-                                        src={formData.registerBgImage} 
-                                        alt="Register Background" 
+                                    <img
+                                        src={formData.registerBgImage}
+                                        alt="Register Background"
                                         className="img-fluid rounded"
                                         style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
                                     />
@@ -225,9 +228,9 @@ const AuthPagesSettings = ({ settings, onUpdate, saving }) => {
                         <div className="card-body">
                             {formData.resetBgImage && (
                                 <div className="mb-3">
-                                    <img 
-                                        src={formData.resetBgImage} 
-                                        alt="Reset Password Background" 
+                                    <img
+                                        src={formData.resetBgImage}
+                                        alt="Reset Password Background"
                                         className="img-fluid rounded"
                                         style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
                                     />

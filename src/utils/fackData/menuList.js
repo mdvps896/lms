@@ -48,6 +48,14 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 5.5,
+        name: "courses",
+        path: "/courses",
+        icon: 'feather-layers',
+        roles: ['admin'], // Only admin
+        dropdownMenu: []
+    },
+    {
         id: 6,
         name: "questions",
         path: "/question-bank",
@@ -56,6 +64,31 @@ export const menuList = [
         dropdownMenu: [],
         showModal: true
     },
+    {
+        id: 7,
+        name: "Analytics",
+        path: "/analytics",
+        icon: 'feather-pie-chart',
+        roles: ['admin'], // Only admin
+        dropdownMenu: []
+    },
+    {
+        id: 7.5,
+        name: "Coupons",
+        path: "/coupons",
+        icon: 'feather-tag',
+        roles: ['admin'], // Only admin
+        dropdownMenu: []
+    },
+    {
+        id: 7.7,
+        name: "Payments",
+        path: "/payment/list",
+        icon: 'feather-dollar-sign',
+        roles: ['admin'],
+        dropdownMenu: []
+    },
+
     // {
     //     id: 7,
     //     name: "exam analytics",
@@ -81,6 +114,22 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 9.5,
+        name: "Google Meet",
+        path: "/google-meet",
+        icon: 'feather-video-off',
+        roles: ['admin', 'teacher'],
+        dropdownMenu: []
+    },
+    {
+        id: 9.8,
+        name: "Free Materials",
+        path: "/free-materials",
+        icon: 'feather-archive',
+        roles: ['admin', 'teacher'],
+        dropdownMenu: []
+    },
+    {
         id: 10,
         name: "media & storage",
         path: "/storage",
@@ -92,7 +141,7 @@ export const menuList = [
         id: 10.5,
         name: "PDF management",
         path: "/pdf",
-        icon: 'feather-file',
+        icon: 'fa-file-pdf',
         roles: ['admin'], // Only admin
         dropdownMenu: []
     },
@@ -102,6 +151,14 @@ export const menuList = [
         path: "/settings",
         icon: 'feather-settings',
         roles: ['admin'], // Only admin
+        dropdownMenu: []
+    },
+    {
+        id: 11.5,
+        name: "Support Chat",
+        path: "/support",
+        icon: 'feather-message-circle',
+        roles: ['admin'],
         dropdownMenu: []
     },
     // Student specific menu items

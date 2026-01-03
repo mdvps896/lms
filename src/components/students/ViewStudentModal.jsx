@@ -134,6 +134,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 <li className="nav-item">
                                     <TabButton id="pdfs" label="PDF Views" icon={FiFileText} />
                                 </li>
+                                <li className="nav-item">
+                                    <TabButton id="courses" label="Course Views" icon={FiBookOpen} />
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -324,40 +327,121 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                     </div>
                                 )}
 
-                                {/* PDFS TAB (Placeholder) */}
+                                {/* PDFS TAB */}
                                 {activeTab === 'pdfs' && (
                                     <div className="animate__animated animate__fadeIn">
                                         <div className="card border-0 shadow-sm">
-                                            <div className="card-header bg-white border-0 py-3">
-                                                <h6 className="card-title fw-bold mb-0">Recently Viewed PDFs</h6>
+                                            <div className="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                                                <h6 className="card-title fw-bold mb-0">PDF Reading History</h6>
+                                                <span className="badge bg-light text-danger">{details.pdfViews?.length || 0} Records</span>
                                             </div>
-                                            <div className="card-body">
-                                                {/* This is a placeholder as requested by the user for "laft pdf view" */}
-                                                <div className="text-center py-5">
-                                                    <div className="avatar avatar-xxl bg-soft-info text-info mb-3 mx-auto">
-                                                        <FiFileText size={32} />
-                                                    </div>
-                                                    <h6 className="fw-bold">No PDF Views Recorded</h6>
-                                                    <p className="text-muted mb-0">The student hasn't viewed any PDF materials yet.</p>
+                                            <div className="card-body p-0">
+                                                <div className="table-responsive">
+                                                    <table className="table table-hover table-nowrap mb-0 align-middle">
+                                                        <thead className="table-light">
+                                                            <tr>
+                                                                <th className="ps-4">PDF Title</th>
+                                                                <th>Viewed Date</th>
+                                                                <th>Duration</th>
+                                                                <th>Last Accessed</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {details.pdfViews && details.pdfViews.length > 0 ? (
+                                                                details.pdfViews.map((view) => (
+                                                                    <tr key={view.id}>
+                                                                        <td className="ps-4 fw-medium text-dark width-40">
+                                                                            <div className="d-flex align-items-center">
+                                                                                <div className="avatar avatar-sm bg-soft-danger text-danger me-2 rounded">
+                                                                                    <FiFileText size={16} />
+                                                                                </div>
+                                                                                <span className="text-truncate" style={{ maxWidth: '200px' }} title={view.title}>{view.title}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="fs-13">{formatDate(view.startTime)}</span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="badge bg-light text-dark border">
+                                                                                {view.duration ? `${Math.round(view.duration / 60)} mins` : '< 1 min'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="text-muted fs-12">{new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan="4" className="text-center py-5 text-muted">
+                                                                        <FiFileText size={24} className="mb-2 opacity-50" />
+                                                                        <p className="mb-0">No PDF views recorded</p>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
-                                                {/* Example structure if we had data */}
-                                                {/* 
-                                                <div className="list-group list-group-flush">
-                                                    {details.pdfViews?.map(pdf => (
-                                                        <div className="list-group-item px-0 py-3 d-flex align-items-center">
-                                                            <div className="avatar bg-soft-danger text-danger me-3">
-                                                                <FiFileText />
-                                                            </div>
-                                                            <div className="flex-grow-1">
-                                                                <h6 className="mb-1 text-dark">{pdf.name}</h6>
-                                                                <small className="text-muted">Last viewed: {formatDate(pdf.lastViewed)}</small>
-                                                            </div>
-                                                            <button className="btn btn-sm btn-light">View Details</button>
-                                                        </div>
-                                                    ))}
+                                {/* COURSES TAB */}
+                                {activeTab === 'courses' && (
+                                    <div className="animate__animated animate__fadeIn">
+                                        <div className="card border-0 shadow-sm">
+                                            <div className="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                                                <h6 className="card-title fw-bold mb-0">Course Viewing History</h6>
+                                                <span className="badge bg-light text-success">{details.courseViews?.length || 0} Records</span>
+                                            </div>
+                                            <div className="card-body p-0">
+                                                <div className="table-responsive">
+                                                    <table className="table table-hover table-nowrap mb-0 align-middle">
+                                                        <thead className="table-light">
+                                                            <tr>
+                                                                <th className="ps-4">Course Title</th>
+                                                                <th>Accessed Date</th>
+                                                                <th>Duration</th>
+                                                                <th>Last Active</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {details.courseViews && details.courseViews.length > 0 ? (
+                                                                details.courseViews.map((view) => (
+                                                                    <tr key={view.id}>
+                                                                        <td className="ps-4 fw-medium text-dark width-40">
+                                                                            <div className="d-flex align-items-center">
+                                                                                <div className="avatar avatar-sm bg-soft-success text-success me-2 rounded">
+                                                                                    <FiBookOpen size={16} />
+                                                                                </div>
+                                                                                <span className="text-truncate" style={{ maxWidth: '200px' }} title={view.title}>{view.title}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="fs-13">{formatDate(view.startTime)}</span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="badge bg-light text-dark border">
+                                                                                {view.duration ? `${Math.round(view.duration / 60)} mins` : '< 1 min'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="text-muted fs-12">{new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan="4" className="text-center py-5 text-muted">
+                                                                        <FiBookOpen size={24} className="mb-2 opacity-50" />
+                                                                        <p className="mb-0">No Course views recorded</p>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
-                                                */}
                                             </div>
                                         </div>
                                     </div>

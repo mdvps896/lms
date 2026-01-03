@@ -8,11 +8,15 @@ export async function GET(request) {
     await connectDB();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
+    const category = searchParams.get('category');
     const populate = searchParams.get('populate');
 
     let query = {};
     if (role) {
       query.role = role;
+    }
+    if (category) {
+      query.category = category;
     }
 
     let userQuery = User.find(query)

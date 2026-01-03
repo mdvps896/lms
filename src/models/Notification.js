@@ -11,15 +11,12 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'general'],
+        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'course_purchase', 'general'],
         required: true,
     },
     data: {
-        examId: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam' },
-        examName: String,
-        startTime: Date,
-        endTime: Date,
-        status: String,
+        type: mongoose.Schema.Types.Map,
+        of: String
     },
     recipients: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -1,163 +1,92 @@
-import dbConnect from '../../../lib/mongodb';
-import Notification from '../../../models/Notification';
-import { NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import Notification from '@/models/Notification';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
-        await dbConnect();
-
-        // Get user info from cookie
-        const cookieStore = cookies();
-        const userCookie = cookieStore.get('currentUser');
-        
-        if (!userCookie) {
-            return Response.json({ 
-                success: false, 
-                message: 'Not authenticated' 
-            }, { status: 401 });
-        }
-
-        let currentUser;
-        try {
-            currentUser = JSON.parse(userCookie.value);
-        } catch (error) {
-            return Response.json({ 
-                success: false, 
-                message: 'Invalid authentication token' 
-            }, { status: 401 });
-        }
-        
-        // Get URL parameters
+        await connectDB();
         const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit')) || 10;
-        const page = parseInt(searchParams.get('page')) || 1;
-        const skip = (page - 1) * limit;
+        const userId = searchParams.get('userId');
 
-        // Find notifications for current user
+        if (!userId) {
+            return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
+        }
+
+        // Find active notifications where the user is a recipient
         const notifications = await Notification.find({
-            'recipients.userId': currentUser.id,
-            status: 'active'
+            status: 'active',
+            'recipients.userId': userId
         })
-        .populate('createdBy', 'name email')
-        .populate('data.examId', 'name status')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .lean();
 
-        // Get unread count
-        const unreadCount = await Notification.countDocuments({
-            'recipients.userId': currentUser.id,
-            'recipients.read': false,
-            status: 'active'
-        });
+        // Format for mobile
+        const formatted = notifications.map(notif => {
+            const recipient = notif.recipients.find(r => r.userId.toString() === userId);
 
-        // Transform notifications to include read status for current user
-        const transformedNotifications = notifications.map(notification => {
-            const userRecipient = notification.recipients.find(
-                r => r.userId.toString() === currentUser.id
-            );
-            
+            // Extract data from Map
+            const data = {};
+            if (notif.data) {
+                for (let [key, value] of notif.data) {
+                    data[key] = value;
+                }
+            }
+
             return {
-                _id: notification._id,
-                title: notification.title,
-                message: notification.message,
-                type: notification.type,
-                data: notification.data,
-                createdBy: notification.createdBy,
-                createdAt: notification.createdAt,
-                recipients: notification.recipients, // Include full recipients array for frontend
-                read: userRecipient?.read || false,
-                readAt: userRecipient?.readAt,
+                id: notif._id.toString(),
+                title: notif.title,
+                body: notif.message,
+                type: notif.type,
+                data: data,
+                read: recipient ? recipient.read : false,
+                createdAt: notif.createdAt
             };
         });
 
-        return Response.json({
+        const unreadCount = formatted.filter(n => !n.read).length;
+
+        return NextResponse.json({
             success: true,
-            notifications: transformedNotifications,
-            unreadCount,
-            pagination: {
-                page,
-                limit,
-                total: await Notification.countDocuments({
-                    'recipients.userId': currentUser.id,
-                    status: 'active'
-                })
-            }
+            notifications: formatted,
+            unreadCount: unreadCount
         });
 
     } catch (error) {
-        console.error('Get notifications error:', error);
-        return Response.json({ 
-            success: false, 
-            message: 'Internal server error' 
-        }, { status: 500 });
+        console.error('Fetch notifications error:', error);
+        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 }
 
 export async function PUT(request) {
     try {
-        await dbConnect();
+        await connectDB();
+        const { userId, notificationId, markAll } = await request.json();
 
-        const cookieStore = cookies();
-        const userCookie = cookieStore.get('currentUser');
-        
-        if (!userCookie) {
-            return Response.json({ 
-                success: false, 
-                message: 'Not authenticated' 
-            }, { status: 401 });
+        if (!userId) {
+            return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
-        let currentUser;
-        try {
-            currentUser = JSON.parse(userCookie.value);
-        } catch (error) {
-            return Response.json({ 
-                success: false, 
-                message: 'Invalid authentication token' 
-            }, { status: 401 });
-        }
-        const body = await request.json();
-        const { notificationId, action } = body;
-
-        if (action === 'mark_read') {
-            await Notification.updateOne(
-                { 
-                    _id: notificationId,
-                    'recipients.userId': currentUser.id 
-                },
-                {
-                    $set: {
-                        'recipients.$.read': true,
-                        'recipients.$.readAt': new Date()
-                    }
-                }
-            );
-        } else if (action === 'mark_all_read') {
+        if (markAll) {
+            // Mark all as read for this user
             await Notification.updateMany(
-                { 'recipients.userId': currentUser.id },
-                {
-                    $set: {
-                        'recipients.$.read': true,
-                        'recipients.$.readAt': new Date()
-                    }
-                }
+                { 'recipients.userId': userId },
+                { $set: { 'recipients.$.read': true, 'recipients.$.readAt': new Date() } }
+            );
+        } else if (notificationId) {
+            // Mark specific as read
+            await Notification.updateOne(
+                { _id: notificationId, 'recipients.userId': userId },
+                { $set: { 'recipients.$.read': true, 'recipients.$.readAt': new Date() } }
             );
         }
 
-        return Response.json({
-            success: true,
-            message: 'Notification updated successfully'
-        });
+        return NextResponse.json({ success: true });
 
     } catch (error) {
         console.error('Update notification error:', error);
-        return Response.json({ 
-            success: false, 
-            message: 'Internal server error' 
-        }, { status: 500 });
+        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 }

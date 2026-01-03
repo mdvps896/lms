@@ -122,6 +122,14 @@ const defaultSettings = {
             enabled: true,
             maxSizeMB: 100,
             compressionQuality: 80
+        },
+        razorpay: {
+            enabled: false,
+            keyId: '',
+            keySecret: '',
+            webhookSecret: '',
+            webhookUrl: '',
+            currency: 'INR'
         }
     },
     notifications: {
@@ -218,25 +226,31 @@ export async function PUT(request) {
             'roll-number': 'rollNumberSettings'
         };
 
-        const dbFieldName = tabFieldMap[tab] || tab;
+        let result;
 
-        // Update the specific tab settings
-        const updateQuery = {};
-        updateQuery[dbFieldName] = settingsData;
+        if (tab === 'payment') {
+            const updateQuery = {
+                'integrations.razorpay': settingsData.razorpay
+            };
 
-        console.log('Database update query:', updateQuery);
+            result = await db.collection('settings').updateOne({}, { $set: updateQuery }, { upsert: true });
+        } else {
+            const dbFieldName = tabFieldMap[tab] || tab;
+            const updateQuery = {};
+            updateQuery[dbFieldName] = settingsData;
 
-        const result = await db.collection('settings').updateOne(
-            {},
-            {
-                $set: updateQuery,
-                $setOnInsert: {
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }
-            },
-            { upsert: true }
-        );
+            result = await db.collection('settings').updateOne(
+                {},
+                {
+                    $set: updateQuery,
+                    $setOnInsert: {
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }
+                },
+                { upsert: true }
+            );
+        }
 
         console.log('Update result:', result);
 

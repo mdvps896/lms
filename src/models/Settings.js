@@ -80,7 +80,7 @@ const settingsSchema = new mongoose.Schema({
     },
     autoRefreshInterval: { type: Number, default: 5000 }, // milliseconds
     maxConcurrentExams: { type: Number, default: 100 },
-    
+
     // Integrations Settings  
     integrations: {
         googleOAuth: {
@@ -99,9 +99,31 @@ const settingsSchema = new mongoose.Schema({
             maxImageSize: { type: Number, default: 10 }, // MB
             maxVideoSize: { type: Number, default: 100 }, // MB
             maxDocumentSize: { type: Number, default: 50 } // MB
+        },
+        razorpay: {
+            enabled: { type: Boolean, default: false },
+            keyId: { type: String, default: '' },
+            keySecret: { type: String, default: '' },
+            webhookSecret: { type: String, default: '' },
+            webhookUrl: { type: String, default: '' },
+            currency: { type: String, default: 'INR' }
+        },
+        phonepe: {
+            enabled: { type: Boolean, default: false },
+            merchantId: { type: String, default: '' },
+            saltKey: { type: String, default: '' },
+            saltIndex: { type: String, default: '1' },
+            env: { type: String, default: 'UAT' } // UAT or PROD
         }
     },
-    
+    // Security Settings
+    security: {
+        enabled: { type: Boolean, default: true },
+        maxLoginAttempts: { type: Number, default: 3 },
+        lockoutDuration: { type: Number, default: 600 }, // seconds (10 minutes default)
+        lockoutUnit: { type: String, default: 'minutes' } // 'seconds', 'minutes', 'hours'
+    },
+
     // Single instance - only one settings document
     singleton: { type: Boolean, default: true, unique: true }
 }, { timestamps: true });

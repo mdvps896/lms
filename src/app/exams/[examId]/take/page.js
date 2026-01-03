@@ -12,6 +12,7 @@ import SubmitConfirmationModal from '@/components/exams/take/SubmitConfirmationM
 import TabSwitchWarningModal from '@/components/exams/take/TabSwitchWarningModal';
 import ScreenshotWarningModal from '@/components/exams/take/ScreenshotWarningModal';
 import PermissionModal from '@/components/exams/take/PermissionModal';
+import ExamInstructionsModal from '@/components/exams/take/ExamInstructionsModal';
 import RecordingManager from '@/utils/recordingManager';
 import ServerSideLiveStream from '@/utils/serverSideLiveStream';
 import ExamChatBox from '@/components/exams/ExamChatBox';
@@ -44,6 +45,9 @@ export default function TakeExamPage() {
     const [permissionDenied, setPermissionDenied] = useState(false);
     const [savingRecordings, setSavingRecordings] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
+    const [isNavigating, setIsNavigating] = useState(false); // Navigation state
     // const [cameraStream, setCameraStream] = useState(null);  // Disabled for student exam
     // const [screenStream, setScreenStream] = useState(null);   // Disabled for student exam
     const tabSwitchCountRef = useRef(null);
@@ -341,7 +345,7 @@ export default function TakeExamPage() {
         return () => {
             // Note: Stream cleanup now handled by recording manager
             // Recording manager will handle proper cleanup of streams
-            
+
             // Stop live streaming
             if (liveStreamManagerRef.current) {
                 liveStreamManagerRef.current.stopStreaming();
@@ -421,7 +425,7 @@ export default function TakeExamPage() {
                 examId: params.examId,
                 answers
             };
-            
+
             const blob = new Blob([JSON.stringify(submitData)], { type: 'application/json' });
             navigator.sendBeacon('/api/exams/submit', blob);
         };
@@ -463,10 +467,10 @@ export default function TakeExamPage() {
                 }
 
                 // Show permission modal if any proctoring features are enabled
-                const requiresPermissions = data.exam?.settings?.allowCam || 
-                                          data.exam?.settings?.allowScreen || 
-                                          data.exam?.settings?.allowMic ||
-                                          data.exam?.settings?.proctoring?.enabled;
+                const requiresPermissions = data.exam?.settings?.allowCam ||
+                    data.exam?.settings?.allowScreen ||
+                    data.exam?.settings?.allowMic ||
+                    data.exam?.settings?.proctoring?.enabled;
 
                 if (requiresPermissions) {
                     setShowPermissionModal(true);
@@ -544,20 +548,31 @@ export default function TakeExamPage() {
         }));
     };
 
-    const handleNextQuestion = () => {
+    const handleNextQuestion = async () => {
         if (currentQuestionIndex < questions.length - 1) {
+            setIsNavigating(true);
+            await new Promise(r => setTimeout(r, 300)); // Small delay for visual feedback
             setCurrentQuestionIndex(prev => prev + 1);
+            setIsNavigating(false);
         }
     };
 
-    const handlePreviousQuestion = () => {
+    const handlePreviousQuestion = async () => {
         if (currentQuestionIndex > 0) {
+            setIsNavigating(true);
+            await new Promise(r => setTimeout(r, 300));
             setCurrentQuestionIndex(prev => prev - 1);
+            setIsNavigating(false);
         }
     };
 
-    const handleQuestionSelect = (index) => {
+    const handleQuestionSelect = async (index) => {
+        if (index === currentQuestionIndex) return;
+        setIsNavigating(true);
+        setIsSidebarOpen(false); // Close sidebar on mobile
+        await new Promise(r => setTimeout(r, 300));
         setCurrentQuestionIndex(index);
+        setIsNavigating(false);
     };
 
     const handleAutoSubmit = async () => {
@@ -732,6 +747,14 @@ export default function TakeExamPage() {
                 onSubmit={handleSubmitClick}
                 user={user}
                 instructions={exam?.instructions}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                onShowInstructions={() => setShowInstructions(true)}
+            />
+
+            <ExamInstructionsModal
+                show={showInstructions}
+                onClose={() => setShowInstructions(false)}
+                instructions={exam?.instructions}
             />
 
             <SubmitConfirmationModal
@@ -753,74 +776,162 @@ export default function TakeExamPage() {
                 onClose={() => setShowScreenshotWarning(false)}
             />
 
-            <div className="exam-body" style={{
-                display: 'flex',
-                height: 'calc(100vh - 60px)',
-                overflow: 'hidden'
-            }}>
-                <div className="exam-main" style={{
-                    flex: 1,
-                    overflow: 'auto',
-                    padding: '20px'
-                }}>
-                    {/* Subject Tabs */}
-                    {exam?.subjects?.length > 0 && (
-                        <div className="mb-3">
-                            <div className="subject-tabs mb-2">
-                                <div className="btn-group" role="group">
-                                    {exam.subjects.map(subject => (
-                                        <button
-                                            key={subject._id}
-                                            type="button"
-                                            className={`btn ${activeSection === subject._id ? 'btn-primary' : 'btn-outline-primary'}`}
-                                            onClick={() => setActiveSection(subject._id)}
-                                        >
-                                            {subject.name}
-                                            <span className="badge bg-white text-primary ms-2 rounded-pill">
-                                                {subject.questionCount}
-                                            </span>
-                                        </button>
-                                    ))}
+            <div className="exam-body-container" style={{ position: 'relative' }}>
+                <style jsx global>{`
+                    .exam-body {
+                        display: flex;
+                        height: calc(100vh - 60px);
+                        overflow: hidden;
+                        position: relative;
+                    }
+                    .exam-main {
+                        flex: 1;
+                        overflow: auto;
+                        padding: 20px;
+                    }
+                    .sidebar-container {
+                        width: 300px;
+                        height: 100%;
+                        border-left: 1px solid #dee2e6;
+                        background: white;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    @media (max-width: 768px) {
+                        .exam-main {
+                            padding: 10px;
+                        }
+                        .sidebar-container {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            bottom: 0;
+                            width: 85%;
+                            max-width: 300px;
+                            z-index: 1050;
+                            transform: translateX(-100%);
+                            transition: transform 0.3s ease-in-out;
+                            border-left: none;
+                            border-right: 1px solid #dee2e6;
+                            height: 100vh;
+                            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+                        }
+                        .sidebar-container.open {
+                            transform: translateX(0);
+                        }
+                        .sidebar-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: rgba(0, 0, 0, 0.5);
+                            z-index: 1040;
+                            backdrop-filter: blur(2px);
+                        }
+                        .sidebar-header-mobile {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 10px 15px;
+                            border-bottom: 1px solid #eee;
+                            background: #f8f9fa;
+                        }
+                        /* Prevent zoom on inputs */
+                        input[type="text"], input[type="number"], textarea {
+                            font-size: 16px !important;
+                        }
+                    }
+                `}</style>
+
+                <div className="exam-body">
+                    <div className="exam-main">
+                        {/* Subject Tabs */}
+                        {exam?.subjects?.length > 0 && (
+                            <div className="mb-3">
+                                <div className="subject-tabs mb-2" style={{ overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', paddingBottom: '5px' }}>
+                                    <div className="btn-group" role="group">
+                                        {exam.subjects.map(subject => (
+                                            <button
+                                                key={subject._id}
+                                                type="button"
+                                                className={`btn ${activeSection === subject._id ? 'btn-primary' : 'btn-outline-primary'}`}
+                                                onClick={() => setActiveSection(subject._id)}
+                                            >
+                                                {subject.name}
+                                                <span className="badge bg-white text-primary ms-2 rounded-pill">
+                                                    {subject.questionCount}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
+                        )}
+
+                        {isNavigating ? (
+                            <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
+                                <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                                    <span className="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <QuestionDisplay
+                                question={currentQuestion}
+                                questionNumber={filteredQuestions.findIndex(q => q._id === currentQuestion?._id) + 1}
+                                totalQuestions={filteredQuestions.length}
+                                answer={answers[currentQuestion?._id]}
+                                onAnswerChange={(answer) => handleAnswerChange(currentQuestion._id, answer)}
+                                isMarkedForReview={markedForReview[currentQuestion?._id]}
+                                saving={saving}
+                                watermarkSettings={exam?.settings?.watermark}
+                                userName={user?.name}
+                            />
+                        )}
+
+                        <ExamControls
+                            currentIndex={currentQuestionIndex}
+                            totalQuestions={questions.length}
+                            onPrevious={handlePreviousQuestion}
+                            onNext={handleNextQuestion}
+                            onMarkReview={() => handleMarkForReview(currentQuestion?._id)}
+                            isMarkedForReview={markedForReview[currentQuestion?._id]}
+                            onClearResponse={() => handleAnswerChange(currentQuestion?._id, null)}
+                        />
+                    </div>
+
+                    <div className={`sidebar-container ${isSidebarOpen ? 'open' : ''}`}>
+                        {/* Mobile Close Button Header */}
+                        <div className="sidebar-header-mobile d-md-none">
+                            <h6 className="m-0 fw-bold">Question Palette</h6>
+                            <button
+                                className="btn btn-sm btn-close"
+                                onClick={() => setIsSidebarOpen(false)}
+                                aria-label="Close"
+                            ></button>
                         </div>
-                    )}
 
-                    <QuestionDisplay
-                        question={currentQuestion}
-                        questionNumber={filteredQuestions.findIndex(q => q._id === currentQuestion?._id) + 1}
-                        totalQuestions={filteredQuestions.length}
-                        answer={answers[currentQuestion?._id]}
-                        onAnswerChange={(answer) => handleAnswerChange(currentQuestion._id, answer)}
-                        isMarkedForReview={markedForReview[currentQuestion?._id]}
-                        saving={saving}
-                        watermarkSettings={exam?.settings?.watermark}
-                        userName={user?.name}
-                    />
-
-                    <ExamControls
-                        currentIndex={currentQuestionIndex}
-                        totalQuestions={questions.length}
-                        onPrevious={handlePreviousQuestion}
-                        onNext={handleNextQuestion}
-                        onMarkReview={() => handleMarkForReview(currentQuestion?._id)}
-                        isMarkedForReview={markedForReview[currentQuestion?._id]}
-                        onClearResponse={() => handleAnswerChange(currentQuestion?._id, null)}
-                    />
+                        <ExamSidebar
+                            questions={questions}
+                            answers={answers}
+                            markedForReview={markedForReview}
+                            currentQuestionIndex={currentQuestionIndex}
+                            onQuestionSelect={handleQuestionSelect}
+                            subjects={exam?.subjects}
+                            activeSection={activeSection}
+                            onSectionChange={setActiveSection}
+                            activeGroup={activeGroup}
+                            onGroupChange={setActiveGroup}
+                            user={user}
+                            onShowInstructions={() => setShowInstructions(true)}
+                        />
+                    </div>
                 </div>
 
-                <ExamSidebar
-                    questions={questions}
-                    answers={answers}
-                    markedForReview={markedForReview}
-                    currentQuestionIndex={currentQuestionIndex}
-                    onQuestionSelect={handleQuestionSelect}
-                    subjects={exam?.subjects}
-                    activeSection={activeSection}
-                    onSectionChange={setActiveSection}
-                    activeGroup={activeGroup}
-                    onGroupChange={setActiveGroup}
-                />
+                {/* Mobile Overlay */}
+                {isSidebarOpen && (
+                    <div className="sidebar-overlay d-md-none" onClick={() => setIsSidebarOpen(false)}></div>
+                )}
             </div>
 
             {/* Chat Component */}
@@ -836,7 +947,7 @@ export default function TakeExamPage() {
 
             {/* Saving Recordings Overlay */}
             {savingRecordings && (
-                <div 
+                <div
                     style={{
                         position: 'fixed',
                         top: 0,

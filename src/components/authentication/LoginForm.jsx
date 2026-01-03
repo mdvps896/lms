@@ -19,10 +19,21 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
+    const [lockoutTime, setLockoutTime] = useState(0); // in seconds
+
     // 2FA state
     const [showTwoFactor, setShowTwoFactor] = useState(false);
     const [twoFactorData, setTwoFactorData] = useState(null);
+
+    useEffect(() => {
+        let timer;
+        if (lockoutTime > 0) {
+            timer = setInterval(() => {
+                setLockoutTime((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [lockoutTime]);
 
     useEffect(() => {
         // Seed default users on component mount
@@ -31,6 +42,8 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (lockoutTime > 0) return;
 
         if (!formData.email || !formData.password) {
             Swal.fire({
@@ -68,7 +81,7 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                         email: result.email
                     });
                     setShowTwoFactor(true);
-                    
+
                     Swal.fire({
                         icon: 'info',
                         title: 'Two-Factor Authentication',
@@ -86,6 +99,17 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                     });
                 }
             } else {
+                if (result.locked) {
+                    setLockoutTime(result.remainingTime || 600);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Access Blocked',
+                        text: result.message,
+                        timer: result.remainingTime ? result.remainingTime * 1000 : 5000,
+                        timerProgressBar: true
+                    });
+                    return;
+                }
                 Swal.fire({
                     icon: 'error',
                     title: 'Login Failed',
@@ -105,6 +129,12 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
         });
     };
 
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
     const handleTwoFactorSuccess = (userData) => {
         setShowTwoFactor(false);
         completeTwoFactorAuth(userData);
@@ -120,13 +150,13 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
     if (showTwoFactor && twoFactorData) {
         return (
             <div className="text-center">
-                <TwoFactorVerification 
+                <TwoFactorVerification
                     userId={twoFactorData.userId}
                     email={twoFactorData.email}
                     onSuccess={handleTwoFactorSuccess}
                 />
                 <div className="mt-3">
-                    <button 
+                    <button
                         type="button"
                         className="btn btn-outline-secondary btn-sm"
                         onClick={handleBackToLogin}
@@ -141,14 +171,14 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             const decoded = jwtDecode(credentialResponse.credential);
-            
+
             // Try to login first
             let response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: decoded.email, 
-                    password: 'google_oauth_' + decoded.sub 
+                body: JSON.stringify({
+                    email: decoded.email,
+                    password: 'google_oauth_' + decoded.sub
                 }),
             });
 
@@ -176,15 +206,15 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
             if (data.success) {
                 // Login user (works for both new and existing users)
                 localStorage.setItem('user', JSON.stringify(data.data));
-                
+
                 // Set cookie for middleware
                 document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
 
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
-                    text: isNewUser 
-                        ? 'Account created & logged in successfully with Google!' 
+                    text: isNewUser
+                        ? 'Account created & logged in successfully with Google!'
                         : 'Login successful with Google!',
                     timer: 2000,
                     showConfirmButton: false
@@ -225,47 +255,47 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
     return (
         <>
             <h2 className="fs-20 fw-bolder mb-4">Login</h2>
-            
+
             <form onSubmit={handleSubmit} className="w-100 mt-4 pt-2">
                 <div className="mb-4">
-                    <input 
-                        type="email" 
+                    <input
+                        type="email"
                         name="email"
-                        className="form-control" 
-                        placeholder="Email or Username" 
+                        className="form-control"
+                        placeholder="Email or Username"
                         value={formData.email}
                         onChange={handleChange}
-                        required 
+                        required
                     />
                 </div>
                 <div className="mb-3">
                     <div className="input-group">
-                        <input 
+                        <input
                             type={showPassword ? "text" : "password"}
                             name="password"
-                            className="form-control" 
-                            placeholder="Password" 
+                            className="form-control"
+                            placeholder="Password"
                             value={formData.password}
                             onChange={handleChange}
                             autoComplete="current-password"
-                            required 
+                            required
                         />
-                        <div 
-                            className="input-group-text bg-gray-2 c-pointer" 
+                        <div
+                            className="input-group-text bg-gray-2 c-pointer"
                             onClick={() => setShowPassword(!showPassword)}
-                            data-toggle="tooltip" 
+                            data-toggle="tooltip"
                             data-title="Show/Hide Password"
                         >
-                            {showPassword ? <FiEyeOff size={16}/> : <FiEye size={16}/>}
+                            {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                         </div>
                     </div>
                 </div>
                 <div className="d-flex align-items-center justify-content-between">
                     <div>
                         <div className="custom-control custom-checkbox">
-                            <input 
-                                type="checkbox" 
-                                className="custom-control-input" 
+                            <input
+                                type="checkbox"
+                                className="custom-control-input"
                                 id="rememberMe"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
@@ -278,22 +308,22 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                     </div>
                 </div>
                 <div className="mt-5">
-                    <button 
-                        type="submit" 
-                        className="btn btn-lg btn-primary w-100 position-relative"
-                        disabled={isLoading}
+                    <button
+                        type="submit"
+                        className={`btn btn-lg btn-primary w-100 position-relative ${lockoutTime > 0 ? 'disabled' : ''}`}
+                        disabled={isLoading || lockoutTime > 0}
                         style={{ minHeight: '48px' }}
                     >
                         {isLoading && (
-                            <div 
+                            <div
                                 className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-                                style={{ 
+                                style={{
                                     backgroundColor: 'rgba(13, 110, 253, 0.8)',
                                     borderRadius: 'inherit'
                                 }}
                             >
-                                <div 
-                                    className="spinner-border spinner-border-sm text-white" 
+                                <div
+                                    className="spinner-border spinner-border-sm text-white"
                                     role="status"
                                     style={{ width: '1.2rem', height: '1.2rem' }}
                                 >
@@ -301,17 +331,22 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                                 </div>
                             </div>
                         )}
-                        <span style={{ opacity: isLoading ? 0 : 1 }}>Login</span>
+                        <span style={{ opacity: isLoading ? 0 : 1 }}>
+                            {lockoutTime > 0
+                                ? `Try again in ${formatTime(lockoutTime)}`
+                                : 'Login'
+                            }
+                        </span>
                     </button>
                 </div>
-                
+
                 {/* reCAPTCHA Component */}
-                <GoogleRecaptcha 
+                <GoogleRecaptcha
                     onVerify={(token, score) => console.log('reCAPTCHA verified:', { token, score })}
                     onError={(error) => console.error('reCAPTCHA error:', error)}
                 />
             </form>
-            
+
             {/* Google OAuth Button - After form */}
             <div className="w-100 mt-4 text-center">
                 <div className="mb-3 border-bottom position-relative">
@@ -319,7 +354,7 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                 </div>
                 <GoogleOAuthButton type="login" />
             </div>
-            
+
             <div className="w-100 mt-5 text-center mx-auto">
                 <div className="mt-5 text-muted">
                     <span> Don't have an account?</span>

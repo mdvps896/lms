@@ -25,17 +25,24 @@ export async function GET(request, { params }) {
             )
         }
 
-        // Only admin can access files
-        if (user.role !== 'admin') {
-            return NextResponse.json(
-                { success: false, message: 'Access denied. Admin privileges required.' },
-                { status: 403 }
-            )
-        }
+        // Check user role - allow admin and students for course videos
+        const isAdmin = user.role === 'admin';
+        const isStudent = user.role === 'student';
 
-        // Get the file path from the URL
-        const url = new URL(request.url)
-        const filePath = url.searchParams.get('path')
+        // Get the file path to check if it's a course video
+        const url = new URL(request.url);
+        const filePath = url.searchParams.get('path');
+        const isCourseVideo = filePath && filePath.includes('/courses/videos/');
+
+        // Allow access if:
+        // 1. User is admin (full access)
+        // 2. User is student AND it's a course video
+        if (!isAdmin && !(isStudent && isCourseVideo)) {
+            return NextResponse.json(
+                { success: false, message: 'Access denied. Insufficient privileges.' },
+                { status: 403 }
+            );
+        }
 
         if (!filePath) {
             return NextResponse.json(
@@ -83,7 +90,7 @@ export async function GET(request, { params }) {
         return new NextResponse(fileBuffer, {
             headers: {
                 'Content-Type': contentType,
-                'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`,
+                'Content-Disposition': `inline; filename="${path.basename(filePath)}"`,
                 'Cache-Control': 'private, no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0'

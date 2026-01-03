@@ -10,6 +10,8 @@ export default function PDFManagementPage() {
     const [pdfs, setPdfs] = useState([]);
     const [categories, setCategories] = useState([]);
     const [subjects, setSubjects] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingPDF, setEditingPDF] = useState(null);
@@ -19,16 +21,22 @@ export default function PDFManagementPage() {
 
     const [formData, setFormData] = useState({
         name: '',
-        category: '',
-        subjects: [],
+        accessType: 'global',
+        assignedCourses: [],
+        assignedUsers: [],
         file: null,
         isPremium: false,
-        description: ''
+        price: 0,
+        description: '',
+        courses: [],
+        users: []
     });
 
     useEffect(() => {
         fetchPDFs();
         fetchCategories();
+        fetchCourses();
+        fetchUsers();
     }, []);
 
     const fetchPDFs = async () => {
@@ -54,6 +62,32 @@ export default function PDFManagementPage() {
             }
         } catch (error) {
             console.error('Error fetching categories:', error);
+        }
+    };
+
+    const fetchCourses = async () => {
+        try {
+            const response = await fetch('/api/courses');
+            const data = await response.json();
+            if (data.success) {
+                setCourses(data.data);
+                setFormData(prev => ({ ...prev, courses: data.data }));
+            }
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const response = await fetch('/api/users');
+            const data = await response.json();
+            if (data.success) {
+                setUsers(data.data);
+                setFormData(prev => ({ ...prev, users: data.data }));
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
         }
     };
 
@@ -90,8 +124,23 @@ export default function PDFManagementPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!formData.name || !formData.category) {
-            toast.error('Please fill in all required fields');
+        if (!formData.name) {
+            toast.error('Please enter PDF name');
+            return;
+        }
+
+        if (formData.accessType === 'course' && (!formData.assignedCourses || formData.assignedCourses.length === 0)) {
+            toast.error('Please select at least one course');
+            return;
+        }
+
+        if (formData.accessType === 'user' && (!formData.assignedUsers || formData.assignedUsers.length === 0)) {
+            toast.error('Please select at least one user');
+            return;
+        }
+
+        if (formData.isPremium && (!formData.price || formData.price <= 0)) {
+            toast.error('Please enter a valid price for premium PDF');
             return;
         }
 
@@ -130,12 +179,14 @@ export default function PDFManagementPage() {
 
             const pdfData = {
                 name: formData.name,
-                category: formData.category,
-                subjects: formData.subjects,
+                accessType: formData.accessType,
+                assignedCourses: formData.assignedCourses || [],
+                assignedUsers: formData.assignedUsers || [],
                 fileUrl,
                 fileName,
                 fileSize,
                 isPremium: formData.isPremium,
+                price: formData.isPremium ? formData.price : 0,
                 description: formData.description
             };
 
@@ -214,14 +265,17 @@ export default function PDFManagementPage() {
     const resetForm = () => {
         setFormData({
             name: '',
-            category: '',
-            subjects: [],
+            accessType: 'global',
+            assignedCourses: [],
+            assignedUsers: [],
             file: null,
             isPremium: false,
-            description: ''
+            price: 0,
+            description: '',
+            courses: [...courses], // Create new array
+            users: [...users] // Create new array
         });
         setEditingPDF(null);
-        setSubjects([]);
     };
 
     const handleSubjectToggle = (subjectId) => {

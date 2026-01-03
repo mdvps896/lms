@@ -11,6 +11,7 @@ import Exam from './Exam.js';
 import ExamAttempt from './ExamAttempt.js';
 import Notification from './Notification.js';
 import Settings from './Settings.js';
+import FreeMaterial from './FreeMaterial.js';
 
 // Export all models for convenience
 export {
@@ -22,7 +23,8 @@ export {
     Exam,
     ExamAttempt,
     Notification,
-    Settings
+    Settings,
+    FreeMaterial
 };
 
 // Also export default as an object for easy access
@@ -35,5 +37,6 @@ export default {
     Exam,
     ExamAttempt,
     Notification,
-    Settings
+    Settings,
+    FreeMaterial
 };

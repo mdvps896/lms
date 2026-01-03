@@ -1,12 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash } from 'react-icons/fi';
+import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash, FiCreditCard } from 'react-icons/fi';
 import GeneralSettings from '../../components/settings/GeneralSettings';
 import AuthPagesSettings from '../../components/settings/AuthPagesSettings';
 import ResultDisplaySettings from '../../components/settings/ResultDisplaySettings';
 import ThemeDesignSettings from '../../components/settings/ThemeDesignSettings';
 import SecuritySMTPSettings from '../../components/settings/SecuritySMTPSettings';
 import IntegrationsSettings from '../../components/settings/IntegrationsSettings';
+import PaymentSettings from '../../components/settings/PaymentSettings';
 import NotificationSoundsTab from '../../components/settings/NotificationSoundsTab';
 import CertificateSettings from '../../components/settings/CertificateSettings';
 import RollNumberSettings from '../../components/settings/RollNumberSettings';
@@ -61,6 +62,12 @@ const SettingsPage = () => {
             label: 'Integrations',
             icon: <FiLink className="me-2" />,
             component: IntegrationsSettings
+        },
+        {
+            id: 'payment',
+            label: 'Payment',
+            icon: <FiCreditCard className="me-2" />,
+            component: PaymentSettings
         },
         {
             id: 'notifications',

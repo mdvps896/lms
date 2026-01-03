@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiInfo } from 'react-icons/fi';
 
 export default function ExamSidebar({
     questions,
@@ -12,7 +12,9 @@ export default function ExamSidebar({
     activeSection,
     onSectionChange,
     activeGroup,
-    onGroupChange
+    onGroupChange,
+    user,
+    onShowInstructions
 }) {
     const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -96,14 +98,41 @@ export default function ExamSidebar({
 
     return (
         <div className="exam-sidebar" style={{
-            width: '300px',
+            width: '100%',
+            height: '100%',
             background: 'white',
             borderLeft: '1px solid #dee2e6',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'
         }}>
+            {/* User Profile - Mobile Only */}
+            {user && (
+                <div className="d-flex align-items-center p-3 border-bottom d-md-none bg-light">
+                    <div className="bg-white rounded-circle d-flex align-items-center justify-content-center text-primary fw-bold me-3 border" style={{ width: '40px', height: '40px', fontSize: '16px', overflow: 'hidden' }}>
+                        {user.profileImage ? (
+                            <img src={user.profileImage} alt={user.name} className="w-100 h-100" style={{ objectFit: 'cover' }} />
+                        ) : (
+                            (user.name?.charAt(0) || 'U').toUpperCase()
+                        )}
+                    </div>
+                    <div>
+                        <div className="fw-bold text-dark" style={{ fontSize: '14px' }}>{user.name}</div>
+                        <div className="text-muted" style={{ fontSize: '12px' }}>Student</div>
+                    </div>
+                </div>
+            )}
 
+            {/* Instructions Button */}
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid #dee2e6' }}>
+                <button
+                    className="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center justify-content-center"
+                    onClick={onShowInstructions}
+                    style={{ fontSize: '13px', fontWeight: '500' }}
+                >
+                    <FiInfo className="me-2" /> View Instructions
+                </button>
+            </div>
 
             {/* Question Type Info - Show current question info */}
             {currentQuestion && (
@@ -132,7 +161,7 @@ export default function ExamSidebar({
                         {groups.map((group) => {
                             const isExpanded = expandedGroups[group._id];
                             const groupQuestions = group.questions;
-                            
+
                             return (
                                 <div key={group._id} style={{
                                     border: '1px solid #dee2e6',
@@ -153,15 +182,15 @@ export default function ExamSidebar({
                                         }}
                                     >
                                         <div>
-                                            <div style={{ 
-                                                fontSize: '13px', 
+                                            <div style={{
+                                                fontSize: '13px',
                                                 fontWeight: '600',
                                                 color: '#333'
                                             }}>
                                                 {group.name}
                                             </div>
-                                            <div style={{ 
-                                                fontSize: '11px', 
+                                            <div style={{
+                                                fontSize: '11px',
                                                 color: '#666',
                                                 marginTop: '2px'
                                             }}>

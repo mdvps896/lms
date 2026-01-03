@@ -1,69 +1,139 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import Settings from '@/models/Settings';
+import mongoose from 'mongoose';
+import { sendEmail } from '@/lib/email';
 
-// Helper function to generate roll number
-async function generateRollNumber() {
-  try {
-    const settings = await Settings.findOne({});
-    
-    if (!settings || !settings.rollNumberSettings || !settings.rollNumberSettings.enabled) {
-      return null; // Roll number generation disabled
-    }
+export const dynamic = 'force-dynamic';
 
-    const { prefix, currentNumber, digitLength } = settings.rollNumberSettings;
-    
-    // Format the number with leading zeros
-    const formattedNumber = String(currentNumber).padStart(digitLength, '0');
-    const rollNumber = `${prefix}${formattedNumber}`;
-    
-    // Increment current number for next user
-    await Settings.updateOne(
-      {},
-      { $inc: { 'rollNumberSettings.currentNumber': 1 } }
-    );
-    
-    return rollNumber;
-  } catch (error) {
-    console.error('Error generating roll number:', error);
-    return null;
-  }
-}
-
+/**
+ * POST /api/auth/register
+ * Step 1: Send OTP to email for verification
+ */
 export async function POST(request) {
   try {
-    await connectDB();
     const body = await request.json();
-    
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: body.email });
-    if (existingUser) {
-      return NextResponse.json(
-        { success: false, message: 'Email already registered' },
-        { status: 400 }
-      );
+    const { name, email, mobile } = body;
+
+    console.log(`📝 [Registration] Step 1 - OTP Request - Email: ${email}`);
+
+    // Validation
+    if (!name || !email || !mobile) {
+      return NextResponse.json({
+        success: false,
+        message: 'Name, email, and mobile are required'
+      }, { status: 400 });
     }
-    
-    // Generate roll number for new user
-    const rollNumber = await generateRollNumber();
-    
-    // Create new user with student role by default
-    const userData = {
-      ...body,
-      role: body.role || 'student',
-      rollNumber: rollNumber, // Assign roll number
-    };
-    
-    const user = await User.create(userData);
-    const userObj = user.toObject();
-    delete userObj.password;
-    
-    return NextResponse.json({ success: true, data: userObj }, { status: 201 });
+
+    await connectDB();
+
+    // Check if registration is enabled
+    const db = mongoose.connection.db;
+    const settings = await db.collection('settings').findOne({});
+    const registrationEnabled = settings?.authPages?.enableRegistration ||
+      settings?.loginRegister?.enableUserRegistration ||
+      false;
+
+    if (!registrationEnabled) {
+      return NextResponse.json({
+        success: false,
+        message: 'User registration is currently disabled'
+      }, { status: 403 });
+    }
+
+    // Check if user already exists and is verified
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser && existingUser.emailVerified) {
+      return NextResponse.json({
+        success: false,
+        message: 'Email already registered. Please login instead.'
+      }, { status: 400 });
+    }
+
+    // Check mobile number
+    const existingMobile = await User.findOne({ phone: mobile, emailVerified: true });
+    if (existingMobile) {
+      return NextResponse.json({
+        success: false,
+        message: 'Mobile number already registered'
+      }, { status: 400 });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    let user;
+    // Create or update user with OTP (unverified)
+    if (existingUser) {
+      existingUser.name = name;
+      existingUser.phone = mobile;
+      existingUser.registrationOtp = otp;
+      existingUser.registrationOtpExpiry = otpExpiry;
+      await existingUser.save();
+      user = existingUser;
+    } else {
+      user = await User.create({
+        name,
+        email,
+        phone: mobile,
+        password: 'temp', // Will be set during OTP verification
+        registrationOtp: otp,
+        registrationOtpExpiry: otpExpiry,
+        emailVerified: false,
+        role: 'student',
+        authProvider: 'local'
+      });
+    }
+
+    // Send OTP email
+    const emailSent = await sendEmail({
+      to: email,
+      subject: 'Email Verification - Registration OTP',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to Our Platform!</h2>
+          <p>Hello ${name},</p>
+          <p>Thank you for registering! Please use the following OTP to verify your email:</p>
+          <div style="background-color: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+            <h1 style="color: #4CAF50; margin: 0; font-size: 36px; letter-spacing: 5px;">${otp}</h1>
+          </div>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+          <hr style="border: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px;">This is an automated email. Please do not reply.</p>
+        </div>
+      `
+    });
+
+    if (!emailSent) {
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to send OTP email. Please check email settings.'
+      }, { status: 500 });
+    }
+
+    console.log(`✅ [Registration] OTP sent to: ${email}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'OTP sent to your email. Please verify to complete registration.',
+      requiresOtp: true,
+      email,
+      user: {
+        _id: user._id,
+        name,
+        email,
+        mobile
+      }
+    });
+
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
+    console.error('❌ Registration Error:', error);
+    return NextResponse.json({
+      success: false,
+      message: error.message || 'Registration failed'
+    }, { status: 500 });
   }
 }

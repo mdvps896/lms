@@ -102,14 +102,35 @@ export default function ExamChatBox({ attemptId, examId, recordingStarted }) {
 
     return (
         <>
+            <style jsx>{`
+                .chat-fab-button {
+                    width: 60px;
+                    height: 60px;
+                    bottom: 30px;
+                    right: 30px;
+                }
+                .chat-fab-icon {
+                    width: 28px;
+                    height: 28px;
+                }
+                @media (max-width: 768px) {
+                    .chat-fab-button {
+                        width: 45px;
+                        height: 45px;
+                        bottom: 80px; /* Adjusted to be above potential mobile bottom bars or just safe area */
+                        right: 15px;
+                    }
+                    .chat-fab-icon {
+                        width: 20px;
+                        height: 20px;
+                    }
+                }
+            `}</style>
+
             {/* Floating Help Button */}
             <button
-                className="btn btn-primary rounded-circle position-fixed d-flex align-items-center justify-content-center"
+                className="btn btn-primary rounded-circle position-fixed d-flex align-items-center justify-content-center chat-fab-button"
                 style={{
-                    bottom: '30px',
-                    right: '30px',
-                    width: '60px',
-                    height: '60px',
                     zIndex: 1000,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                     border: 'none'
@@ -120,8 +141,7 @@ export default function ExamChatBox({ attemptId, examId, recordingStarted }) {
                 {/* Chat SVG Icon */}
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="28"
-                    height="28"
+                    className="chat-fab-icon"
                     fill="white"
                     viewBox="0 0 16 16"
                 >

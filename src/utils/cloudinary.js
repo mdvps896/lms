@@ -1,99 +1,80 @@
+import {
+    saveToLocalStorage,
+    deleteFromLocalStorage,
+    listFiles
+} from './localStorage';
 
-import { v2 as cloudinary } from 'cloudinary';
-
-// Cloudinary will automatically pick up CLOUDINARY_URL from process.env
-cloudinary.config({
-    secure: true
-});
+// Mocking the cloudinary config just in case some legacy code tries to access it
+// though we removed the import, so this object is just a dummy.
+export const v2 = {
+    config: () => { },
+    uploader: {
+        upload: () => Promise.reject(new Error('Cloudinary is disabled. Using Local Storage.')),
+        destroy: () => Promise.reject(new Error('Cloudinary is disabled. Using Local Storage.'))
+    }
+};
 
 /**
- * Save file to Cloudinary
+ * Save file to Local Storage (Switching away from Cloudinary)
+ * Wrapper function to maintain compatibility with existing API calls
  * @param {string} file - Base64 string (Data URI) or Buffer
  * @param {string} folder - Optional subfolder
  * @param {string} fileName - Original file name
  */
 export async function saveToCloudinary(file, folder = '', fileName = '') {
     try {
-        let fileData = file;
+        console.log('🔄 Redirecting Cloudinary upload to Local Storage...');
 
-        // If buffer, convert to base64 data uri if possible, or just pass buffer if allowed?
-        // Cloudinary uploader.upload supports file path, url, or creating a stream.
-        // For Base64 data URI, it works directly.
-        if (Buffer.isBuffer(file)) {
-            // We need a mime type to create a proper data URI, or we can try to upload using a stream.
-            // But let's see how localStorage did it. It converted to Buffer. 
-            // The route passes a data URI string mostly.
-            // But if it is a buffer, we might need to handle it.
-            // Simplified: Assume it handles Data URI strings well. 
-            // If it's a buffer, we can try to upload it via stream, but let's just convert to base64 for simplicity if small enough.
-            const b64 = file.toString('base64');
-            fileData = `data:application/octet-stream;base64,${b64}`;
+        const result = await saveToLocalStorage(file, folder, fileName);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Local storage upload failed');
         }
 
-        const options = {
-            folder: folder || 'uploads',
-            use_filename: true,
-            unique_filename: true,
-            resource_type: 'auto'
-        };
-
-        if (fileName) {
-            // Remove extension for public_id
-            options.public_id = fileName.replace(/\.[^/.]+$/, "").replace(/\s+/g, '_');
-        }
-
-        const result = await cloudinary.uploader.upload(fileData, options);
-
+        // Return object compatible with Cloudinary result structure expected by the app
         return {
             success: true,
-            url: result.secure_url, // HTTPS url
-            fileName: result.public_id, // This is key for deletion
-            originalName: fileName || result.original_filename,
-            size: result.bytes,
-            mimeType: `${result.resource_type}/${result.format}`,
-            publicId: result.public_id,
-            folder: folder,
-            format: result.format,
-            width: result.width,
-            height: result.height,
-            local: false
+            url: result.url,
+            fileName: result.relativePath, // Use relative path as the identifier (public_id)
+            originalName: result.originalName,
+            size: result.size,
+            mimeType: result.mimeType,
+            publicId: result.relativePath, // Map relative path to publicId for deletion reference
+            folder: result.folder,
+            format: result.fileName.split('.').pop(),
+            width: 0, // Metadata not extracted by default in local storage
+            height: 0,
+            local: true // Flag to indicate local storage usage
         };
 
     } catch (error) {
-        console.error('Error uploading to Cloudinary:', error);
-        throw new Error(`Cloudinary Upload Failed: ${error.message}`);
+        console.error('Error in saveToCloudinary (Local Shim):', error);
+        throw new Error(`Upload Failed: ${error.message}`);
     }
 }
 
 /**
- * Delete file from Cloudinary
- * @param {string} publicId - The public ID of the asset on Cloudinary
+ * Delete file from Local Storage (Wrapper for Cloudinary delete)
+ * @param {string} publicId - In this context, it's the relative path or URL
  */
 export async function deleteFromCloudinary(publicId) {
     try {
+        console.log('🔄 Redirecting Cloudinary delete to Local Storage for:', publicId);
+
         if (!publicId) {
-            throw new Error('Public ID is required');
+            throw new Error('Public ID (File Path) is required');
         }
 
-        // Try deleting as image first (default)
-        let result = await cloudinary.uploader.destroy(publicId);
-
-        // If not found, it might be a video or raw file
-        if (result.result === 'not found') {
-            result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
-        }
-
-        if (result.result === 'not found') {
-            result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-        }
+        // publicId in our local shim *is* the relative path (e.g. "uploads/images/file.jpg")
+        const result = await deleteFromLocalStorage(publicId);
 
         return {
-            success: result.result === 'ok',
-            message: result.result
+            success: result.success,
+            message: result.message || (result.success ? 'ok' : 'failed')
         };
 
     } catch (error) {
-        console.error('Error deleting from Cloudinary:', error);
+        console.error('Error in deleteFromCloudinary (Local Shim):', error);
         return {
             success: false,
             message: error.message
@@ -102,18 +83,33 @@ export async function deleteFromCloudinary(publicId) {
 }
 
 /**
- * List resources from Cloudinary (optional helper)
+ * List resources (Wrapper for Local Storage list)
  */
 export async function listCloudinaryResources(folder = '') {
     try {
-        const result = await cloudinary.api.resources({
-            type: 'upload',
-            prefix: folder,
-            max_results: 500
-        });
-        return result.resources;
+        console.log('🔄 Listing Local Storage resources for:', folder);
+
+        // Map the type based on folder name or default to 'all'
+        let type = 'all';
+        if (folder.includes('images')) type = 'images';
+        if (folder.includes('videos')) type = 'videos';
+        if (folder.includes('documents')) type = 'documents';
+
+        const files = await listFiles(folder, type);
+
+        // Map to Cloudinary resource structure
+        return files.map(file => ({
+            public_id: file.url.startsWith('/') ? file.url.slice(1) : file.url, // remove leading slash for consistency
+            secure_url: file.url,
+            url: file.url,
+            format: file.mimeType.split('/')[1],
+            resource_type: file.mimeType.split('/')[0],
+            created_at: file.created,
+            bytes: file.size
+        }));
+
     } catch (error) {
-        console.error('Error listing Cloudinary resources:', error);
+        console.error('Error listing resources:', error);
         throw error;
     }
 }

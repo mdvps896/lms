@@ -42,7 +42,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
     const [testEmailResult, setTestEmailResult] = useState(null);
     const [sendingTest, setSendingTest] = useState(false);
     const [testEmailAddress, setTestEmailAddress] = useState('');
-    
+
     // 2FA specific state
     const [isToggling2FA, setIsToggling2FA] = useState(false);
 
@@ -58,7 +58,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                 }
             });
         }
-        
+
         // Set current user's 2FA status
         if (user && user.role === 'admin') {
             setFormData(prev => ({
@@ -122,7 +122,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
         // Show confirmation dialog
         const result = await Swal.fire({
             title: enabled ? 'Enable Two-Factor Authentication?' : 'Disable Two-Factor Authentication?',
-            html: enabled 
+            html: enabled
                 ? `<div class="text-start">
                      <p class="mb-2">Enable an extra layer of security for your admin account.</p>
                      <p class="mb-2"><strong>This will:</strong></p>
@@ -156,9 +156,9 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
             const response = await fetch('/api/auth/toggle-2fa', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    userId: user._id, 
-                    enabled: enabled 
+                body: JSON.stringify({
+                    userId: user._id,
+                    enabled: enabled
                 }),
             });
 
@@ -173,7 +173,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                         twoFactorAuth: enabled
                     }
                 }));
-                
+
                 // Update user context by fetching fresh user data
                 try {
                     const userResponse = await fetch('/api/auth/me');
@@ -190,7 +190,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                 } catch (contextError) {
                     console.error('Failed to update user context:', contextError);
                 }
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
@@ -228,7 +228,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Validate passwords
         if (formData.security.newPassword && formData.security.newPassword !== formData.security.confirmPassword) {
             alert('New password and confirm password do not match');
@@ -243,7 +243,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                 ...formData.security
             }
         };
-        
+
         // Remove twoFactorAuth from the data being saved to settings
         delete formDataToSave.security.twoFactorAuth;
 
@@ -271,7 +271,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
             setTestEmailResult({ success: false, message: 'Please enter an email address to send test email' });
             return;
         }
-        
+
         setSendingTest(true);
         setTestEmailResult(null);
         try {
@@ -425,17 +425,16 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                                     {user && user.role === 'admin' ? (
                                         <button
                                             type="button"
-                                            className={`btn btn-sm d-flex align-items-center text-white border-white ${
-                                                formData.security.twoFactorAuth ? 'btn-outline-light' : 'btn-outline-light'
-                                            }`}
+                                            className={`btn btn-sm d-flex align-items-center text-white border-white ${formData.security.twoFactorAuth ? 'btn-outline-light' : 'btn-outline-light'
+                                                }`}
                                             onClick={() => handleToggle2FA(!formData.security.twoFactorAuth)}
                                             disabled={isToggling2FA}
                                             style={{ minWidth: '120px' }}
                                         >
                                             {isToggling2FA ? (
                                                 <>
-                                                    <div 
-                                                        className="spinner-border spinner-border-sm me-2 text-white" 
+                                                    <div
+                                                        className="spinner-border spinner-border-sm me-2 text-white"
                                                         role="status"
                                                         style={{ width: '0.875rem', height: '0.875rem' }}
                                                     >
@@ -468,12 +467,104 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                                     )}
                                 </div>
                             </div>
-                            
+
                             {formData.security.twoFactorAuth && user && user.role === 'admin' && (
                                 <div className="mt-3 pt-3 border-top">
                                     <div className="d-flex align-items-center text-success small">
                                         <FiShield className="me-2" />
                                         <span><strong>2FA is currently enabled</strong> - Your account is protected with email verification</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Admin Login Security */}
+                <div className="col-12 mt-4">
+                    <h6 className="fw-bold text-primary mb-3 d-flex align-items-center">
+                        <FiShield className="me-2" /> Admin Login Security
+                    </h6>
+                    <div className="card border-0 bg-light">
+                        <div className="card-body">
+                            <div className="form-check form-switch mb-3">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    role="switch"
+                                    id="adminSecurityEnabled"
+                                    checked={formData.security.enabled !== false}
+                                    onChange={(e) => handleSecurityChange('enabled', e.target.checked)}
+                                />
+                                <label className="form-check-label fw-bold" htmlFor="adminSecurityEnabled">
+                                    Enable Admin Login Protection
+                                </label>
+                                <p className="text-muted small mb-0">Enable account lockout after failed login attempts.</p>
+                            </div>
+
+                            {formData.security.enabled !== false && (
+                                <div className="row g-3 animate__animated animate__fadeIn">
+                                    <div className="col-md-6">
+                                        <label className="form-label fw-medium">Max Login Attempts</label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            value={formData.security.maxLoginAttempts || 3}
+                                            onChange={(e) => handleSecurityChange('maxLoginAttempts', parseInt(e.target.value) || 3)}
+                                            min="1"
+                                            max="10"
+                                        />
+                                        <small className="text-muted">Number of failed attempts before blocking.</small>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label fw-medium">Lockout Duration</label>
+                                        <div className="input-group">
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={
+                                                    (formData.security.lockoutUnit === 'hours')
+                                                        ? Math.floor((formData.security.lockoutDuration || 600) / 3600)
+                                                        : (formData.security.lockoutUnit === 'minutes' || !formData.security.lockoutUnit) // Default to minutes display if no unit set yet
+                                                            ? Math.floor((formData.security.lockoutDuration || 600) / 60)
+                                                            : (formData.security.lockoutDuration || 600)
+                                                }
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 1;
+                                                    const unit = formData.security.lockoutUnit || 'minutes';
+                                                    let seconds = val;
+                                                    if (unit === 'minutes') seconds = val * 60;
+                                                    if (unit === 'hours') seconds = val * 3600;
+
+                                                    handleSecurityChange('lockoutDuration', seconds);
+                                                }}
+                                                min="1"
+                                            />
+                                            <select
+                                                className="form-select"
+                                                style={{ maxWidth: '120px' }}
+                                                value={formData.security.lockoutUnit || 'minutes'}
+                                                onChange={(e) => {
+                                                    const newUnit = e.target.value;
+                                                    const currentDuration = formData.security.lockoutDuration || 600;
+
+                                                    // When unit changes, we want to KEEP the duration roughly the same but adjust the input value view?
+                                                    // No, typically users want to switch unit to enter a NEW value easily. 
+                                                    // Let's just update the unit state so the input calculates correctly off the stored seconds.
+                                                    // Wait, if I have 600 seconds (10 mins) and switch to Seconds, it shows 600.
+                                                    // If I switch to Hours, 10 mins is 0 hours. That's bad.
+                                                    // Maybe just store the unit preference to key the display?
+                                                    // Yes, let's add `lockoutUnit` to formData.
+
+                                                    handleSecurityChange('lockoutUnit', newUnit);
+                                                }}
+                                            >
+                                                <option value="seconds">Seconds</option>
+                                                <option value="minutes">Minutes</option>
+                                                <option value="hours">Hours</option>
+                                            </select>
+                                        </div>
+                                        <small className="text-muted">Duration to block access after max failed attempts.</small>
                                     </div>
                                 </div>
                             )}
@@ -543,7 +634,7 @@ const SecuritySMTPSettings = ({ settings, onUpdate, saving }) => {
                         <FiMail className="me-2" /> SMTP Configuration
                     </h6>
                     <p className="text-muted">Configure email settings for notifications and communications</p>
-                    
+
                     {/* SMTP Configuration Help */}
                     <div className="alert alert-info">
                         <h6 className="alert-heading">📧 Common SMTP Settings</h6>

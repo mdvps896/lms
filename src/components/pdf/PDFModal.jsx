@@ -50,51 +50,159 @@ const PDFModal = ({
                                     />
                                 </div>
 
-                                {/* Category */}
+                                {/* Access Type */}
                                 <div className="mb-4">
                                     <label className="form-label">
-                                        Category <span className="text-danger">*</span>
+                                        Access Type <span className="text-danger">*</span>
                                     </label>
                                     <select
                                         className="form-select"
-                                        value={formData.category}
-                                        onChange={(e) => onCategoryChange(e.target.value)}
+                                        value={formData.accessType || 'global'}
+                                        onChange={(e) => setFormData({ ...formData, accessType: e.target.value })}
                                         required
                                     >
-                                        <option value="">Select Category</option>
-                                        {categories.map((cat) => (
-                                            <option key={cat._id} value={cat._id}>
-                                                {cat.name}
-                                            </option>
-                                        ))}
+                                        <option value="global">🌍 Global (Available to All)</option>
+                                        <option value="course">📚 Assign to Course</option>
+                                        <option value="user">👤 Assign to Specific User</option>
                                     </select>
+                                    <div className="form-text">
+                                        {formData.accessType === 'global' && 'PDF will be available to all users'}
+                                        {formData.accessType === 'course' && 'PDF will only be available to students enrolled in selected courses'}
+                                        {formData.accessType === 'user' && 'PDF will only be available to selected users'}
+                                    </div>
                                 </div>
 
-                                {/* Subjects */}
-                                {subjects.length > 0 && (
+                                {/* Assigned Courses (if accessType is 'course') */}
+                                {formData.accessType === 'course' && (
                                     <div className="mb-4">
                                         <label className="form-label">
-                                            Subjects <span className="text-muted">(Optional - Leave empty for all subjects)</span>
+                                            Select Courses <span className="text-danger">*</span>
                                         </label>
-                                        <div className="border rounded p-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                            <div className="row g-2">
-                                                {subjects.map((subject) => (
-                                                    <div key={subject._id} className="col-md-6">
-                                                        <div className="form-check">
-                                                            <input
-                                                                className="form-check-input"
-                                                                type="checkbox"
-                                                                id={`subject-${subject._id}`}
-                                                                checked={formData.subjects.includes(subject._id)}
-                                                                onChange={() => onSubjectToggle(subject._id)}
-                                                            />
-                                                            <label className="form-check-label" htmlFor={`subject-${subject._id}`}>
-                                                                {subject.name}
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                        <div className="border rounded p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                            {(formData.courses || []).length === 0 ? (
+                                                <div className="text-center text-muted py-3">
+                                                    <i className="feather-inbox mb-2" style={{ fontSize: '2rem' }}></i>
+                                                    <p>No courses available</p>
+                                                </div>
+                                            ) : (
+                                                <div className="row g-2">
+                                                    {(formData.courses || []).map((course) => {
+                                                        // Handle both 'id' and '_id' fields
+                                                        const courseId = (course._id || course.id);
+
+                                                        if (!courseId) {
+                                                            console.warn('Invalid course object (no ID):', course);
+                                                            return null;
+                                                        }
+
+                                                        const courseIdStr = courseId.toString();
+                                                        const assignedIds = (formData.assignedCourses || []).map(id => id.toString());
+                                                        const isSelected = assignedIds.includes(courseIdStr);
+
+                                                        return (
+                                                            <div key={courseIdStr} className="col-md-6">
+                                                                <div
+                                                                    className={`p-2 border rounded ${isSelected ? 'bg-primary text-white border-primary' : 'bg-light'}`}
+                                                                    style={{ cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+
+                                                                        const current = (formData.assignedCourses || []).map(id => id.toString());
+                                                                        let updated;
+
+                                                                        if (current.includes(courseIdStr)) {
+                                                                            updated = current.filter(id => id !== courseIdStr);
+                                                                        } else {
+                                                                            updated = [...current, courseIdStr];
+                                                                        }
+
+                                                                        setFormData(prev => ({
+                                                                            ...prev,
+                                                                            assignedCourses: updated
+                                                                        }));
+                                                                    }}
+                                                                >
+                                                                    <div className="d-flex align-items-center">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="form-check-input me-2"
+                                                                            checked={isSelected}
+                                                                            onChange={() => { }}
+                                                                            onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                            }}
+                                                                            readOnly
+                                                                        />
+                                                                        <span className="small">{course.title}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="form-text">
+                                            Click on courses to select/deselect
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Assigned Users (if accessType is 'user') */}
+                                {formData.accessType === 'user' && (
+                                    <div className="mb-4">
+                                        <label className="form-label">
+                                            Select Users <span className="text-danger">*</span>
+                                        </label>
+                                        <div className="border rounded p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                            {(formData.users || []).length === 0 ? (
+                                                <div className="text-center text-muted py-3">
+                                                    <i className="feather-users mb-2" style={{ fontSize: '2rem' }}></i>
+                                                    <p>No users available</p>
+                                                </div>
+                                            ) : (
+                                                <div className="row g-2">
+                                                    {(formData.users || []).map((user) => {
+                                                        const isSelected = (formData.assignedUsers || []).includes(user._id);
+                                                        return (
+                                                            <div key={user._id} className="col-md-6">
+                                                                <div
+                                                                    className={`p-2 border rounded cursor-pointer ${isSelected ? 'bg-primary text-white border-primary' : 'bg-light'}`}
+                                                                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const current = formData.assignedUsers || [];
+                                                                        const updated = isSelected
+                                                                            ? current.filter(id => id !== user._id)
+                                                                            : [...current, user._id];
+                                                                        setFormData({ ...formData, assignedUsers: updated });
+                                                                    }}
+                                                                >
+                                                                    <div className="d-flex align-items-center">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="form-check-input me-2"
+                                                                            checked={isSelected}
+                                                                            onChange={(e) => e.stopPropagation()}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            readOnly
+                                                                        />
+                                                                        <div className="flex-grow-1">
+                                                                            <div className="small fw-bold">{user.name}</div>
+                                                                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>{user.email}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="form-text">
+                                            Click on users to select/deselect
                                         </div>
                                     </div>
                                 )}
@@ -154,6 +262,31 @@ const PDFModal = ({
                                         </label>
                                     </div>
                                 </div>
+
+                                {/* Price (if Premium) */}
+                                {formData.isPremium && (
+                                    <div className="mb-3">
+                                        <label className="form-label">
+                                            Price <span className="text-danger">*</span>
+                                        </label>
+                                        <div className="input-group">
+                                            <span className="input-group-text">₹</span>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={formData.price || ''}
+                                                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                                placeholder="Enter price"
+                                                min="0"
+                                                step="0.01"
+                                                required={formData.isPremium}
+                                            />
+                                        </div>
+                                        <div className="form-text">
+                                            Set the price for this premium PDF
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="modal-footer">

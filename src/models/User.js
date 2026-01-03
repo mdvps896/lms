@@ -30,7 +30,9 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function () {
+      return this.authProvider === 'local';
+    }
   },
   role: {
     type: String,
@@ -64,6 +66,15 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Registration OTP (for email verification during signup)
+  registrationOtp: {
+    type: String,
+    default: null,
+  },
+  registrationOtpExpiry: {
+    type: Date,
+    default: null,
+  },
   resetOtp: {
     type: String,
     default: null,
@@ -90,6 +101,26 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
   },
+  enrolledCourses: {
+    type: [mongoose.Schema.Types.Mixed],
+    default: [],
+  },
+  fcmToken: {
+    type: String,
+    default: null,
+  },
+  notificationsEnabled: {
+    type: Boolean,
+    default: true,
+  },
+  // Address fields
+  address: String,
+  city: String,
+  state: String,
+  pincode: String,
+  // Security fields for account locking
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -3,8 +3,18 @@ import { useEffect } from 'react'
 
 const useBootstrapUtils = (pathName) => {
     useEffect(() => {
+        // Only run on client side
+        if (typeof window === 'undefined') return;
+
+        // Import bootstrap with error handling
         import('bootstrap/dist/js/bootstrap.bundle.min')
-        
+            .then(() => {
+                console.log('✅ Bootstrap loaded successfully');
+            })
+            .catch((error) => {
+                console.warn('⚠️ Bootstrap loading failed:', error);
+            });
+
         let handleResize;
 
         if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -26,6 +36,13 @@ const useBootstrapUtils = (pathName) => {
             window.addEventListener('resize', handleResize, { passive: true });
             handleResize();
         }
+
+        // Cleanup function
+        return () => {
+            if (handleResize) {
+                window.removeEventListener('resize', handleResize);
+            }
+        };
 
     }, [pathName]);
 };
