@@ -78,11 +78,10 @@ export default function TakeExamPage() {
             // Students should not see their own recording preview to avoid distraction
             try {
                 const streams = recordingManagerRef.current.getLiveStreams();
-                console.log('Recording streams active (preview hidden for student)');
                 // setCameraStream(streams.camera);  // Hidden for student
                 // setScreenStream(streams.screen);   // Hidden for student
             } catch (streamError) {
-                console.warn('Failed to get streams info:', streamError);
+                // Ignore stream info error
             }
 
             // Setup screen share stop handler only if screen recording is enabled
@@ -98,15 +97,13 @@ export default function TakeExamPage() {
                 liveStreamManagerRef.current = new ServerSideLiveStream();
                 const streams = recordingManagerRef.current.getLiveStreams();
 
+
                 await liveStreamManagerRef.current.startStreaming(
                     attemptId,
                     streams.camera,
                     streams.screen
                 );
-
-                console.log('✅ Live streaming started');
             } catch (error) {
-                console.error('❌ Failed to start live streaming:', error);
                 toast.warn('Live streaming failed, but recording continues');
                 // Don't fail exam if streaming fails
             }
@@ -161,7 +158,7 @@ export default function TakeExamPage() {
                 setUnreadCount(unread);
             }
         } catch (error) {
-            console.error('Error fetching chat:', error);
+            // chat fetch error
         }
     };
 
@@ -189,7 +186,6 @@ export default function TakeExamPage() {
                 toast.error(data.message || 'Failed to send message');
             }
         } catch (error) {
-            console.error('Error sending message:', error);
             toast.error('Failed to send message');
         }
     };
@@ -227,7 +223,7 @@ export default function TakeExamPage() {
                     }
                 }
             } catch (error) {
-                console.error('Error checking exam status:', error);
+                // exam status check error
             }
         };
 
@@ -259,8 +255,8 @@ export default function TakeExamPage() {
                 // Tab switch not allowed - play warning sound and increment count
                 try {
                     const audio = new Audio('/sound/warnig.mp3');
-                    audio.play().catch(e => console.error("Audio play blocked", e));
-                } catch (e) { console.error(e); }
+                    audio.play().catch(e => { });
+                } catch (e) { }
 
                 // Increment switch count
                 tabSwitchCountRef.current += 1;
@@ -483,7 +479,6 @@ export default function TakeExamPage() {
                 router.push('/my-exams');
             }
         } catch (error) {
-            console.error('Error loading exam:', error);
             toast.error('Error loading exam');
             router.push('/my-exams');
         } finally {
@@ -493,7 +488,6 @@ export default function TakeExamPage() {
 
     const saveAnswer = async (questionId, answer) => {
         if (!params.examId) {
-            console.error('examId is missing!');
             return false;
         }
 
@@ -514,7 +508,6 @@ export default function TakeExamPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                console.error('Save answer error:', data);
                 // Only show toast for critical errors, not for every save
                 if (response.status === 403 || response.status === 400) {
                     toast.error(data.message || 'Failed to save answer');
@@ -523,7 +516,6 @@ export default function TakeExamPage() {
             }
             return true;
         } catch (error) {
-            console.error('Error saving answer:', error);
             // Silent fail for network errors - don't spam user
             return false;
         } finally {
@@ -644,7 +636,6 @@ export default function TakeExamPage() {
                 toast.error(data.message || 'Failed to submit exam');
             }
         } catch (error) {
-            console.error('Error submitting exam:', error);
             setSubmitting(false);
             if (!isAutoSubmit) {
                 toast.error('Error submitting exam');

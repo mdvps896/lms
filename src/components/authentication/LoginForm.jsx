@@ -342,8 +342,8 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
 
                 {/* reCAPTCHA Component */}
                 <GoogleRecaptcha
-                    onVerify={(token, score) => console.log('reCAPTCHA verified:', { token, score })}
-                    onError={(error) => console.error('reCAPTCHA error:', error)}
+                    onVerify={(token, score) => { }}
+                    onError={(error) => { }}
                 />
             </form>
 

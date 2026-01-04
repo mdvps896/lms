@@ -23,37 +23,25 @@ const StudentDashboard = () => {
 
     const fetchStudentData = async () => {
         if (!user?._id) {
-            console.log('No user ID available')
             setLoading(false)
             return
         }
 
         setLoading(true)
         setError(null)
-        
+
         try {
-            console.log('Fetching dashboard data for user:', user._id)
-            
             const response = await fetch(`/api/student/dashboard?userId=${user._id}`)
             const data = await response.json()
-
-            console.log('Dashboard API response:', data)
 
             if (data.success) {
                 setMyExams(data.data.myExams || [])
                 setTestExams(data.data.testExams || [])
                 setResults(data.data.results || [])
-                console.log('Dashboard data loaded:', {
-                    myExams: data.data.myExams?.length,
-                    testExams: data.data.testExams?.length,
-                    results: data.data.results?.length
-                })
             } else {
-                console.error('API returned error:', data.error)
                 setError(data.error || 'Failed to load dashboard data')
             }
         } catch (error) {
-            console.error('Error fetching student data:', error)
             setError('Failed to load dashboard data. Please try again.')
         } finally {
             setLoading(false)
@@ -61,7 +49,7 @@ const StudentDashboard = () => {
     }
 
     const getStatusBadge = (status) => {
-        switch(status) {
+        switch (status) {
             case 'upcoming':
                 return <span className="badge bg-primary">Upcoming</span>
             case 'completed':
@@ -76,7 +64,7 @@ const StudentDashboard = () => {
     const getGradeBadge = (grade) => {
         const gradeColors = {
             'A+': 'success',
-            'A': 'success', 
+            'A': 'success',
             'B+': 'info',
             'B': 'info',
             'C+': 'warning',
@@ -205,10 +193,9 @@ const StudentDashboard = () => {
                                     <div key={test.id} className="border rounded p-3 mb-3">
                                         <div className="d-flex justify-content-between align-items-start mb-2">
                                             <h6 className="mb-0">{test.title}</h6>
-                                            <span className={`badge ${
-                                                test.difficulty === 'Easy' ? 'bg-success' :
-                                                test.difficulty === 'Medium' ? 'bg-warning' : 'bg-danger'
-                                            }`}>
+                                            <span className={`badge ${test.difficulty === 'Easy' ? 'bg-success' :
+                                                    test.difficulty === 'Medium' ? 'bg-warning' : 'bg-danger'
+                                                }`}>
                                                 {test.difficulty}
                                             </span>
                                         </div>
@@ -273,7 +260,7 @@ const StudentDashboard = () => {
                                             </div>
                                         </div>
                                         <div className="progress mb-2" style={{ height: '6px' }}>
-                                            <div 
+                                            <div
                                                 className={`progress-bar ${result.status === 'passed' ? 'bg-success' : 'bg-danger'}`}
                                                 style={{ width: `${result.percentage}%` }}
                                             ></div>

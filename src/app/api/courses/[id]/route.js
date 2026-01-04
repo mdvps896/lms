@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,12 +12,10 @@ export async function GET(request, { params }) {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
-        console.log(`🔍 [API GET Course] ID: ${id}, User: ${userId || 'Guest'}`);
-
         const course = await Course.findById(id)
             .populate('category', 'name')
             .populate('subjects', 'name')
-            .populate('exams', 'name type')
+            .populate('exams', 'name type duration totalMarks passingPercentage')
             .populate('instructor', 'name profileImage profilePicture email')
             .populate('ratings.user', 'name');
 
@@ -49,10 +48,6 @@ export async function GET(request, { params }) {
                 const rUserId = r.user?._id ? r.user._id.toString() : r.user?.toString();
                 return rUserId === userId;
             });
-
-            if (userRating) {
-                console.log(`⭐ Found rating for user ${userId}: ${userRating.rating}`);
-            }
         }
 
         courseObj.rating = avgRating > 0 ? avgRating.toFixed(1) : '4.5';
@@ -89,22 +84,22 @@ export async function GET(request, { params }) {
                     profilePicture: adminUser?.profilePicture,
                     email: adminUser?.email
                 };
-                console.log(`✅ Set instructor to admin from settings: ${adminName}`);
             } catch (err) {
-                console.error('Error fetching admin from settings:', err);
+                // Silent error
             }
         }
 
-        console.log(`📦 [API] Returning ${courseObj.title}. Ratings: ${totalRatings}, My Rating: ${userRating ? userRating.rating : 'None'}`);
-
         return NextResponse.json({ success: true, data: courseObj });
     } catch (error) {
-        console.error('❌ GET Course Error:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
 
 export async function PUT(request, { params }) {
+    // Security check
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         await dbConnect();
         const { id } = params;
@@ -130,12 +125,15 @@ export async function PUT(request, { params }) {
 
         return NextResponse.json({ success: true, data: course });
     } catch (error) {
-        console.error('Error updating course:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
 
 export async function DELETE(request, { params }) {
+    // Security check
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         await dbConnect();
         const { id } = params;

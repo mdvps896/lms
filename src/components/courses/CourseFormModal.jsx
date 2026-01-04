@@ -63,7 +63,7 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                     });
                 }
             } catch (err) {
-                console.error("Error fetching data", err);
+                // Silent error or toast
             } finally {
                 setLoading(false);
             }
@@ -136,8 +136,6 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                 originalPrice: formData.isFree ? 0 : Number(formData.originalPrice),
             };
 
-            console.log('📤 [CourseForm] Saving Payload:', payload);
-
             // Validate course ID for edit mode
             if (course && !course._id) {
                 alert('Error: Course ID is missing. Cannot update course.');
@@ -161,7 +159,6 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                 alert(`Error: ${data.error || 'Something went wrong while saving the course.'}`);
             }
         } catch (err) {
-            console.error(err);
             alert(`Error processing request: ${err.message}`);
         } finally {
             setSubmitting(false);

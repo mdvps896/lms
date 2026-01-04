@@ -6,8 +6,8 @@ import Subject from '../../../models/Subject';
 import QuestionGroup from '../../../models/QuestionGroup';
 import Question from '../../../models/Question';
 import { createExamNotification } from '../../../utils/examNotifications';
-import { cookies } from 'next/headers';
 import User from '../../../models/User';
+import { requireAdmin, getAuthenticatedUser } from '../../../utils/apiAuth';
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +19,12 @@ export async function GET(req) {
         const status = searchParams.get('status');
         const search = searchParams.get('search');
         const analytics = searchParams.get('analytics');
+
+        // Security: Analytics data is for admins only
+        if (analytics === 'true') {
+            const authError = requireAdmin(req);
+            if (authError) return authError;
+        }
 
         let query = {};
         if (type) query.type = type;
@@ -48,8 +54,8 @@ export async function GET(req) {
             const questionCounts = {};
             if (allQuestionGroupIds.length > 0) {
                 const questionCountsArray = await Question.aggregate([
-                    { 
-                        $match: { 
+                    {
+                        $match: {
                             questionGroup: { $in: allQuestionGroupIds },
                             status: 'active'
                         }
@@ -61,7 +67,7 @@ export async function GET(req) {
                         }
                     }
                 ]);
-                
+
                 questionCountsArray.forEach(item => {
                     questionCounts[item._id.toString()] = item.count;
                 });
@@ -71,7 +77,7 @@ export async function GET(req) {
                 const now = new Date();
                 const startDate = new Date(exam.startDate);
                 const endDate = new Date(exam.endDate);
-                
+
                 // Determine exam status based on dates
                 let examStatus;
                 if (now < startDate) {
@@ -93,7 +99,7 @@ export async function GET(req) {
 
                 // Get assigned students count
                 const totalStudents = exam.assignedUsers ? exam.assignedUsers.length : 0;
-                
+
                 // Generate realistic analytics data based on exam status
                 let mockAnalytics = { averageScore: 0, highestScore: 0, passRate: 0 };
                 if (examStatus === 'completed' && totalStudents > 0) {
@@ -136,7 +142,7 @@ export async function GET(req) {
                     type: exam.type
                 };
             });
-            
+
             return NextResponse.json({ success: true, data: transformedExams });
         }
 
@@ -147,41 +153,29 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+    // Security check
+    const authError = requireAdmin(req);
+    if (authError) return authError;
+
     try {
         await connectDB();
-        
-        // Get current user from cookies
-        const cookieStore = cookies();
-        const userCookie = cookieStore.get('currentUser');
-        let currentUser = null;
-        
-        if (userCookie) {
-            try {
-                currentUser = JSON.parse(userCookie.value);
-            } catch (error) {
-                console.error('Error parsing user cookie:', error);
-            }
-        }
-        
+
+        const currentUser = getAuthenticatedUser(req);
         const body = await req.json();
-        
-        // Log the received data for debugging
-        console.log('Received exam data:', body);
-        console.log('maxAttempts in body:', body.maxAttempts);
-        
+
         // Add createdBy field if user is available
         if (currentUser) {
-            body.createdBy = currentUser.id;
+            body.createdBy = currentUser.id || currentUser._id;
         }
-        
+
         const exam = await Exam.create(body);
-        
+
         // Populate the created exam with necessary data for notifications
         const populatedExam = await Exam.findById(exam._id)
             .populate('assignedUsers', '_id name email')
             .populate('category', 'name')
             .populate('subjects', 'name');
-        
+
         // Create notification for exam creation
         try {
             await createExamNotification('exam_created', {
@@ -191,12 +185,11 @@ export async function POST(req) {
                 endDate: populatedExam.endDate,
                 status: populatedExam.status,
                 assignedUsers: populatedExam.assignedUsers.map(user => user._id)
-            }, currentUser?.id);
+            }, currentUser?.id || currentUser?._id);
         } catch (notificationError) {
-            console.error('Error creating exam notification:', notificationError);
             // Don't fail the exam creation if notification fails
         }
-        
+
         return NextResponse.json({ success: true, data: exam }, { status: 201 });
     } catch (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });

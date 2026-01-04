@@ -3,19 +3,35 @@ import connectDB from '@/lib/mongodb'
 import Exam from '@/models/Exam'
 import User from '@/models/User'
 import ExamAttempt from '@/models/ExamAttempt'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export async function POST(request) {
     try {
         await connectDB()
-        
-        const { examId, userId, verificationId } = await request.json()
 
-        console.log('Start Session - Params:', { examId, userId, verificationId })
+        const currentUser = getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json(
+                { message: 'Unauthorized: Login required' },
+                { status: 401 }
+            )
+        }
+
+        const { examId, userId, verificationId } = await request.json()
 
         if (!examId || !userId) {
             return NextResponse.json(
                 { message: 'Exam ID and User ID are required' },
                 { status: 400 }
+            )
+        }
+
+        // Security Check: Ensure user is starting session for themselves
+        const currentUserId = currentUser.id || currentUser._id;
+        if (userId !== currentUserId) {
+            return NextResponse.json(
+                { message: 'Unauthorized: Cannot start exam for another user' },
+                { status: 403 }
             )
         }
 
@@ -55,7 +71,7 @@ export async function POST(request) {
         }
 
         // Check if user has remaining attempts (only if maxAttempts is not -1 for unlimited)
-        const userAttempts = exam.attempts.filter(attempt => 
+        const userAttempts = exam.attempts.filter(attempt =>
             attempt.userId.toString() === userId &&
             ['submitted', 'expired'].includes(attempt.status)
         )
@@ -75,21 +91,16 @@ export async function POST(request) {
             status: 'active'
         })
 
-        console.log('Start Session - Active ExamAttempt:', activeExamAttempt ? 'Found' : 'Not found')
-
         // If verificationId is provided, use that ExamAttempt
         if (verificationId && !activeExamAttempt) {
             activeExamAttempt = await ExamAttempt.findById(verificationId)
-            console.log('Start Session - Using verification attempt:', activeExamAttempt ? 'Yes' : 'No')
-            
+
             if (activeExamAttempt) {
                 // Update the attempt to active status
                 activeExamAttempt.status = 'active'
                 activeExamAttempt.startTime = now
                 activeExamAttempt.endTime = new Date(now.getTime() + exam.duration * 60 * 1000)
                 await activeExamAttempt.save()
-                
-                console.log('Start Session - Updated verification attempt to active')
             }
         }
 
@@ -111,9 +122,9 @@ export async function POST(request) {
 
         // Get client info
         const headers = request.headers
-        const ipAddress = headers.get('x-forwarded-for') || 
-                         headers.get('x-real-ip') || 
-                         'unknown'
+        const ipAddress = headers.get('x-forwarded-for') ||
+            headers.get('x-real-ip') ||
+            'unknown'
         const userAgent = headers.get('user-agent') || 'unknown'
 
         // Calculate end time based on exam duration
@@ -131,8 +142,6 @@ export async function POST(request) {
         })
 
         await examAttempt.save()
-
-        console.log('Start Session - Created new ExamAttempt:', examAttempt._id)
 
         // Create new attempt
         const newAttempt = {
@@ -154,7 +163,7 @@ export async function POST(request) {
 
         // Deactivate any other active attempts for this user
         exam.attempts.forEach(attempt => {
-            if (attempt.userId.toString() === userId && 
+            if (attempt.userId.toString() === userId &&
                 attempt._id.toString() !== exam.attempts[exam.attempts.length - 1]._id.toString() &&
                 attempt.status === 'active') {
                 attempt.status = 'expired'
@@ -175,7 +184,6 @@ export async function POST(request) {
         })
 
     } catch (error) {
-        console.error('Error starting exam session:', error)
         return NextResponse.json(
             { message: 'Internal server error' },
             { status: 500 }

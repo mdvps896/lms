@@ -4,6 +4,7 @@ import User from '@/models/User';
 import Course from '@/models/Course';
 import Payment from '@/models/Payment';
 import Notification from '@/models/Notification';
+import { sendAdminPurchaseNotification } from '@/lib/sendAdminPurchaseNotification';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 
@@ -185,6 +186,19 @@ export async function POST(request) {
                 console.error('❌ Notification error:', notifError.message);
             }
 
+            // Send admin email notification
+            try {
+                await sendAdminPurchaseNotification({
+                    user: { name: user.name, email: user.email },
+                    course: { title: course.title, price: course.price },
+                    amount: 0,
+                    couponCode: couponCode,
+                    isFree: true
+                });
+            } catch (emailError) {
+                console.error('❌ Admin email notification error:', emailError.message);
+            }
+
             return NextResponse.json({
                 success: true,
                 message: 'Enrolled successfully with coupon',
@@ -359,6 +373,19 @@ export async function POST(request) {
             }
         } catch (notifError) {
             console.error('❌ Notification error:', notifError);
+        }
+
+        // Send admin email notification
+        try {
+            await sendAdminPurchaseNotification({
+                user: { name: user.name, email: user.email },
+                course: { title: course.title, price: course.price },
+                amount: amount,
+                couponCode: null,
+                isFree: false
+            });
+        } catch (emailError) {
+            console.error('❌ Admin email notification error:', emailError);
         }
 
         return NextResponse.json({

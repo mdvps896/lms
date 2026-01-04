@@ -24,6 +24,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta httpEquiv="Cross-Origin-Opener-Policy" content="unsafe-none" />
         <meta httpEquiv="Cross-Origin-Embedder-Policy" content="unsafe-none" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <DynamicHead />
       <body>

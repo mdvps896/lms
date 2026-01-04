@@ -286,7 +286,14 @@ export async function deleteFromLocalStorage(filePath) {
         const normalizedFilePath = filePath.replace(/\\/g, '/');
 
         // Check if it's a true absolute path (has drive letter on Windows or starts with / on Unix)
-        const isTrueAbsolute = path.isAbsolute(normalizedFilePath) && !normalizedFilePath.startsWith('/uploads') && !normalizedFilePath.startsWith('/images');
+        // Exclude paths that start with /uploads, /images, /sounds, /sound, /videos, /assets as these are relative to public
+        const isTrueAbsolute = path.isAbsolute(normalizedFilePath) &&
+            !normalizedFilePath.startsWith('/uploads') &&
+            !normalizedFilePath.startsWith('/images') &&
+            !normalizedFilePath.startsWith('/sounds') &&
+            !normalizedFilePath.startsWith('/sound') &&
+            !normalizedFilePath.startsWith('/videos') &&
+            !normalizedFilePath.startsWith('/assets');
 
         if (isTrueAbsolute) {
             // It's a true absolute path (e.g., C:/path/to/file)
@@ -333,6 +340,24 @@ export async function deleteFromLocalStorage(filePath) {
             if (cleanPath.includes('videos/') && !cleanPath.includes('uploads/videos/')) {
                 const videosPath = 'uploads/' + cleanPath;
                 const tryPath = path.join(process.cwd(), 'public', videosPath);
+                if (!pathsToTry.includes(tryPath)) {
+                    pathsToTry.push(tryPath);
+                }
+            }
+
+            // Try sounds directory (directly in public) - both plural and singular
+            if (cleanPath.includes('sounds/') || cleanPath.startsWith('sounds/') ||
+                cleanPath.includes('sound/') || cleanPath.startsWith('sound/')) {
+                const soundsPath = path.join(process.cwd(), 'public', cleanPath);
+                if (!pathsToTry.includes(soundsPath)) {
+                    pathsToTry.push(soundsPath);
+                }
+            }
+
+            // Try assets directory
+            if (cleanPath.includes('assets/') && !cleanPath.includes('uploads/assets/')) {
+                const assetsPath = 'uploads/' + cleanPath;
+                const tryPath = path.join(process.cwd(), 'public', assetsPath);
                 if (!pathsToTry.includes(tryPath)) {
                     pathsToTry.push(tryPath);
                 }

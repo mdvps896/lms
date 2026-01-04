@@ -71,7 +71,6 @@ const ExamForm = ({ type, initialData }) => {
                 const catsRes = await fetch('/api/categories').then(r => r.json());
                 if (catsRes.success) setCategories(catsRes.data.map(c => ({ value: c._id, label: c.name })));
             } catch (error) {
-                console.error('Error fetching dependencies:', error);
                 toast.error('Failed to load form data');
             }
         };
@@ -94,7 +93,6 @@ const ExamForm = ({ type, initialData }) => {
                     setSubjects([]);
                 }
             } catch (error) {
-                console.error('Error fetching subjects:', error);
                 setSubjects([]);
             }
         };
@@ -113,15 +111,14 @@ const ExamForm = ({ type, initialData }) => {
                 const subjectIds = formData.subjects.map(s => s.value).join(',');
                 const res = await fetch(`/api/question-groups?subjects=${subjectIds}`).then(r => r.json());
                 if (res.success) {
-                    setQuestionGroups(res.data.map(qg => ({ 
-                        value: qg._id, 
-                        label: `${qg.name} (${qg.questionCount || 0} questions)` 
+                    setQuestionGroups(res.data.map(qg => ({
+                        value: qg._id,
+                        label: `${qg.name} (${qg.questionCount || 0} questions)`
                     })));
                 } else {
                     setQuestionGroups([]);
                 }
             } catch (error) {
-                console.error('Error fetching question groups:', error);
                 setQuestionGroups([]);
             }
         };
@@ -131,9 +128,6 @@ const ExamForm = ({ type, initialData }) => {
     // Initialize data if editing
     useEffect(() => {
         if (initialData) {
-            console.log('Loading initial exam data:', initialData);
-            console.log('Initial maxAttempts:', initialData.maxAttempts);
-
             const toLocalISOString = (dateString) => {
                 if (!dateString) return '';
                 // Create date and adjust for timezone offset to get local time
@@ -148,9 +142,9 @@ const ExamForm = ({ type, initialData }) => {
                 name: initialData.name || '',
                 category: initialData.category ? { value: initialData.category._id, label: initialData.category.name } : null,
                 subjects: initialData.subjects ? initialData.subjects.map(s => ({ value: s._id, label: s.name })) : [],
-                questionGroups: initialData.questionGroups ? initialData.questionGroups.map(qg => ({ 
-                    value: typeof qg === 'object' ? qg._id : qg, 
-                    label: typeof qg === 'object' ? qg.name : qg 
+                questionGroups: initialData.questionGroups ? initialData.questionGroups.map(qg => ({
+                    value: typeof qg === 'object' ? qg._id : qg,
+                    label: typeof qg === 'object' ? qg.name : qg
                 })) : [],
                 type: initialData.type || type,
                 startDate: toLocalISOString(initialData.startDate),
@@ -190,7 +184,6 @@ const ExamForm = ({ type, initialData }) => {
                 }
             };
 
-            console.log('Setting form data with maxAttempts:', newFormData.maxAttempts);
             setFormData(newFormData);
         }
     }, [initialData, type]);
@@ -325,9 +318,6 @@ const ExamForm = ({ type, initialData }) => {
                 endDate: convertToUTC(formData.endDate)
             };
 
-            console.log('Submitting exam payload:', payload);
-            console.log('maxAttempts being sent:', payload.maxAttempts, typeof payload.maxAttempts);
-
             const url = initialData ? `/api/exams/${initialData._id}` : '/api/exams';
             const method = initialData ? 'PUT' : 'POST';
 
@@ -345,7 +335,6 @@ const ExamForm = ({ type, initialData }) => {
                 toast.error(data.error || `Failed to ${initialData ? 'update' : 'create'} exam`);
             }
         } catch (error) {
-            console.error(error);
             toast.error('An error occurred');
         } finally {
             setLoading(false);
@@ -408,7 +397,7 @@ const ExamForm = ({ type, initialData }) => {
                                 isDisabled={!formData.subjects || formData.subjects.length === 0}
                             />
                             <small className="text-muted">
-                                {!formData.subjects || formData.subjects.length === 0 
+                                {!formData.subjects || formData.subjects.length === 0
                                     ? 'Please select subjects first to see available question groups'
                                     : `${questionGroups.length} question group(s) available for selected subjects`
                                 }

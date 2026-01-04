@@ -36,7 +36,7 @@ const Menus = () => {
     const handleMainMenu = (e, name, hasDropdown) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (hasDropdown) {
             if (openDropdown === name) {
                 setOpenDropdown(null);
@@ -60,10 +60,10 @@ const Menus = () => {
             const x = pathName.split("/");
             const parent = x[1];
             const child = x[2];
-            
+
             setActiveParent(parent);
             setActiveChild(child);
-            
+
             // Check if current path belongs to a submenu and keep parent dropdown open
             let shouldOpenDropdown = null;
             menuList.forEach(item => {
@@ -79,7 +79,7 @@ const Menus = () => {
                     }
                 }
             });
-            
+
             if (shouldOpenDropdown) {
                 setOpenDropdown(shouldOpenDropdown);
             }
@@ -100,15 +100,15 @@ const Menus = () => {
                 const hasDropdown = dropdownMenu && dropdownMenu.length > 0;
                 // Use path segment for matching if available, otherwise fallback to name
                 const menuName = (path && path.length > 1) ? path.split('/')[1] : name.split(' ')[0];
-                
+
                 return (
                     <Fragment key={id}>
                         <li
                             className={`nxl-item ${hasDropdown ? 'nxl-hasmenu' : ''} ${activeParent === menuName ? "active" : ""} ${openDropdown === menuName ? "active open" : ""}`}
                         >
                             {hasDropdown ? (
-                                <a 
-                                    href="#" 
+                                <a
+                                    href="#"
                                     onClick={(e) => handleMainMenu(e, menuName, hasDropdown)}
                                     className="nxl-link text-capitalize"
                                 >
@@ -119,8 +119,8 @@ const Menus = () => {
                                     <span className="nxl-arrow"><FiChevronRight /></span>
                                 </a>
                             ) : showModal ? (
-                                <a 
-                                    href="#" 
+                                <a
+                                    href="#"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         setShowQuestionModal(true);
@@ -140,7 +140,7 @@ const Menus = () => {
                                     </span>
                                 </Link>
                             )}
-                            
+
                             {hasDropdown && (
                                 <ul className="nxl-submenu">
                                     {dropdownMenu.map((subItem) => (
@@ -156,7 +156,7 @@ const Menus = () => {
                     </Fragment>
                 );
             })}
-            
+
             {/* Question Modal */}
             {showQuestionModal && (
                 <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowQuestionModal(false)}>
@@ -168,16 +168,16 @@ const Menus = () => {
                             </div>
                             <div className="modal-body">
                                 <div className="d-grid gap-3">
-                                    <Link 
-                                        href="/question-groups" 
+                                    <Link
+                                        href="/question-groups"
                                         className="btn btn-primary btn-lg"
                                         onClick={() => setShowQuestionModal(false)}
                                     >
                                         <i className="feather-folder me-2"></i>
                                         Question Groups
                                     </Link>
-                                    <Link 
-                                        href="/question-bank" 
+                                    <Link
+                                        href="/question-bank"
                                         className="btn btn-success btn-lg"
                                         onClick={() => setShowQuestionModal(false)}
                                     >
@@ -190,11 +190,11 @@ const Menus = () => {
                     </div>
                 </div>
             )}
-            
+
             {/* Logout Menu Item */}
             <li className="nxl-item">
-                <a 
-                    href="#" 
+                <a
+                    href="#"
                     onClick={(e) => {
                         e.preventDefault();
                         handleLogout();

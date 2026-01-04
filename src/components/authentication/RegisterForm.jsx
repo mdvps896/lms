@@ -8,7 +8,7 @@ import Swal from 'sweetalert2'
 import GoogleOAuthButton from './GoogleOAuthButton'
 import GoogleRecaptcha from './GoogleRecaptcha'
 
-const RegisterForm = ({path, settings}) => {
+const RegisterForm = ({ path, settings }) => {
     const { register } = useAuth();
     const [currentStep, setCurrentStep] = useState(1); // 1 = Details, 2 = OTP
     const [formData, setFormData] = useState({
@@ -44,7 +44,7 @@ const RegisterForm = ({path, settings}) => {
                 setCategories(data.data);
             }
         } catch (error) {
-            console.error('Error fetching categories:', error);
+            // Silent failure
         }
     };
 
@@ -83,20 +83,22 @@ const RegisterForm = ({path, settings}) => {
     // Send OTP to email
     const sendOtpEmail = async () => {
         try {
-            const response = await fetch('/api/send-otp', {
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: formData.email,
-                    name: formData.name
+                    name: formData.name,
+                    mobile: formData.phone  // Send as 'mobile' to match API
                 })
             });
 
             const data = await response.json();
-            
-            if (data.success) {
-                setSentOtp(data.otp); // Store OTP (in production, verify server-side)
-                setOtpExpiry(Date.now() + data.expiresIn);
+
+
+            if (data.success && data.requiresOtp) {
+                // OTP sent successfully
+                setOtpExpiry(Date.now() + 600000); // 10 minutes
                 return true;
             } else {
                 Swal.fire({
@@ -188,7 +190,7 @@ const RegisterForm = ({path, settings}) => {
 
         setIsResending(true);
         const otpSent = await sendOtpEmail();
-        
+
         if (otpSent) {
             Swal.fire({
                 icon: 'success',
@@ -196,7 +198,7 @@ const RegisterForm = ({path, settings}) => {
                 text: `New verification code sent to ${formData.email}`,
                 timer: 2000
             });
-            
+
             // Start 30-second cooldown
             setResendCooldown(30);
             const cooldownTimer = setInterval(() => {
@@ -209,7 +211,7 @@ const RegisterForm = ({path, settings}) => {
                 });
             }, 1000);
         }
-        
+
         setIsResending(false);
     };
 
@@ -299,7 +301,7 @@ const RegisterForm = ({path, settings}) => {
             });
 
             const otpSent = await sendOtpEmail();
-            
+
             if (otpSent) {
                 Swal.close();
                 Swal.fire({
@@ -334,20 +336,9 @@ const RegisterForm = ({path, settings}) => {
                 return;
             }
 
-            // Verify OTP
-            if (otp !== sentOtp) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid OTP',
-                    text: 'Please enter correct OTP',
-                    timer: 2000
-                });
-                return;
-            }
-
             // Show loading for registration
             Swal.fire({
-                title: 'Creating Account...',
+                title: 'Verifying OTP...',
                 text: 'Please wait',
                 allowOutsideClick: false,
                 didOpen: () => {
@@ -355,31 +346,52 @@ const RegisterForm = ({path, settings}) => {
                 }
             });
 
-            // Register user
-            const result = await register({
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                password: formData.password,
-                category: formData.category,
-                emailVerified: true
-            });
-
-            Swal.close();
-
-            if (result.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: 'Registration successful! Email verified.',
-                    timer: 2000,
-                    showConfirmButton: false
+            // Verify OTP and complete registration
+            try {
+                const response = await fetch('/api/auth/verify-registration-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: formData.email,
+                        otp: otp,
+                        name: formData.name,
+                        mobile: formData.phone,
+                        password: formData.password
+                    })
                 });
-            } else {
+
+                const data = await response.json();
+
+                Swal.close();
+
+                if (data.success) {
+                    // Store user data and redirect
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`;
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'Registration successful! Email verified.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = '/';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Verification Failed',
+                        text: data.message || 'OTP verification failed',
+                        timer: 2000
+                    });
+                }
+            } catch (error) {
+                Swal.close();
                 Swal.fire({
                     icon: 'error',
-                    title: 'Registration Failed',
-                    text: result.message || 'Registration failed',
+                    title: 'Error',
+                    text: 'Failed to verify OTP',
                     timer: 2000
                 });
             }
@@ -401,7 +413,7 @@ const RegisterForm = ({path, settings}) => {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             const decoded = jwtDecode(credentialResponse.credential);
-            
+
             // Register with Google data (skip OTP verification)
             const result = await register({
                 name: decoded.name,
@@ -450,150 +462,150 @@ const RegisterForm = ({path, settings}) => {
     return (
         <>
             <h2 className="fs-20 fw-bolder mb-3">Register {currentStep === 2 && '- Verify Email'}</h2>
-            
+
             {currentStep === 1 ? (
                 // Step 1: Registration Form
                 <form onSubmit={handleSubmit} className="w-100 mt-3 pt-1">
                     <div className="mb-3">
-                    <input 
-                        type="text" 
-                        name="name"
-                        className="form-control" 
-                        placeholder="Full Name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required 
+                        <input
+                            type="text"
+                            name="name"
+                            className="form-control"
+                            placeholder="Full Name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <input
+                            type="email"
+                            name="email"
+                            className="form-control"
+                            placeholder="Email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <div className="input-group">
+                            <span className="input-group-text">
+                                <img src="/images/flags/1x1/in.svg" alt="India" style={{ width: '20px', height: '15px' }} />
+                                <span className="ms-2">+91</span>
+                            </span>
+                            <input
+                                type="tel"
+                                name="phone"
+                                className="form-control"
+                                placeholder="Phone Number"
+                                value={formData.phone}
+                                onChange={handleChange}
+                                pattern="[0-9]{10}"
+                                maxLength="10"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="mb-3">
+                        <select
+                            name="category"
+                            className="form-control"
+                            value={formData.category}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Select Category</option>
+                            {categories.map(category => (
+                                <option key={category._id} value={category._id}>
+                                    {category.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="mb-3 generate-pass">
+                        <div className="input-group field">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                className="form-control password"
+                                placeholder="Password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                required
+                            />
+                            <div
+                                className="input-group-text c-pointer gen-pass"
+                                onClick={generatePassword}
+                                data-toggle="tooltip"
+                                data-title="Generate Password"
+                            >
+                                <FiHash size={16} />
+                            </div>
+                            <div
+                                className="input-group-text border-start bg-gray-2 c-pointer"
+                                onClick={() => setShowPassword(!showPassword)}
+                                data-toggle="tooltip"
+                                data-title="Show/Hide Password"
+                            >
+                                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                            </div>
+                        </div>
+                        <div className="progress-bar mt-1">
+                            <div className={passwordStrength >= 1 ? 'active' : ''}></div>
+                            <div className={passwordStrength >= 2 ? 'active' : ''}></div>
+                            <div className={passwordStrength >= 3 ? 'active' : ''}></div>
+                            <div className={passwordStrength >= 4 ? 'active' : ''}></div>
+                        </div>
+                    </div>
+                    <div className="mb-3">
+                        <div className="input-group">
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                name="confirmPassword"
+                                className="form-control"
+                                placeholder="Confirm Password"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                required
+                            />
+                            <div
+                                className="input-group-text bg-gray-2 c-pointer"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                data-toggle="tooltip"
+                                data-title="Show/Hide Password"
+                            >
+                                {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-3">
+                        <div className="custom-control custom-checkbox">
+                            <input
+                                type="checkbox"
+                                className="custom-control-input"
+                                id="termsCondition"
+                                checked={agreedToTerms}
+                                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                required
+                            />
+                            <label className="custom-control-label c-pointer text-muted" htmlFor="termsCondition" style={{ fontWeight: '400 !important' }}>
+                                I agree to all the <a href="#" onClick={(e) => { e.preventDefault(); setShowTermsModal(true); }} className="text-primary">Terms &amp; Conditions</a>
+                            </label>
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <button type="submit" className="btn btn-lg btn-primary w-100">Send OTP</button>
+                    </div>
+
+                    {/* reCAPTCHA Component */}
+                    <GoogleRecaptcha
+                        onVerify={(token, score) => { }}
+                        onError={(error) => { }}
                     />
-                </div>
-                <div className="mb-3">
-                    <input 
-                        type="email" 
-                        name="email"
-                        className="form-control" 
-                        placeholder="Email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required 
-                    />
-                </div>
-                <div className="mb-3">
-                    <div className="input-group">
-                        <span className="input-group-text">
-                            <img src="/images/flags/1x1/in.svg" alt="India" style={{ width: '20px', height: '15px' }} />
-                            <span className="ms-2">+91</span>
-                        </span>
-                        <input 
-                            type="tel" 
-                            name="phone"
-                            className="form-control" 
-                            placeholder="Phone Number"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            pattern="[0-9]{10}"
-                            maxLength="10"
-                            required 
-                        />
-                    </div>
-                </div>
-                <div className="mb-3">
-                    <select 
-                        name="category"
-                        className="form-control" 
-                        value={formData.category}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Select Category</option>
-                        {categories.map(category => (
-                            <option key={category._id} value={category._id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="mb-3 generate-pass">
-                    <div className="input-group field">
-                        <input 
-                            type={showPassword ? "text" : "password"}
-                            name="password"
-                            className="form-control password" 
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            autoComplete="new-password"
-                            required 
-                        />
-                        <div 
-                            className="input-group-text c-pointer gen-pass" 
-                            onClick={generatePassword}
-                            data-toggle="tooltip" 
-                            data-title="Generate Password"
-                        >
-                            <FiHash size={16}/>
-                        </div>
-                        <div 
-                            className="input-group-text border-start bg-gray-2 c-pointer" 
-                            onClick={() => setShowPassword(!showPassword)}
-                            data-toggle="tooltip" 
-                            data-title="Show/Hide Password"
-                        >
-                            {showPassword ? <FiEyeOff size={16}/> : <FiEye size={16}/>}
-                        </div>
-                    </div>
-                    <div className="progress-bar mt-1">
-                        <div className={passwordStrength >= 1 ? 'active' : ''}></div>
-                        <div className={passwordStrength >= 2 ? 'active' : ''}></div>
-                        <div className={passwordStrength >= 3 ? 'active' : ''}></div>
-                        <div className={passwordStrength >= 4 ? 'active' : ''}></div>
-                    </div>
-                </div>
-                <div className="mb-3">
-                    <div className="input-group">
-                        <input 
-                            type={showConfirmPassword ? "text" : "password"}
-                            name="confirmPassword"
-                            className="form-control" 
-                            placeholder="Confirm Password"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            autoComplete="new-password"
-                            required 
-                        />
-                        <div 
-                            className="input-group-text bg-gray-2 c-pointer" 
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            data-toggle="tooltip" 
-                            data-title="Show/Hide Password"
-                        >
-                            {showConfirmPassword ? <FiEyeOff size={16}/> : <FiEye size={16}/>}
-                        </div>
-                    </div>
-                </div>
-                <div className="mt-3">
-                    <div className="custom-control custom-checkbox">
-                        <input 
-                            type="checkbox" 
-                            className="custom-control-input" 
-                            id="termsCondition"
-                            checked={agreedToTerms}
-                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                            required 
-                        />
-                        <label className="custom-control-label c-pointer text-muted" htmlFor="termsCondition" style={{ fontWeight: '400 !important' }}>
-                            I agree to all the <a href="#" onClick={(e) => { e.preventDefault(); setShowTermsModal(true); }} className="text-primary">Terms &amp; Conditions</a>
-                        </label>
-                    </div>
-                </div>
-                <div className="mt-4">
-                    <button type="submit" className="btn btn-lg btn-primary w-100">Send OTP</button>
-                </div>
-                
-                {/* reCAPTCHA Component */}
-                <GoogleRecaptcha 
-                    onVerify={(token, score) => console.log('reCAPTCHA verified:', { token, score })}
-                    onError={(error) => console.error('reCAPTCHA error:', error)}
-                />
-            </form>
+                </form>
             ) : (
                 // Step 2: OTP Verification - Inline Form
                 <form onSubmit={handleSubmit} className="w-100 mt-3 pt-1">
@@ -627,7 +639,7 @@ const RegisterForm = ({path, settings}) => {
                     </div>
 
                     <div className="d-grid mb-3">
-                        <button 
+                        <button
                             className="btn btn-primary btn-lg"
                             type="submit"
                         >
@@ -657,12 +669,12 @@ const RegisterForm = ({path, settings}) => {
 
             {/* Google Sign Up Button - Only show on Step 1 */}
             {currentStep === 1 && (
-            <div className="w-100 mt-3 text-center mx-auto">
-                <div className="mb-3 border-bottom position-relative">
-                    <span className="small py-1 px-3 text-uppercase text-muted bg-white position-absolute translate-middle">or</span>
+                <div className="w-100 mt-3 text-center mx-auto">
+                    <div className="mb-3 border-bottom position-relative">
+                        <span className="small py-1 px-3 text-uppercase text-muted bg-white position-absolute translate-middle">or</span>
+                    </div>
+                    <GoogleOAuthButton type="register" />
                 </div>
-                <GoogleOAuthButton type="register" />
-            </div>
             )}
 
             <div className="mt-4 text-muted">
@@ -686,22 +698,22 @@ const RegisterForm = ({path, settings}) => {
                                     <>
                                         <h6 className="fw-bold mb-3">1. Acceptance of Terms</h6>
                                         <p className="text-muted mb-4">By accessing and using this platform, you accept and agree to be bound by the terms and provision of this agreement.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">2. User Accounts</h6>
                                         <p className="text-muted mb-4">You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">3. Privacy Policy</h6>
                                         <p className="text-muted mb-4">Your use of this platform is also governed by our Privacy Policy. We collect and process your personal information in accordance with applicable data protection laws.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">4. User Conduct</h6>
                                         <p className="text-muted mb-4">You agree not to use the platform for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the platform in any way that could damage the platform or impair anyone else's use of it.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">5. Intellectual Property</h6>
                                         <p className="text-muted mb-4">All content included on this platform is protected by applicable copyright and trademark law.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">6. Limitation of Liability</h6>
                                         <p className="text-muted mb-4">We shall not be liable for any indirect, incidental, special, consequential or punitive damages resulting from your use of the platform.</p>
-                                        
+
                                         <h6 className="fw-bold mb-3">7. Termination</h6>
                                         <p className="text-muted mb-0">We reserve the right to terminate or suspend your account at any time without prior notice for violating these terms.</p>
                                     </>

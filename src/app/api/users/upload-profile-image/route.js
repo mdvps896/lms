@@ -67,7 +67,16 @@ export const POST = async (req) => {
     const mimeType = file.type || 'image/jpeg';
     const fileData = `data:${mimeType};base64,${base64}`;
 
-    const filename = `profile_${currentUser._id}_${Date.now()}`; // specific name for profile
+    // Get file extension from MIME type
+    const extensionMap = {
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp'
+    };
+    const extension = extensionMap[mimeType] || '.jpg';
+    const filename = `profile_${currentUser._id}_${Date.now()}${extension}`;
 
     try {
       const result = await saveToLocalStorage(fileData, 'profile', filename);

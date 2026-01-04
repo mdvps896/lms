@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
 import { FiLogOut, FiSettings, FiUser } from "react-icons/fi"
@@ -12,7 +11,7 @@ const ProfileModal = () => {
 
     const handleLogout = (e) => {
         e.preventDefault();
-        
+
         Swal.fire({
             title: 'Are you sure?',
             text: "You want to logout?",
@@ -36,24 +35,48 @@ const ProfileModal = () => {
 
     // Function to render profile image or default icon
     const renderProfileImage = (size = 40) => {
-        if (user?.profileImage) {
+        // Check if user has a valid profile image
+        const hasValidImage = user?.profileImage &&
+            user.profileImage !== '' &&
+            !user.profileImage.includes('undefined') &&
+            !user.profileImage.includes('null');
+
+        if (hasValidImage) {
             return (
-                <Image 
-                    width={size} 
-                    height={size} 
-                    src={user.profileImage} 
-                    alt="user-image" 
+                <img
+                    width={size}
+                    height={size}
+                    src={user.profileImage}
+                    alt={user?.name || 'User'}
                     className="img-fluid user-avtar rounded-circle"
                     style={{ objectFit: 'cover', border: '2px solid #fff' }}
+                    onError={(e) => {
+                        // Fallback to initials if image fails to load
+                        const initials = user?.name
+                            ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                            : 'U';
+                        e.target.outerHTML = `<div class="d-flex align-items-center justify-content-center bg-primary text-white rounded-circle user-avtar" style="width: ${size}px; height: ${size}px; min-width: ${size}px; font-size: ${size * 0.4}px; font-weight: bold;">${initials}</div>`;
+                    }}
                 />
             );
         } else {
+            // Show user initials or icon
+            const initials = user?.name
+                ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                : 'U';
+
             return (
-                <div 
+                <div
                     className="d-flex align-items-center justify-content-center bg-primary text-white rounded-circle user-avtar"
-                    style={{ width: size, height: size, minWidth: size }}
+                    style={{
+                        width: size,
+                        height: size,
+                        minWidth: size,
+                        fontSize: size * 0.4,
+                        fontWeight: 'bold'
+                    }}
                 >
-                    <FiUser size={size * 0.5} />
+                    {initials}
                 </div>
             );
         }
@@ -71,7 +94,7 @@ const ProfileModal = () => {
                     <div className="d-flex align-items-center">
                         {renderProfileImage(40)}
                         <div className="ms-3">
-                            <h6 className="text-dark mb-0">{user?.name || 'User'} 
+                            <h6 className="text-dark mb-0">{user?.name || 'User'}
                                 <span className={`badge ms-1 ${getRoleBadgeClass(user?.role)}`}>
                                     {user?.role?.toUpperCase() || 'USER'}
                                 </span>
@@ -81,13 +104,13 @@ const ProfileModal = () => {
                     </div>
                 </div>
                 <div className="dropdown-divider"></div>
-                
+
                 {/* My Profile */}
                 <Link href="/profile" className="dropdown-item">
                     <i className="me-2"><FiUser /></i>
                     <span>My Profile</span>
                 </Link>
-                
+
                 {/* Settings - Only show for admin */}
                 {user?.role === 'admin' && (
                     <Link href="/settings" className="dropdown-item">
@@ -95,9 +118,9 @@ const ProfileModal = () => {
                         <span>Settings</span>
                     </Link>
                 )}
-                
+
                 <div className="dropdown-divider"></div>
-                
+
                 {/* Logout */}
                 <a href="#" className="dropdown-item" onClick={handleLogout}>
                     <i className="me-2"><FiLogOut /></i>

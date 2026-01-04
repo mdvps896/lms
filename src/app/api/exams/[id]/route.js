@@ -5,12 +5,14 @@ import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
 import Question from '@/models/Question';
 import { createExamNotification } from '@/utils/examNotifications';
-import { cookies } from 'next/headers';
+import { requireAdmin, getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function GET(req, { params }) {
     try {
-        console.log('📡 Fetching exam by ID:', params.id);
         await dbConnect();
+        const user = getAuthenticatedUser(req);
+        const isAdmin = user && user.role === 'admin';
+
         const exam = await Exam.findById(params.id)
             .populate('category')
             .populate('subjects')
@@ -18,39 +20,55 @@ export async function GET(req, { params }) {
             .lean();
 
         if (!exam) {
-            console.log('❌ Exam not found');
             return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
         }
 
-        console.log('✅ Exam found:', exam.name);
-        console.log('📝 Question Groups:', exam.questionGroups?.length || 0);
-
-        // Fetch questions for each question group
-        if (exam.questionGroups && exam.questionGroups.length > 0) {
+        // Only fetch detailed questions if Admin
+        if (isAdmin && exam.questionGroups && exam.questionGroups.length > 0) {
             for (let i = 0; i < exam.questionGroups.length; i++) {
                 const groupId = exam.questionGroups[i]._id;
-                console.log(`🔍 Fetching questions for group ${i + 1}:`, groupId);
 
                 const questions = await Question.find({
                     questionGroup: groupId,
                     status: 'active'
                 }).lean();
 
-                console.log(`✅ Found ${questions.length} questions for group ${i + 1}`);
                 exam.questionGroups[i].questions = questions;
+            }
+        } else if (!isAdmin) {
+            // For non-admins, ensure we don't leak empty undefined structure that might be expected?
+            // Actually, simply NOT adding questions is safer.
+            // But we might want to strip any existing sensitive data if it was auto-populated (it wasn't fully deep populated above).
+        }
+
+        // Fetch real attempts - This might be sensitive too. 
+        // If student, maybe only their own attempts?
+        // But the previous code returned ALL attempts. That is a privacy leak.
+        // I will restrict attempts to the current user if not admin.
+
+        let attemptQuery = {
+            examId: params.id,
+            status: { $in: ['submitted', 'expired'] }
+        };
+
+        if (!isAdmin) {
+            if (!user) {
+                // Public/Unauth access to exam details? Maybe allow basic meta, but NO attempts.
+                attemptQuery = null;
+            } else {
+                attemptQuery.userId = user.id || user._id;
             }
         }
 
-        // Fetch real attempts from ExamAttempt collection
-        const attempts = await ExamAttempt.find({
-            examId: params.id,
-            status: { $in: ['submitted', 'expired'] }
-        })
-            .populate('userId', 'name email')
-            .select('userId score passed timeTaken status submittedAt updatedAt answers')
-            .lean();
+        let attempts = [];
+        if (attemptQuery) {
+            attempts = await ExamAttempt.find(attemptQuery)
+                .populate('userId', 'name email')
+                .select('userId score passed timeTaken status submittedAt updatedAt answers')
+                .lean();
+        }
 
-        // Add attempts array with real data
+        // Add attempts array
         exam.attempts = attempts.map(attempt => ({
             userId: attempt.userId?._id,
             userName: attempt.userId?.name || 'Student',
@@ -61,13 +79,8 @@ export async function GET(req, { params }) {
             status: attempt.status,
             submittedAt: attempt.submittedAt || attempt.updatedAt,
             updatedAt: attempt.updatedAt,
-            answers: attempt.answers || []
+            answers: attempt.answers || [] // Answers might be sensitive if they reveal correct ones, but these are USER answers.
         }));
-
-        console.log('Fetched exam with attempts:', {
-            name: exam.name,
-            attemptCount: exam.attempts.length
-        });
 
         return NextResponse.json({ success: true, data: exam });
     } catch (error) {
@@ -76,27 +89,15 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+    // Security check
+    const authError = requireAdmin(req);
+    if (authError) return authError;
+
     try {
         await dbConnect();
 
-        // Get current user from cookies
-        const cookieStore = cookies();
-        const userCookie = cookieStore.get('currentUser');
-        let currentUser = null;
-
-        if (userCookie) {
-            try {
-                currentUser = JSON.parse(userCookie.value);
-            } catch (error) {
-                console.error('Error parsing user cookie:', error);
-            }
-        }
-
+        const currentUser = getAuthenticatedUser(req);
         const body = await req.json();
-
-        // Log the received data for debugging
-        console.log('Updating exam with data:', body);
-        console.log('maxAttempts in update body:', body.maxAttempts, typeof body.maxAttempts);
 
         const exam = await Exam.findByIdAndUpdate(params.id, body, {
             new: true,
@@ -107,14 +108,6 @@ export async function PUT(req, { params }) {
             return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
         }
 
-        // Log the updated exam to verify save
-        console.log('Updated exam saved:', {
-            name: exam.name,
-            maxAttempts: exam.maxAttempts,
-            totalMarks: exam.totalMarks
-        });
-        console.log('Full updated exam object:', exam.toObject());
-
         // Create notification for exam update
         try {
             await createExamNotification('exam_updated', {
@@ -124,9 +117,8 @@ export async function PUT(req, { params }) {
                 endDate: exam.endDate,
                 status: exam.status,
                 assignedUsers: exam.assignedUsers.map(user => user._id)
-            }, currentUser?.id);
+            }, currentUser?.id || currentUser?._id);
         } catch (notificationError) {
-            console.error('Error creating exam update notification:', notificationError);
             // Don't fail the exam update if notification fails
         }
 
@@ -137,6 +129,10 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+    // Security check
+    const authError = requireAdmin(req);
+    if (authError) return authError;
+
     try {
         await dbConnect();
         const exam = await Exam.findByIdAndDelete(params.id);

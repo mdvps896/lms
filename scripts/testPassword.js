@@ -1,0 +1,89 @@
+// Script to test password verification
+const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+
+// Load environment variables from .env.local
+const envPath = path.join(__dirname, '..', '.env.local');
+if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    envConfig.split('\n').forEach(line => {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+            process.env[key.trim()] = valueParts.join('=').trim();
+        }
+    });
+}
+
+// User Schema
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    password: String,
+    role: String,
+}, { strict: false });
+
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+async function testPassword() {
+    try {
+        console.log('🔄 Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGODB_URI);
+        console.log('✅ Connected to MongoDB');
+
+        const userEmail = 'jagirdarjd890@gmail.com';
+        const testPassword = 'admin@jd';
+
+        // Find user
+        const user = await User.findOne({ email: userEmail });
+
+        if (!user) {
+            console.log(`❌ User not found with email: ${userEmail}`);
+            await mongoose.connection.close();
+            process.exit(1);
+        }
+
+        console.log(`✅ Found user: ${user.name}`);
+        console.log(`📧 Email: ${user.email}`);
+        console.log(`🔐 Password Hash: ${user.password.substring(0, 20)}...`);
+        console.log(`🔒 Hash starts with $2: ${user.password.startsWith('$2')}`);
+
+        // Test password
+        const isValid = await bcrypt.compare(testPassword, user.password);
+
+        console.log(`\n🧪 Testing password: "${testPassword}"`);
+        console.log(`✅ Password Valid: ${isValid}`);
+
+        if (!isValid) {
+            console.log('\n❌ Password does not match!');
+            console.log('Let me try to hash and update it again...');
+
+            const newHash = await bcrypt.hash(testPassword, 10);
+            await User.updateOne(
+                { email: userEmail },
+                { $set: { password: newHash } }
+            );
+
+            console.log('✅ Password re-hashed and updated!');
+
+            // Test again
+            const user2 = await User.findOne({ email: userEmail });
+            const isValid2 = await bcrypt.compare(testPassword, user2.password);
+            console.log(`✅ Password Valid Now: ${isValid2}`);
+        }
+
+        // Close connection
+        await mongoose.connection.close();
+        console.log('\n✅ Database connection closed');
+        process.exit(0);
+
+    } catch (error) {
+        console.error('❌ Error:', error);
+        await mongoose.connection.close();
+        process.exit(1);
+    }
+}
+
+// Run the script
+testPassword();
