@@ -121,12 +121,13 @@ export async function POST(request) {
                     title: '🎉 Course Purchased!',
                     message: `Thank you for purchasing "${course.title}". Start learning now!`,
                     type: 'course_purchase',
-                    createdBy: userId, // System notification
-                    recipients: [{ userId: userId }],
+                    createdBy: new mongoose.Types.ObjectId(userId), // System notification
+                    recipients: [{ userId: new mongoose.Types.ObjectId(userId) }],
+                    status: 'active',
                     data: {
                         courseId: course._id.toString(),
-                        courseName: course.title,
-                        thumbnail: course.thumbnail
+                        courseName: course.title || '',
+                        thumbnail: course.thumbnail || ''
                     }
                 });
                 console.log('✅ Notification saved to DB');
@@ -313,12 +314,13 @@ export async function POST(request) {
                 title: '🎉 Course Purchased!',
                 message: `Thank you for purchasing "${course.title}". Start learning now!`,
                 type: 'course_purchase',
-                createdBy: userId,
-                recipients: [{ userId: userId }],
+                createdBy: new mongoose.Types.ObjectId(userId),
+                recipients: [{ userId: new mongoose.Types.ObjectId(userId) }],
+                status: 'active',
                 data: {
                     courseId: course._id.toString(),
-                    courseName: course.title,
-                    thumbnail: course.thumbnail
+                    courseName: course.title || '',
+                    thumbnail: course.thumbnail || ''
                 }
             });
             console.log('✅ Notification saved to DB');

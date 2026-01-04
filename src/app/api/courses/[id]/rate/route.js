@@ -62,28 +62,39 @@ export async function POST(request, { params }) {
             return NextResponse.json({ success: false, error: 'You must purchase the course to rate it.' }, { status: 403 });
         }
 
-        // Add or Update Rating
-        const existingRatingIndex = course.ratings.findIndex(r => r.user && r.user.toString() === userId.toString());
+        // Use findOneAndUpdate to bypass schema validation for unrelated fields (like invalid instructor string data)
+        const ratingUpdateResult = await Course.findOneAndUpdate(
+            { _id: id, 'ratings.user': new mongoose.Types.ObjectId(userId) },
+            {
+                $set: {
+                    'ratings.$.rating': Number(rating),
+                    'ratings.$.review': review || '',
+                    'ratings.$.createdAt': new Date()
+                }
+            },
+            { new: true, runValidators: false }
+        );
 
-        if (existingRatingIndex > -1) {
-            console.log(`♻️ Updating rating at index ${existingRatingIndex}`);
-            course.ratings[existingRatingIndex].rating = Number(rating);
-            course.ratings[existingRatingIndex].review = review || '';
-            course.ratings[existingRatingIndex].createdAt = new Date();
-        } else {
-            console.log(`✨ Adding new rating`);
-            course.ratings.push({
-                user: new mongoose.Types.ObjectId(userId),
-                rating: Number(rating),
-                review: review || '',
-                createdAt: new Date()
-            });
+        if (!ratingUpdateResult) {
+            // If not updated, it means user hasn't rated yet, so push new rating
+            console.log(`✨ Adding new rating via update`);
+            await Course.findByIdAndUpdate(
+                id,
+                {
+                    $push: {
+                        ratings: {
+                            user: new mongoose.Types.ObjectId(userId),
+                            rating: Number(rating),
+                            review: review || '',
+                            createdAt: new Date()
+                        }
+                    }
+                },
+                { runValidators: false }
+            );
         }
 
-        // Mark modified and save
-        course.markModified('ratings');
-        await course.save();
-        console.log(`✅ Rating saved for ${course.title}`);
+        console.log(`✅ Rating saved for course ${id}`);
 
         return NextResponse.json({
             success: true,
