@@ -142,37 +142,40 @@ const AdminSupportChat = () => {
                         <h6 className="mb-0">Support Conversations</h6>
                     </div>
                     <div className="list-group list-group-flush">
-                        {conversations.map((conv) => (
-                            <button
-                                key={conv._id}
-                                onClick={() => setSelectedUser(conv.userDetails)}
-                                className={`list-group-item list-group-item-action p-3 ${selectedUser?._id === conv._id ? 'active' : ''}`}
-                            >
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <div className="d-flex align-items-center">
-                                        <div className="avatar-sm me-3">
-                                            <span className="avatar-title rounded-circle bg-primary-soft text-primary">
-                                                {conv.userDetails.name.charAt(0)}
-                                            </span>
+                        {conversations.map((conv) => {
+                            const user = conv.userDetails || { _id: conv._id, name: 'Unknown User', email: 'N/A' };
+                            return (
+                                <button
+                                    key={conv._id}
+                                    onClick={() => setSelectedUser(user)}
+                                    className={`list-group-item list-group-item-action p-3 ${selectedUser?._id === user._id ? 'active' : ''}`}
+                                >
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <div className="d-flex align-items-center">
+                                            <div className="avatar-sm me-3">
+                                                <span className="avatar-title rounded-circle bg-primary-soft text-primary">
+                                                    {(user.name || 'U').charAt(0)}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <h6 className="mb-0">{user.name}</h6>
+                                                <small className="text-truncate d-block" style={{ maxWidth: '150px' }}>
+                                                    {conv.latestMessage.text || 'Image attached'}
+                                                </small>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h6 className="mb-0">{conv.userDetails.name}</h6>
-                                            <small className="text-truncate d-block" style={{ maxWidth: '150px' }}>
-                                                {conv.latestMessage.text || 'Image attached'}
+                                        <div className="text-end">
+                                            <small className="d-block mb-1">
+                                                {format(new Date(conv.latestMessage.createdAt), 'HH:mm')}
                                             </small>
+                                            {conv.unreadCount > 0 && (
+                                                <span className="badge bg-danger rounded-pill">{conv.unreadCount}</span>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="text-end">
-                                        <small className="d-block mb-1">
-                                            {format(new Date(conv.latestMessage.createdAt), 'HH:mm')}
-                                        </small>
-                                        {conv.unreadCount > 0 && (
-                                            <span className="badge bg-danger rounded-pill">{conv.unreadCount}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
+                                </button>
+                            );
+                        })}
                         {conversations.length === 0 && !loadingConversations && (
                             <div className="p-4 text-center text-muted">No conversations found</div>
                         )}

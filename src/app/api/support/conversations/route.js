@@ -27,7 +27,12 @@ export async function GET(request) {
                     as: "userDetails"
                 }
             },
-            { $unwind: "$userDetails" },
+            {
+                $unwind: {
+                    path: "$userDetails",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
             { $sort: { "latestMessage.createdAt": -1 } }
         ]);
 
