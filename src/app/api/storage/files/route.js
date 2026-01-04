@@ -103,8 +103,11 @@ export async function GET() {
                     modifiedAt: localFile.modifiedAt
                 };
             }
-            return recording;
-        });
+
+            // If local file is not found, exclude it from results (Ghost record)
+            // This fixes the issue where deleted files still show up because DB record exists
+            return null;
+        }).filter(Boolean);
 
         // Remaining local files that weren't matched to an exam recording
         const uniqueLocalFiles = Array.from(localFilesMap.values());

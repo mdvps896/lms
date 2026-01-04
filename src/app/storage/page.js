@@ -31,7 +31,14 @@ const StoragePage = () => {
     const fetchFiles = async () => {
         setLoading(true)
         try {
-            const response = await fetch('/api/storage/files')
+            // Add timestamp and headers to prevent caching
+            const response = await fetch(`/api/storage/files?t=${Date.now()}`, {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
             const data = await response.json()
             if (data.success) {
                 setFiles(data.files)
@@ -207,7 +214,16 @@ const StoragePage = () => {
                             { name: 'Dashboard', path: '/' },
                             { name: 'Media & Storage' }
                         ]}
-                    />
+                    >
+                        <button
+                            className="btn btn-primary d-flex align-items-center gap-2"
+                            onClick={fetchFiles}
+                            disabled={loading}
+                        >
+                            <i className={`fas fa-sync ${loading ? 'fa-spin' : ''}`}></i>
+                            <span>Clear Cache</span>
+                        </button>
+                    </PageHeader>
 
                     <div className="row">
                         {/* Sidebar Column */}
