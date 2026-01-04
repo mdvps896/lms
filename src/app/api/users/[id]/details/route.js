@@ -4,6 +4,7 @@ import User from '@/models/User';
 import ExamAttempt from '@/models/ExamAttempt';
 import Category from '@/models/Category';
 import Exam from '@/models/Exam'; // Ensure Exam is registered
+import PDFViewSession from '@/models/PDFViewSession';
 import StudentActivity from '@/models/StudentActivity';
 
 export async function GET(request, { params }) {
@@ -40,20 +41,26 @@ export async function GET(request, { params }) {
         // Since we don't have an explicit lastLogin field, we'll use the latest exam attempt or updatedAt
         const lastActivity = attempts.length > 0 ? attempts[0].startedAt : user.updatedAt;
 
-        // Fetch Student Activities (PDF & Course)
-        const activities = await StudentActivity.find({ user: id })
+        // Fetch Student Activities (Course)
+        const activities = await StudentActivity.find({ user: id, activityType: 'course_view' })
             .sort({ startTime: -1 })
             .lean();
 
-        const pdfViews = activities.filter(a => a.activityType === 'pdf_view').map(a => ({
-            id: a._id,
-            title: a.contentTitle,
-            startTime: a.startTime,
-            duration: a.duration, // seconds
-            lastViewed: a.endTime || a.startTime
+        // Fetch PDF View Sessions from the specialized model
+        const pdfSessions = await PDFViewSession.find({ user: id })
+            .sort({ startTime: -1 })
+            .limit(100)
+            .lean();
+
+        const pdfViews = pdfSessions.map(session => ({
+            id: session._id,
+            title: session.pdfName || session.lectureName || 'Untitled PDF',
+            startTime: session.startTime,
+            duration: session.duration || 0, // seconds
+            lastViewed: session.lastActiveTime || session.endTime || session.startTime
         }));
 
-        const courseViews = activities.filter(a => a.activityType === 'course_view').map(a => ({
+        const courseViews = activities.map(a => ({
             id: a._id,
             title: a.contentTitle,
             startTime: a.startTime,
