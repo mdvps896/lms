@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
+import { verifyToken } from '@/utils/auth'
 
-export function middleware(request) {
+export async function middleware(request) {
     const { pathname } = request.nextUrl
 
     // Public routes that don't require authentication
@@ -13,11 +14,74 @@ export function middleware(request) {
         '/authentication/maintenance'
     ]
 
+    const publicApiRoutes = [
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/send-registration-otp',
+        '/api/auth/verify-registration-otp',
+        '/api/auth/check-registration-enabled',
+        '/api/auth/google-register',
+        '/api/settings', // Often public
+        '/api/upload', // Sometimes public or protected? Let's protect, but maybe it breaks image uploads?
+        // Assuming upload endpoints are protected purely by this.
+    ]
+
     // Check if the current path is a public route
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+    const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route))
 
-    // Skip middleware for API routes, static files, and public routes
-    if (pathname.startsWith('/api') || pathname.startsWith('/_next') || isPublicRoute) {
+    // -----------------------------------------------------------
+    // API PROTECTION (JWT)
+    // -----------------------------------------------------------
+    if (pathname.startsWith('/api')) {
+        // Allow public API routes
+        if (isPublicApiRoute) {
+            return NextResponse.next()
+        }
+
+        // Check Authorization header
+        const authHeader = request.headers.get('authorization')
+        let token = null
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7)
+        } else {
+            // Check cookie
+            const tokenCookie = request.cookies.get('token')
+            if (tokenCookie) {
+                token = tokenCookie.value
+            }
+        }
+
+        if (!token) {
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized: No token provided' },
+                { status: 401 }
+            )
+        }
+
+        // Verify Token
+        const payload = await verifyToken(token)
+        if (!payload) {
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized: Invalid token' },
+                { status: 401 }
+            )
+        }
+
+        // Token is valid - Allow request
+        // (Optional: Pass user info via headers if needed by backend, but backend extracts from token or DB usually)
+        // For Next.js App Router, we can't easily modify the request object passed to the route handler to add "user".
+        // Apps typically re-verify or trust the token.
+        return NextResponse.next()
+    }
+
+    // -----------------------------------------------------------
+    // PAGE PROTECTION (Cookie 'user') - Legacy/Existing
+    // -----------------------------------------------------------
+
+    // Skip middleware for static files
+    if (pathname.startsWith('/_next') || isPublicRoute || pathname === '/favicon.ico') {
         return NextResponse.next()
     }
 
@@ -72,6 +136,6 @@ export const config = {
          * - favicon.ico (favicon file)
          * - public folder
          */
-        '/((?!_next/static|_next/image|favicon.ico|images|.*\\..*|api).*)',
+        '/((?!_next/static|_next/image|favicon.ico|images|.*\\..*).*)',
     ],
 }

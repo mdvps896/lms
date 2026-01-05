@@ -3,7 +3,6 @@ import connectDB from '@/lib/mongodb'
 import ExamAttempt from '@/models/ExamAttempt'
 import Exam from '@/models/Exam'
 import { deleteFromLocalStorage } from '@/utils/localStorage'
-import { deleteFromCloudinary } from '@/utils/cloudinary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -57,46 +56,17 @@ export async function POST(request) {
         let isReadOnlyFS = false
 
         try {
-            // Check if it's a Cloudinary URL
-            if (recordingUrl.includes('cloudinary.com') || recordingUrl.startsWith('http')) {
-                console.log(`🗑️ Deleting exam recording from Cloudinary: ${recordingUrl}`)
-                deletionMethod = 'cloudinary'
+            // Delete from local storage
+            console.log(`🗑️ Deleting exam recording from local storage: ${recordingUrl}`)
 
-                // Extract public ID from URL
-                // Format: .../upload/v1234/folder/filename.ext or .../upload/folder/filename.ext
-                const parts = recordingUrl.split('/upload/');
-                if (parts.length > 1) {
-                    let pathPart = parts[1];
-                    // Remove version prefix if exists (e.g., v123456/)
-                    if (pathPart.match(/^v\d+\//)) {
-                        pathPart = pathPart.replace(/^v\d+\//, '');
-                    }
-                    // Remove extension to get public_id
-                    const publicId = pathPart.replace(/\.[^/.]+$/, "");
+            const deleteResult = await deleteFromLocalStorage(recordingUrl)
+            deletionSuccess = deleteResult.success
+            isReadOnlyFS = deleteResult.readOnlyFS || false
 
-                    const result = await deleteFromCloudinary(publicId);
-                    if (result.success) {
-                        deletionSuccess = true;
-                        console.log('✅ Cloudinary file deleted successfully');
-                    } else {
-                        console.error('❌ Cloudinary deletion failed:', result.message);
-                    }
-                } else {
-                    console.error('❌ Could not extract public ID from Cloudinary URL');
-                }
-            } else {
-                // Delete from local storage (Legacy)
-                console.log(`🗑️ Deleting exam recording from local storage: ${recordingUrl}`)
-
-                const deleteResult = await deleteFromLocalStorage(recordingUrl)
-                deletionSuccess = deleteResult.success
-                isReadOnlyFS = deleteResult.readOnlyFS || false
-
-                if (!deletionSuccess && !isReadOnlyFS) {
-                    console.warn('Failed to delete from local storage, but continuing with database cleanup')
-                } else if (isReadOnlyFS) {
-                    console.log('⚠️ Running on read-only filesystem - database will be updated but file persists in deployment')
-                }
+            if (!deletionSuccess && !isReadOnlyFS) {
+                console.warn('Failed to delete from local storage, but continuing with database cleanup')
+            } else if (isReadOnlyFS) {
+                console.log('⚠️ Running on read-only filesystem - database will be updated but file persists in deployment')
             }
         } catch (error) {
             console.error('Deletion error:', error)

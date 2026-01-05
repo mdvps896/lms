@@ -3,6 +3,8 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { sendEmail } from '@/lib/email';
 
+import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -14,13 +16,22 @@ export async function POST(request) {
         const body = await request.json();
         const { email, name } = body;
 
-        console.log(`📧 [Send OTP] Request for: ${email}`);
+
 
         if (!email) {
             return NextResponse.json({
                 success: false,
                 message: 'Email is required'
             }, { status: 400 });
+        }
+
+        // 🔒 SECURITY: Rate Limiting
+        const rateLimit = checkOTPRateLimit(email);
+        if (!rateLimit.allowed) {
+            return NextResponse.json({
+                success: false,
+                message: rateLimit.message
+            }, { status: 429 });
         }
 
         await connectDB();
@@ -83,7 +94,7 @@ export async function POST(request) {
             }, { status: 500 });
         }
 
-        console.log(`✅ [Send OTP] OTP sent to: ${email}`);
+
 
         return NextResponse.json({
             success: true,

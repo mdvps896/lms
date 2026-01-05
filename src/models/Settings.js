@@ -123,6 +123,16 @@ const settingsSchema = new mongoose.Schema({
         lockoutDuration: { type: Number, default: 600 }, // seconds (10 minutes default)
         lockoutUnit: { type: String, default: 'minutes' } // 'seconds', 'minutes', 'hours'
     },
+    // App Kill Switch
+    appKillSwitch: {
+        enabled: { type: Boolean, default: false },
+        message: { type: String, default: 'This app version is no longer supported. Please update to the latest version.' },
+        minRequiredVersion: { type: String, default: '1.0.0' },
+        forceUpdate: { type: Boolean, default: false },
+        blockedVersions: [{ type: String }], // Specific versions to block
+        maintenanceMode: { type: Boolean, default: false },
+        maintenanceMessage: { type: String, default: 'App is under maintenance. Please try again later.' }
+    },
 
     // Single instance - only one settings document
     singleton: { type: Boolean, default: true, unique: true }

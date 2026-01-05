@@ -3,21 +3,74 @@ import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
+import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+import { signToken } from '@/utils/auth';
 
 // Import all models in correct order to ensure proper registration
 // Import all models in correct order to ensure proper registration
 import { Category, User, Settings } from '@/models/init';
 
+// Input validation and sanitization
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return '';
+  // Remove potential XSS and SQL injection characters
+  return input.trim().replace(/[<>'"`;()]/g, '');
+}
+
 export async function POST(request) {
   try {
     await connectDB();
 
-    const { email, password } = await request.json();
+    const body = await request.json();
+    let { email, password } = body;
 
-    console.log('Login attempt for:', email);
+    // 🔒 SECURITY: Input validation
+    if (!email || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // 🔒 SECURITY: Sanitize inputs
+    email = sanitizeInput(email).toLowerCase();
+
+    // 🔒 SECURITY: Validate email format
+    if (!validateEmail(email)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // 🔒 SECURITY: Check password length
+    if (password.length < 6 || password.length > 128) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // 🔒 SECURITY: Rate limiting for login attempts
+    const rateLimitCheck = checkOTPRateLimit(`login_${email}`);
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json({
+        success: false,
+        message: `Too many login attempts. Please try again in ${rateLimitCheck.remainingTime} seconds.`,
+        locked: true,
+        remainingTime: rateLimitCheck.remainingTime
+      }, { status: 429 });
+    }
+
+
 
     // Check if models are registered
-    console.log('Registered models:', Object.keys(mongoose.models));
+
 
     // Get Global Settings for Security
     // import Settings first
@@ -34,17 +87,11 @@ export async function POST(request) {
         const unit = settings.security.lockoutUnit || 'minutes';
         const duration = settings.security.lockoutDuration || 600;
 
-        // Settings stores the RAW value entered by user, but default logic treated it as seconds?
-        // Wait, in SecuritySMTPSettings.jsx we saw logic:
-        // onChange={(e) => handleSecurityChange('lockoutDuration', (parseInt(e.target.value) || 10) * 60)} for minutes
-        // AND validation logic in the NEW code I added handles seconds/minutes/hours conversion and saves as SECONDS.
-        // So `settings.security.lockoutDuration` should ALREADY be in seconds.
-
         lockoutDuration = duration;
         securityEnabled = settings.security.enabled !== false;
       }
     } catch (e) {
-      console.log('Failed to fetch security settings, using defaults');
+
     }
 
     // Find user without populate to avoid Category registration issues
@@ -77,7 +124,7 @@ export async function POST(request) {
       }
     }
 
-    console.log('User found:', user ? 'Yes' : 'No');
+
 
     if (!user) {
       return NextResponse.json(
@@ -113,15 +160,12 @@ export async function POST(request) {
       if (isPasswordValid) {
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.findByIdAndUpdate(user._id, { password: hashedPassword });
-        console.log('Password hashed for user:', user.email);
+
       }
     }
 
     if (!isPasswordValid) {
-      // Increment failed attempts for ADMIN only or all users? User requested "admin login".
-      // Let's apply to admin role users for now as requested.
-      // Increment failed attempts for ADMIN only or all users? User requested "admin login".
-      // Let's apply to admin role users for now as requested.
+
       if (securityEnabled && user.role === 'admin') {
         const attempts = (user.failedLoginAttempts || 0) + 1;
         const updates = { failedLoginAttempts: attempts };
@@ -129,13 +173,7 @@ export async function POST(request) {
         if (attempts >= maxAttempts) {
           updates.lockUntil = Date.now() + (lockoutDuration * 1000);
           updates.failedLoginAttempts = 0; // Reset count so next time after lock they start fresh? Or keep and just rely on lockUntil?
-          // Standard is to keep until successful login or admin reset, but simpler is reset count after locking so they get another fresh set of tries after wait.
-          // Actually, resetting 'failedLoginAttempts' to 0 immediately might unlock if we only check counts.
-          // But we check 'lockUntil', so resetting 'failedLoginAttempts' to 0 is fine, OR better logic:
-          // Keep failedLoginAttempts at max to indicate history, but 'lockUntil' governs access.
-          // Logic used here: If locked, we return early. If not locked and wrong password, we increment.
-          // If we reach limit, we set lock.
-          // When successfully logged in, we reset both.
+
         }
         await User.findByIdAndUpdate(user._id, updates);
 
@@ -200,12 +238,55 @@ export async function POST(request) {
     }
 
     // Normal login flow for users without 2FA or non-admin users
+
+    // Generate unique device ID from request headers
+    const userAgent = request.headers.get('user-agent') || '';
+    const deviceId = Buffer.from(`${email}-${userAgent}-${Date.now()}`).toString('base64').substring(0, 32);
+
+    // Check if user is already logged in on another device
+    if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
+      // User is logged in on another device
+      // Update to new device and invalidate old session
+      await User.findByIdAndUpdate(user._id, {
+        activeDeviceId: deviceId,
+        lastActiveAt: new Date()
+      });
+
+
+    } else {
+      // First login or same device
+      await User.findByIdAndUpdate(user._id, {
+        activeDeviceId: deviceId,
+        lastActiveAt: new Date()
+      });
+    }
+
+    // Generate JWT Token
+    const token = await signToken({
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
+
     const userObj = user.toObject();
     delete userObj.password;
     delete userObj.twoFactorOtp;
     delete userObj.resetOtp;
 
-    return NextResponse.json({ success: true, data: userObj });
+    // Add deviceId to response so mobile app can store it
+    userObj.deviceId = deviceId;
+
+    const response = NextResponse.json({ success: true, data: userObj, token });
+
+    // Set HttpOnly Cookie for web clients
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     console.error('Error name:', error.name);

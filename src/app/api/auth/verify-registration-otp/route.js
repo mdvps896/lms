@@ -15,7 +15,7 @@ export async function POST(request) {
         const body = await request.json();
         const { email, otp, name, mobile, password } = body;
 
-        console.log(`🔐 [Verify OTP] Request for: ${email}`);
+
 
         if (!email || !otp) {
             return NextResponse.json({
@@ -101,7 +101,7 @@ export async function POST(request) {
         // Generate token
         const token = Buffer.from(`${user._id}:${Date.now()}`).toString('base64');
 
-        console.log(`✅ [Verify OTP] Registration completed for: ${email}`);
+
 
         return NextResponse.json({
             success: true,

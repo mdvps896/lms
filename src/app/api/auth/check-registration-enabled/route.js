@@ -15,7 +15,7 @@ export async function GET() {
         const db = mongoose.connection.db;
         const settings = await db.collection('settings').findOne({});
 
-        console.log('📋 Settings from DB:', JSON.stringify(settings));
+
 
         const registrationEnabled =
             settings?.authPages?.enableRegistration === true ||
@@ -23,7 +23,7 @@ export async function GET() {
             settings?.general?.enableRegistration === true ||
             false;
 
-        console.log('📋 Registration Status:', registrationEnabled);
+
 
         return NextResponse.json({
             success: true,

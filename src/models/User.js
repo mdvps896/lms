@@ -121,6 +121,15 @@ const userSchema = new mongoose.Schema({
   // Security fields for account locking
   failedLoginAttempts: { type: Number, default: 0 },
   lockUntil: { type: Date },
+  // Single device login tracking
+  activeDeviceId: {
+    type: String,
+    default: null
+  },
+  lastActiveAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now,

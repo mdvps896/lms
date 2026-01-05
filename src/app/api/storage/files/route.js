@@ -3,7 +3,6 @@ import fs from 'fs'
 import path from 'path'
 import connectDB from '@/lib/mongodb'
 import Settings from '@/models/Settings'
-import { listCloudinaryResources } from '@/utils/cloudinary'
 
 // Helper function to get all files recursively (Local)
 function getAllFiles(dirPath, arrayOfFiles = []) {
@@ -65,14 +64,7 @@ export async function GET() {
         const localFiles = getAllFiles(publicDir)
 
         // 2. Get Cloudinary files (Primary storage) - DISABLED for Local Storage Mode
-        let cloudinaryFiles = [];
-        // try {
-        //     console.log('Fetching Cloudinary resources...');
-        //     const cloudResources = await listCloudinaryResources();
-        //     // ... mapping logic ...
-        // } catch (cloudError) {
-        //     console.error('Failed to fetch Cloudinary files:', cloudError.message);
-        // }
+        // 2. Get Cloudinary files - REMOVED
 
         // 3. Get exam recordings (from DB)
         const examRecordings = await getExamRecordings()
@@ -105,7 +97,6 @@ export async function GET() {
             }
 
             // If local file is not found, exclude it from results (Ghost record)
-            // This fixes the issue where deleted files still show up because DB record exists
             return null;
         }).filter(Boolean);
 
@@ -113,7 +104,7 @@ export async function GET() {
         const uniqueLocalFiles = Array.from(localFilesMap.values());
 
         // Merge all sources
-        const allFiles = [...cloudinaryFiles, ...uniqueLocalFiles, ...finalExamRecordings]
+        const allFiles = [...uniqueLocalFiles, ...finalExamRecordings]
 
         return NextResponse.json({
             success: true,
@@ -121,7 +112,6 @@ export async function GET() {
             count: allFiles.length,
             sources: {
                 local: localFiles.length,
-                cloudinary: cloudinaryFiles.length,
                 examRecordings: examRecordings.length
             }
         })

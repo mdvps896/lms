@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 import { sendEmail } from '@/lib/email';
+import { checkOTPRateLimit } from '@/utils/otpRateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function POST(request) {
     const body = await request.json();
     const { name, email, mobile } = body;
 
-    console.log(`📝 [Registration] Step 1 - OTP Request - Email: ${email}`);
+
 
     // Validation
     if (!name || !email || !mobile) {
@@ -23,6 +24,16 @@ export async function POST(request) {
         success: false,
         message: 'Name, email, and mobile are required'
       }, { status: 400 });
+    }
+
+    // Check OTP rate limit
+    const rateLimitCheck = checkOTPRateLimit(email);
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json({
+        success: false,
+        message: rateLimitCheck.message,
+        remainingTime: rateLimitCheck.remainingTime
+      }, { status: 429 });
     }
 
     await connectDB();
@@ -114,7 +125,7 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    console.log(`✅ [Registration] OTP sent to: ${email}`);
+
 
     return NextResponse.json({
       success: true,

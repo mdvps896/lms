@@ -5,6 +5,8 @@ import ExamAttempt from '@/models/ExamAttempt'
 import Question from '@/models/Question'
 import QuestionGroup from '@/models/QuestionGroup'
 import Subject from '@/models/Subject'
+import User from '@/models/User'
+import mongoose from 'mongoose'
 
 export async function GET(request, { params }) {
     try {
@@ -14,18 +16,32 @@ export async function GET(request, { params }) {
         const { searchParams } = new URL(request.url)
         const attemptId = searchParams.get('attemptId')
         const sessionToken = searchParams.get('sessionToken')
+        const userId = searchParams.get('userId') // Get userId from request
 
-        if (!id) {
+        // 🔒 SECURITY: Validate required parameters
+        if (!id || !attemptId || !userId) {
             return NextResponse.json(
-                { message: 'Exam ID is required' },
+                { message: 'Missing required parameters' },
                 { status: 400 }
             )
         }
 
-        if (!attemptId) {
+        // 🔒 SECURITY: Validate MongoDB ObjectId format to prevent injection
+        if (!mongoose.Types.ObjectId.isValid(id) ||
+            !mongoose.Types.ObjectId.isValid(attemptId) ||
+            !mongoose.Types.ObjectId.isValid(userId)) {
             return NextResponse.json(
-                { message: 'Attempt ID is required' },
+                { message: 'Invalid ID format' },
                 { status: 400 }
+            )
+        }
+
+        // 🔒 SECURITY: Verify user exists and is active
+        const user = await User.findById(userId);
+        if (!user || user.status !== 'active') {
+            return NextResponse.json(
+                { message: 'Unauthorized access' },
+                { status: 403 }
             )
         }
 
@@ -35,6 +51,14 @@ export async function GET(request, { params }) {
         if (!attempt || attempt.status !== 'active' || !attempt.isActive) {
             return NextResponse.json(
                 { message: 'Invalid or expired exam session' },
+                { status: 403 }
+            )
+        }
+
+        // 🔒 SECURITY: Verify attempt belongs to the requesting user
+        if (attempt.userId.toString() !== userId) {
+            return NextResponse.json(
+                { message: 'Unauthorized: This exam attempt does not belong to you' },
                 { status: 403 }
             )
         }
@@ -65,14 +89,14 @@ export async function GET(request, { params }) {
 
         if (exam.questionGroups && exam.questionGroups.length > 0) {
             console.log('Fetching questions for question groups:', exam.questionGroups.map(g => g._id));
-            
+
             // Get all questions that belong to these question groups
             questions = await Question.find({
                 questionGroup: { $in: exam.questionGroups.map(g => g._id) },
                 status: 'active'
             })
-            .populate('subject', 'name _id')
-            .lean();
+                .populate('subject', 'name _id')
+                .lean();
 
             console.log(`Found ${questions.length} questions from ${exam.questionGroups.length} question groups`);
 

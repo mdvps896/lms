@@ -14,7 +14,7 @@ export async function POST(request) {
         const body = await request.json();
         const { idToken, name, email, photoUrl } = body;
 
-        console.log(`🔐 [Google Auth] Attempt - Email: ${email}`);
+
 
         // Validation
         if (!email || !name) {
@@ -39,7 +39,7 @@ export async function POST(request) {
 
         if (user) {
             // Existing user - just login
-            console.log(`✅ [Google Auth] Existing user login - ${user.name}`);
+
         } else {
             // New user - check if registration is enabled
             if (!registrationEnabled) {
@@ -80,7 +80,7 @@ export async function POST(request) {
             });
 
             isNewUser = true;
-            console.log(`✅ [Google Auth] New user registered - ${user.name} (${user._id})`);
+
         }
 
         // Generate token
