@@ -5,7 +5,8 @@ import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 
 // Import all models in correct order to ensure proper registration
-import { Category, User } from '@/models/init';
+// Import all models in correct order to ensure proper registration
+import { Category, User, Settings } from '@/models/init';
 
 export async function POST(request) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request) {
 
     // Get Global Settings for Security
     // import Settings first
-    const Settings = mongoose.models.Settings || mongoose.model('Settings');
+    // const Settings = mongoose.models.Settings || mongoose.model('Settings'); // Removed redundant check
     let maxAttempts = 3;
     let lockoutDuration = 600; // seconds
     let securityEnabled = true;
