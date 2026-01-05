@@ -42,9 +42,14 @@ export async function GET(request, { params }) {
         const lastActivity = attempts.length > 0 ? attempts[0].startedAt : user.updatedAt;
 
         // Fetch Student Activities (Course)
+        console.log(`🔍 Fetching activities for user: ${id}, type: course_view`);
         const activities = await StudentActivity.find({ user: id, activityType: 'course_view' })
             .sort({ startTime: -1 })
             .lean();
+        console.log(`✅ Found ${activities.length} course view activities`);
+        if (activities.length > 0) {
+            console.log('Sample activity:', activities[0]);
+        }
 
         // Fetch PDF View Sessions from the specialized model
         const pdfSessions = await PDFViewSession.find({ user: id })

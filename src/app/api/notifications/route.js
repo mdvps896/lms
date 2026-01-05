@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Notification from '@/models/Notification';
+import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,14 +15,22 @@ export async function GET(request) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return NextResponse.json({ success: false, message: 'Invalid User ID format' }, { status: 400 });
+        }
+
+        console.log(`🔍 [API] Fetching notifications for user: ${userId}`);
+
         // Find active notifications where the user is a recipient
         const notifications = await Notification.find({
             status: 'active',
-            'recipients.userId': userId
+            'recipients.userId': new mongoose.Types.ObjectId(userId)
         })
             .sort({ createdAt: -1 })
             .limit(50)
             .lean();
+
+        console.log(`✅ Found ${notifications.length} notifications`);
 
         // Format for mobile
         const formatted = notifications.map(notif => {

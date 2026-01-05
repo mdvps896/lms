@@ -23,6 +23,7 @@ export async function POST(request) {
                 startTime: new Date(),
                 duration: 0
             });
+            console.log('✅ Created new activity:', activity);
             return NextResponse.json({ success: true, activityId: activity._id });
         }
         else if (action === 'end' && activityId) {

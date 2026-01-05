@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import mongoose from 'mongoose';
+import { signToken } from '@/utils/auth'; // Import signToken
 
 export const dynamic = 'force-dynamic';
 
@@ -83,8 +84,12 @@ export async function POST(request) {
 
         }
 
-        // Generate token
-        const token = Buffer.from(`${user._id}:${Date.now()}`).toString('base64');
+        // Generate proper JWT Token using auth utility
+        const token = await signToken({
+            userId: user._id,
+            email: user.email,
+            role: user.role
+        });
 
         return NextResponse.json({
             success: true,
