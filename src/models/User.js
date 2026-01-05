@@ -18,10 +18,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
-  profilePicture: {
-    type: String,
-    default: null,
-  },
   username: {
     type: String,
   },
@@ -101,10 +97,17 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
   },
-  enrolledCourses: {
-    type: [mongoose.Schema.Types.Mixed],
-    default: [],
-  },
+  enrolledCourses: [{
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course'
+    },
+    enrolledAt: {
+      type: Date,
+      default: Date.now
+    },
+    expiresAt: Date
+  }],
   fcmToken: {
     type: String,
     default: null,
@@ -126,10 +129,30 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  registerSource: {
+    type: String,
+    enum: ['web', 'app'],
+    default: 'web',
+  },
   lastActiveAt: {
     type: Date,
     default: null
   },
+  dob: {
+    type: Date,
+    default: null
+  },
+  admissionDate: {
+    type: Date,
+    default: Date.now
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    default: 'other',
+  },
+  secondaryEmail: String,
+  education: String,
   createdAt: {
     type: Date,
     default: Date.now,

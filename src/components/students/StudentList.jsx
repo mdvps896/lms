@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { FiDownload, FiUpload, FiPlus, FiSearch, FiEdit2, FiEye, FiTrash2, FiFilter } from 'react-icons/fi'
+import { FiDownload, FiUpload, FiPlus, FiSearch, FiEdit2, FiEye, FiTrash2, FiFilter, FiGlobe, FiSmartphone, FiMail, FiCheckSquare } from 'react-icons/fi'
+import { FcGoogle } from 'react-icons/fc'
+import { SiGmail } from 'react-icons/si'
+import { FaAndroid } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import SkeletonLoader from './SkeletonLoader'
 import AddStudentModal from './AddStudentModal'
@@ -14,9 +17,12 @@ const StudentList = () => {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
+    const [sourceFilter, setSourceFilter] = useState('all')
+    const [authFilter, setAuthFilter] = useState('all')
+    const [selectedStudents, setSelectedStudentsList] = useState([]) // ID list of selected students
     const [currentPage, setCurrentPage] = useState(1)
     const [studentsPerPage] = useState(10)
-    
+
     // Modals
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
@@ -28,12 +34,21 @@ const StudentList = () => {
         loadStudents()
     }, [])
 
+    const truncateName = (name) => {
+        if (!name) return '';
+        const words = name.split(' ').filter(w => w.length > 0);
+        if (words.length > 2) {
+            return words.slice(0, 2).join(' ') + '..';
+        }
+        return name;
+    }
+
     const loadStudents = async () => {
         setLoading(true)
         try {
             const response = await fetch('/api/users?role=student&populate=category')
             const data = await response.json()
-            
+
             if (data.success) {
                 const studentsData = data.data.map(user => ({
                     id: user._id,
@@ -43,10 +58,29 @@ const StudentList = () => {
                     rollNumber: user.rollNumber || 'Not Assigned',
                     category: user.category ? user.category.name : 'Not Assigned',
                     categoryId: user.category ? user.category._id : null,
-                    enrollmentDate: new Date(user.createdAt).toLocaleDateString(),
+                    enrollmentDate: new Date(user.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    }),
                     status: user.status || 'active',
-                    isGoogleAuth: user.isGoogleAuth || false,
-                    emailVerified: user.emailVerified || false
+                    isGoogleAuth: user.isGoogleAuth || user.authProvider === 'google',
+                    authProvider: user.authProvider || 'local',
+                    // Prioritize 'app' if registerSource is 'app' OR if fcmToken exists (indicating app usage)
+                    registerSource: (user.registerSource === 'app' || user.fcmToken) ? 'app' : 'web',
+                    enrolledCourses: user.enrolledCourses || [],
+                    emailVerified: user.emailVerified || false,
+                    fcmToken: user.fcmToken,
+                    address: user.address || '',
+                    city: user.city || '',
+                    state: user.state || '',
+                    pincode: user.pincode || '',
+                    dob: user.dob || '',
+                    admissionDate: user.admissionDate || '',
+                    gender: user.gender || 'other',
+                    secondaryEmail: user.secondaryEmail || '',
+                    education: user.education || '',
+                    profileImage: user.profileImage || null
                 }))
                 setStudents(studentsData)
                 setFilteredStudents(studentsData)
@@ -67,6 +101,7 @@ const StudentList = () => {
             result = result.filter(student =>
                 student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                student.rollNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 student.phone.includes(searchTerm)
             )
         }
@@ -76,9 +111,23 @@ const StudentList = () => {
             result = result.filter(student => student.status === statusFilter)
         }
 
+        // Source filter
+        if (sourceFilter !== 'all') {
+            result = result.filter(student => student.registerSource === sourceFilter)
+        }
+
+        // Auth filter
+        if (authFilter !== 'all') {
+            if (authFilter === 'google') {
+                result = result.filter(student => student.isGoogleAuth)
+            } else {
+                result = result.filter(student => !student.isGoogleAuth)
+            }
+        }
+
         setFilteredStudents(result)
         setCurrentPage(1)
-    }, [searchTerm, statusFilter, students])
+    }, [searchTerm, statusFilter, sourceFilter, authFilter, students])
 
     // Pagination
     const indexOfLastStudent = currentPage * studentsPerPage
@@ -86,34 +135,115 @@ const StudentList = () => {
     const currentStudents = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent)
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage)
 
-    // Export CSV
-    const exportToCSV = () => {
-        const headers = ['ID', 'Name', 'Email', 'Phone', 'Roll Number', 'Category', 'Enrollment Date', 'Status']
-        const csvData = filteredStudents.map(s => [
-            s.id, s.name, s.email, s.phone, s.rollNumber, s.category, s.enrollmentDate, s.status
-        ])
+    // Selection Logic
+    const toggleSelectStudent = (id) => {
+        setSelectedStudentsList(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        )
+    }
 
-        let csvContent = headers.join(',') + '\\n'
-        csvData.forEach(row => {
-            csvContent += row.join(',') + '\\n'
+    const toggleSelectAll = () => {
+        if (selectedStudents.length === currentStudents.length) {
+            setSelectedStudentsList([])
+        } else {
+            setSelectedStudentsList(currentStudents.map(s => s.id))
+        }
+    }
+
+    // Export CSV (Modified to support both all filtered and specific selected)
+    const exportToCSV = (specificData = null) => {
+        const dataToExport = specificData || filteredStudents
+
+        const headers = [
+            'ID',
+            'Roll Number',
+            'Name',
+            'Email',
+            'Phone',
+            'Register Source',
+            'Auth Type',
+            'Enroll Date',
+            'Status',
+            'Enrolled Courses',
+            'Full Address'
+        ]
+
+        const csvData = dataToExport.map(s => {
+            const courseTitles = s.enrolledCourses?.map(c => c.courseId?.title).filter(Boolean).join('; ') || 'No Courses';
+            const fullAddress = [s.address, s.city, s.state, s.pincode].filter(Boolean).join(', ') || 'N/A';
+
+            return [
+                s.id,
+                `"${s.rollNumber}"`,
+                `"${s.name}"`,
+                s.email,
+                s.phone,
+                s.registerSource,
+                s.isGoogleAuth ? 'Google' : 'Local/Email',
+                s.enrollmentDate,
+                s.status,
+                `"${courseTitles}"`,
+                `"${fullAddress}"`
+            ]
         })
 
-        const blob = new Blob([csvContent], { type: 'text/csv' })
+        let csvContent = headers.join(',') + '\n'
+        csvData.forEach(row => {
+            csvContent += row.join(',') + '\n'
+        })
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `students_${new Date().toISOString().split('T')[0]}.csv`
+        a.download = `students_report_${new Date().toISOString().split('T')[0]}.csv`
         a.click()
 
         Swal.fire({
             icon: 'success',
-            title: 'Exported!',
-            text: 'Students data exported successfully',
+            title: 'CSV Exported!',
+            text: `Data for ${dataToExport.length} students has been generated.`,
             timer: 2000
         })
     }
 
-    // Import CSV
+    const handleBulkExport = () => {
+        const dataToExport = students.filter(s => selectedStudents.includes(s.id))
+        exportToCSV(dataToExport)
+    }
+
+    const handleBulkDelete = async () => {
+        const result = await Swal.fire({
+            title: 'Delete Selected?',
+            text: `Are you sure you want to delete ${selectedStudents.length} selected students?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete all!'
+        })
+
+        if (result.isConfirmed) {
+            try {
+                setLoading(true)
+                let successCount = 0
+                for (const id of selectedStudents) {
+                    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' })
+                    const data = await res.json()
+                    if (data.success) successCount++
+                }
+
+                loadStudents()
+                setSelectedStudentsList([])
+                Swal.fire('Deleted!', `${successCount} students removed.`, 'success')
+            } catch (error) {
+                Swal.fire('Error', 'Bulk delete failed', 'error')
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    // Import CSV logic stays similar but sets source to web
     const importFromCSV = (e) => {
         const file = e.target.files[0]
         if (!file) return
@@ -122,9 +252,9 @@ const StudentList = () => {
         reader.onload = async (event) => {
             try {
                 const text = event.target.result
-                const rows = text.split('\\n').filter(row => row.trim())
+                const rows = text.split('\n').filter(row => row.trim())
                 const headers = rows[0].split(',')
-                
+
                 const importedStudents = []
                 for (let i = 1; i < rows.length; i++) {
                     const values = rows[i].split(',')
@@ -135,6 +265,7 @@ const StudentList = () => {
                             phone: values[3]?.trim(),
                             password: 'student123',
                             role: 'student',
+                            registerSource: 'web',
                             status: values[5]?.trim() || 'active',
                         }
                         importedStudents.push(newStudent)
@@ -143,7 +274,7 @@ const StudentList = () => {
 
                 if (importedStudents.length > 0) {
                     let successCount = 0
-                    
+
                     for (const student of importedStudents) {
                         try {
                             const response = await fetch('/api/users', {
@@ -157,9 +288,9 @@ const StudentList = () => {
                             console.error('Error importing student:', error)
                         }
                     }
-                    
+
                     loadStudents()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Imported!',
@@ -202,7 +333,7 @@ const StudentList = () => {
 
                 if (data.success) {
                     loadStudents()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -252,7 +383,7 @@ const StudentList = () => {
                                 <input
                                     type="text"
                                     className="form-control"
-                                    placeholder="Search students..."
+                                    placeholder="Search by Name, Email or Roll Num..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -260,7 +391,7 @@ const StudentList = () => {
                         </div>
                         <div className="col-md-6 text-end">
                             <div className="btn-group me-2">
-                                <button 
+                                <button
                                     className="btn btn-sm btn-success"
                                     onClick={exportToCSV}
                                     disabled={filteredStudents.length === 0}
@@ -277,7 +408,7 @@ const StudentList = () => {
                                     />
                                 </label>
                             </div>
-                            <button 
+                            <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => setShowAddModal(true)}
                             >
@@ -286,110 +417,240 @@ const StudentList = () => {
                         </div>
                     </div>
 
-                    {/* Filters */}
-                    <div className="row mb-3">
+                    {/* Multi-Filters */}
+                    <div className="row mb-3 g-2">
                         <div className="col-md-3">
-                            <select
-                                className="form-select form-select-sm"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option value="all">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text bg-light"><FiFilter size={12} /></span>
+                                <select
+                                    className="form-select"
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                >
+                                    <option value="all">Every Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
                         </div>
-                        <div className="col-md-9 text-end">
+                        <div className="col-md-3">
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text bg-light"><FiGlobe size={12} /></span>
+                                <select
+                                    className="form-select"
+                                    value={sourceFilter}
+                                    onChange={(e) => setSourceFilter(e.target.value)}
+                                >
+                                    <option value="all">All Sources</option>
+                                    <option value="web">Web Users</option>
+                                    <option value="app">App Users</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="col-md-3">
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text bg-light"><FiMail size={12} /></span>
+                                <select
+                                    className="form-select"
+                                    value={authFilter}
+                                    onChange={(e) => setAuthFilter(e.target.value)}
+                                >
+                                    <option value="all">All Auth Types</option>
+                                    <option value="google">Google Login</option>
+                                    <option value="local">Direct/Email</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="col-md-3 text-end d-flex align-items-center justify-content-end">
                             <small className="text-muted">
-                                Showing {indexOfFirstStudent + 1} to {Math.min(indexOfLastStudent, filteredStudents.length)} of {filteredStudents.length} students
+                                Total: {filteredStudents.length}
                             </small>
                         </div>
                     </div>
 
+                    {/* Bulk Actions Bar */}
+                    {selectedStudents.length > 0 && (
+                        <div className="alert alert-primary d-flex align-items-center justify-content-between animate__animated animate__fadeInDown mb-4 py-2 px-3 border-0 shadow-sm" style={{ backgroundColor: '#eef2ff' }}>
+                            <div className="d-flex align-items-center gap-3">
+                                <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px' }}>
+                                    {selectedStudents.length}
+                                </div>
+                                <span className="fw-bold text-primary">Students Selected</span>
+                            </div>
+                            <div className="d-flex gap-2">
+                                <button className="btn btn-sm btn-outline-primary border-primary" onClick={handleBulkExport}>
+                                    <FiDownload className="me-1" /> Export Selected
+                                </button>
+                                <button className="btn btn-sm btn-danger shadow-sm" onClick={handleBulkDelete}>
+                                    <FiTrash2 className="me-1" /> Delete {selectedStudents.length} Students
+                                </button>
+                                <button className="btn btn-sm btn-light border" onClick={() => setSelectedStudentsList([])}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Table */}
                     <div className="table-responsive">
-                        <table className="table table-hover">
-                            <thead>
+                        <table className="table table-hover align-middle">
+                            <thead className="bg-light">
                                 <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Roll Number</th>
-                                    <th>Category</th>
-                                    <th>Enrollment Date</th>
+                                    <th style={{ width: '40px' }}>
+                                        <div className="form-check">
+                                            <input
+                                                className="form-check-input cursor-pointer"
+                                                type="checkbox"
+                                                checked={selectedStudents.length === currentStudents.length && currentStudents.length > 0}
+                                                onChange={toggleSelectAll}
+                                            />
+                                        </div>
+                                    </th>
+                                    <th style={{ width: '50px' }}>#</th>
+                                    <th>Student Info</th>
+                                    <th>Mail</th>
+                                    <th>Courses Enrolled</th>
+                                    <th>Register Date</th>
+                                    <th className="text-center">Source/Auth</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th className="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <SkeletonLoader rows={studentsPerPage} />
+                                    <SkeletonLoader rows={studentsPerPage} colSpan={9} />
                                 ) : currentStudents.length > 0 ? (
                                     currentStudents.map((student, index) => (
-                                        <tr key={student.id}>
+                                        <tr key={student.id} className={selectedStudents.includes(student.id) ? 'table-light' : ''}>
+                                            <td>
+                                                <div className="form-check">
+                                                    <input
+                                                        className="form-check-input cursor-pointer"
+                                                        type="checkbox"
+                                                        checked={selectedStudents.includes(student.id)}
+                                                        onChange={() => toggleSelectStudent(student.id)}
+                                                    />
+                                                </div>
+                                            </td>
                                             <td>{indexOfFirstStudent + index + 1}</td>
                                             <td>
                                                 <div className="d-flex align-items-center">
-                                                    <div className="avatar avatar-sm bg-soft-primary text-primary me-2">
+                                                    {student.profileImage ? (
+                                                        <img
+                                                            src={student.profileImage}
+                                                            alt={student.name}
+                                                            className="rounded-circle me-3"
+                                                            style={{
+                                                                width: '40px',
+                                                                height: '40px',
+                                                                objectFit: 'cover',
+                                                                border: '2px solid #e3e6f0'
+                                                            }}
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                                e.target.nextSibling.style.display = 'flex';
+                                                            }}
+                                                        />
+                                                    ) : null}
+                                                    <div
+                                                        className="avatar avatar-md bg-soft-primary text-primary me-3 fw-bold rounded-circle d-flex align-items-center justify-content-center"
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '40px',
+                                                            display: student.profileImage ? 'none' : 'flex'
+                                                        }}
+                                                    >
                                                         {student.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <div className="fw-semibold">{student.name}</div>
-                                                        {student.isGoogleAuth && (
-                                                            <small className="badge bg-info">Google Auth</small>
+                                                        <div className="fw-bold text-dark" title={student.name}>
+                                                            {truncateName(student.name)}
+                                                        </div>
+                                                        <div className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+                                                            {student.rollNumber}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="d-flex flex-column">
+                                                    <span className="text-muted small">{student.email}</span>
+                                                    <span className="text-muted" style={{ fontSize: '10px' }}>{student.phone}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {student.enrolledCourses && student.enrolledCourses.length > 0 ? (
+                                                    <div className="d-flex flex-column">
+                                                        <span className="badge bg-soft-info text-info border-info-subtle text-truncate" style={{ maxWidth: '150px' }}>
+                                                            {student.enrolledCourses[0].courseId?.title || 'Unknown Course'}
+                                                        </span>
+                                                        {student.enrolledCourses.length > 1 && (
+                                                            <small className="text-primary fw-medium mt-1">
+                                                                + {student.enrolledCourses.length - 1} more
+                                                            </small>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted small">No courses</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <div className="text-muted" style={{ fontSize: '12px' }}>
+                                                    {student.enrollmentDate}
+                                                </div>
+                                            </td>
+                                            <td className="text-center">
+                                                <div className="d-flex justify-content-center gap-3">
+                                                    {/* Source Icon */}
+                                                    <div title={student.registerSource === 'web' ? 'Web User' : 'App User'}>
+                                                        {student.registerSource === 'web' ? (
+                                                            <FiGlobe className="text-info" size={18} />
+                                                        ) : (
+                                                            <FaAndroid className="text-success" size={18} />
+                                                        )}
+                                                    </div>
+                                                    {/* Auth Icon */}
+                                                    <div title={student.isGoogleAuth ? 'Google Account' : 'Email Account'}>
+                                                        {student.isGoogleAuth ? (
+                                                            <FcGoogle size={18} />
+                                                        ) : (
+                                                            <div className="position-relative">
+                                                                <FiMail className="text-danger" size={18} />
+                                                                <SiGmail className="position-absolute" style={{ top: '-2px', right: '-8px', fontSize: '8px', color: '#EA4335' }} />
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
-                                                {student.email}
-                                                {student.emailVerified && (
-                                                    <span className="ms-1 text-success" title="Verified">✓</span>
-                                                )}
-                                            </td>
-                                            <td>{student.phone}</td>
-                                            <td>
-                                                <span className="badge bg-primary">
-                                                    {student.rollNumber}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className="badge bg-light text-dark">
-                                                    {student.category}
-                                                </span>
-                                            </td>
-                                            <td>{student.enrollmentDate}</td>
-                                            <td>
-                                                <span className={`badge ${
-                                                    student.status === 'active' ? 'bg-success' :
+                                                <span className={`badge rounded-pill ${student.status === 'active' ? 'bg-success' :
                                                     student.status === 'inactive' ? 'bg-secondary' :
-                                                    'bg-danger'
-                                                }`}>
+                                                        'bg-danger'
+                                                    }`} style={{ fontSize: '10px', textTransform: 'uppercase' }}>
                                                     {student.status}
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td className="text-end">
                                                 <div className="btn-group btn-group-sm">
                                                     <button
                                                         className="btn btn-light"
                                                         onClick={() => handleView(student)}
-                                                        title="View"
+                                                        title="View Profile"
                                                     >
                                                         <FiEye />
                                                     </button>
                                                     <button
                                                         className="btn btn-light"
                                                         onClick={() => handleEdit(student)}
-                                                        title="Edit"
+                                                        title="Edit Profile"
                                                     >
                                                         <FiEdit2 />
                                                     </button>
                                                     <button
                                                         className="btn btn-light text-danger"
                                                         onClick={() => handleDelete(student)}
-                                                        title="Delete"
+                                                        title="Delete Student"
                                                     >
                                                         <FiTrash2 />
                                                     </button>
@@ -399,8 +660,11 @@ const StudentList = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-4">
-                                            <p className="text-muted">No students found</p>
+                                        <td colSpan="8" className="text-center py-5">
+                                            <div className="text-muted">
+                                                <FiSearch size={40} className="mb-3 opacity-25" />
+                                                <p>No students found matching your criteria</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
@@ -418,7 +682,7 @@ const StudentList = () => {
                                             className="page-link"
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                         >
-                                            Previous
+                                            Prev
                                         </button>
                                     </li>
                                     {[...Array(totalPages)].map((_, i) => (

@@ -3,7 +3,8 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import ExamAttempt from '@/models/ExamAttempt';
 import Category from '@/models/Category';
-import Exam from '@/models/Exam'; // Ensure Exam is registered
+import Course from '@/models/Course';
+import Exam from '@/models/Exam';
 import PDFViewSession from '@/models/PDFViewSession';
 import StudentActivity from '@/models/StudentActivity';
 
@@ -15,6 +16,7 @@ export async function GET(request, { params }) {
         const user = await User.findById(id)
             .select('-password -twoFactorSecret')
             .populate('category', 'name')
+            .populate('enrolledCourses.courseId', 'title thumbnail')
             .lean();
 
         if (!user) {

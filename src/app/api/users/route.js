@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Course from '@/models/Course';
+import Category from '@/models/Category';
 
 // GET all users
 export async function GET(request) {
@@ -22,6 +24,7 @@ export async function GET(request) {
     let userQuery = User.find(query)
       .select('-password')
       .populate('category', 'name')
+      .populate('enrolledCourses.courseId', 'title')
       .sort({ createdAt: -1 });
 
     const users = await userQuery;
@@ -52,21 +55,15 @@ export async function POST(request) {
 
     // Auto-generate roll number for students
     if ((body.role === 'student' || body.role === undefined) && !body.rollNumber) {
-      const lastStudent = await User.findOne({
-        role: 'student',
-        rollNumber: { $regex: /^ST-/ }
-      }).sort({ createdAt: -1 });
-
-      let nextNum = 1001;
-      if (lastStudent && lastStudent.rollNumber) {
-        const lastNumStr = lastStudent.rollNumber.replace('ST-', '');
-        const lastNum = parseInt(lastNumStr);
-        if (!isNaN(lastNum)) {
-          nextNum = lastNum + 1;
-        }
-      }
-      body.rollNumber = `ST-${nextNum}`;
+      const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
+      body.rollNumber = await ensureUniqueRollNumber(User, 'PK');
     }
+
+    // Set register source to 'web' for manual admin creation
+    if (!body.registerSource) {
+      body.registerSource = 'web';
+    }
+
 
     const user = await User.create(body);
     const userObj = user.toObject();

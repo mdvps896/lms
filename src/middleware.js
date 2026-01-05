@@ -21,6 +21,7 @@ export async function middleware(request) {
         '/api/auth/verify-registration-otp',
         '/api/auth/check-registration-enabled',
         '/api/auth/google-register',
+        '/api/auth/reset-password',
         '/api/settings', // Often public
         '/api/upload', // Sometimes public or protected? Let's protect, but maybe it breaks image uploads?
         // Assuming upload endpoints are protected purely by this.

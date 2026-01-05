@@ -70,20 +70,13 @@ export async function POST(request) {
         // Hash password with bcrypt to match login logic
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Generate roll number
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+        // Generate roll number using the new utility
+        const { generateRollNumber, ensureUniqueRollNumber } = await import('@/utils/rollNumber');
+        const rollNumber = await ensureUniqueRollNumber(User);
 
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+        // Determine register source
+        const source = body.source || body.registerSource || 'app'; // Default to app for this flow if not specified
 
-        const todayCount = await User.countDocuments({
-            createdAt: { $gte: startOfDay, $lte: endOfDay },
-            role: 'student'
-        });
-
-        const sequence = String(todayCount + 1).padStart(3, '0');
-        const rollNumber = `ST-${dateStr}-${sequence}`;
 
         // Update user with complete details
         user.name = name;
@@ -93,6 +86,7 @@ export async function POST(request) {
         user.emailVerified = true;
         user.registrationOtp = null;
         user.registrationOtpExpiry = null;
+        user.registerSource = source;
         user.isActive = true;
         user.authProvider = 'local';
 

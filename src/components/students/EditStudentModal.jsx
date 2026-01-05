@@ -1,6 +1,5 @@
-'use client'
-
 import React, { useState, useEffect } from 'react'
+import { FiX, FiCalendar, FiMapPin, FiBook } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
 const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
@@ -9,23 +8,44 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         email: '',
         phone: '',
         status: 'active',
-        category: ''
+        category: '',
+        dob: '',
+        admissionDate: '',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+        enrolledCourses: [] // Array of course IDs
     })
     const [categories, setCategories] = useState([])
+    const [courses, setCourses] = useState([])
     const [loading, setLoading] = useState(false)
+    const [loadingCourses, setLoadingCourses] = useState(false)
 
     useEffect(() => {
         if (student) {
             setFormData({
-                name: student.name,
-                email: student.email,
+                name: student.name || '',
+                email: student.email || '',
                 phone: student.phone || '',
                 status: student.status || 'active',
-                category: student.categoryId || ''
+                category: student.categoryId || '',
+                dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
+                admissionDate: student.admissionDate ? new Date(student.admissionDate).toISOString().split('T')[0] :
+                    (student.enrollmentDate ? new Date(student.enrollmentDate).toISOString().split('T')[0] : ''),
+                address: student.address || '',
+                city: student.city || '',
+                state: student.state || '',
+                pincode: student.pincode || '',
+                enrolledCourses: student.enrolledCourses?.map(ec => {
+                    const id = ec.courseId?._id || ec.courseId;
+                    return String(id);
+                }) || []
             })
         }
         if (show) {
             fetchCategories()
+            fetchCourses()
         }
     }, [student, show])
 
@@ -33,23 +53,48 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         try {
             const response = await fetch('/api/categories?status=active')
             const data = await response.json()
-            
-            if (data.success) {
-                setCategories(data.data)
-            }
+            if (data.success) setCategories(data.data)
         } catch (error) {
             console.error('Error fetching categories:', error)
         }
     }
 
+    const fetchCourses = async () => {
+        try {
+            const response = await fetch('/api/courses?status=active')
+            const data = await response.json()
+            if (data.success && Array.isArray(data.data)) {
+                setCourses(data.data)
+            } else {
+                setCourses([])
+            }
+        } catch (error) {
+            console.error('Error fetching courses:', error)
+            setCourses([])
+        }
+    }
+
+    const handleCourseToggle = (courseId) => {
+        const idStr = String(courseId);
+        setFormData(prev => {
+            const isSelected = prev.enrolledCourses.some(id => String(id) === idStr);
+            return {
+                ...prev,
+                enrolledCourses: isSelected
+                    ? prev.enrolledCourses.filter(id => String(id) !== idStr)
+                    : [...prev.enrolledCourses, idStr]
+            };
+        });
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
-        
+
         if (!formData.name || !formData.email || !formData.category) {
             Swal.fire({
                 icon: 'error',
-                title: 'Error',
-                text: 'Name, Email and Category are required',
+                title: 'Required',
+                text: 'Name, Email and Category are mandatory.',
                 timer: 2000
             })
             return
@@ -58,15 +103,23 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         setLoading(true)
 
         try {
+            // Re-format enrolledCourses for storage
+            const formattedEnrolledCourses = formData.enrolledCourses.map(id => {
+                // Check if it was already enrolled to keep original enrollment date
+                const existing = student.enrolledCourses?.find(ec => (ec.courseId?._id || ec.courseId) === id);
+                return {
+                    courseId: id,
+                    enrolledAt: existing ? existing.enrolledAt : new Date(),
+                    expiresAt: existing ? existing.expiresAt : new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+                }
+            })
+
             const response = await fetch(`/api/users/${student.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: formData.name,
-                    email: formData.email,
-                    phone: formData.phone,
-                    status: formData.status,
-                    category: formData.category
+                    ...formData,
+                    enrolledCourses: formattedEnrolledCourses
                 }),
             })
 
@@ -76,28 +129,17 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
                 Swal.fire({
                     icon: 'success',
                     title: 'Updated!',
-                    text: 'Student updated successfully',
-                    timer: 1500,
+                    text: 'Student profile has been updated.',
+                    timer: 2000,
                     showConfirmButton: false
                 })
-
                 onSuccess()
                 onClose()
             } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: data.message || 'Failed to update student',
-                    timer: 2000
-                })
+                Swal.fire('Error', data.message || 'Update failed', 'error')
             }
         } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Failed to update student',
-                timer: 2000
-            })
+            Swal.fire('Error', 'Connection failed', 'error')
         } finally {
             setLoading(false)
         }
@@ -106,77 +148,156 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
     if (!show) return null
 
     return (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-            <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-content">
-                    <div className="modal-header">
-                        <h5 className="modal-title">Edit Student</h5>
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060, overflowY: 'auto' }} onClick={onClose}>
+            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-content border-0 shadow-lg">
+                    <div className="modal-header bg-warning text-dark py-3">
+                        <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                            Edit Student Profile
+                        </h5>
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
+
                     <form onSubmit={handleSubmit}>
-                        <div className="modal-body">
-                            <div className="mb-3">
-                                <label className="form-label">Full Name <span className="text-danger">*</span></label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Email <span className="text-danger">*</span></label>
-                                <input
-                                    type="email"
-                                    className="form-control"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Phone</label>
-                                <input
-                                    type="tel"
-                                    className="form-control"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Category <span className="text-danger">*</span></label>
-                                <select
-                                    className="form-select"
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Select Category</option>
-                                    {categories.map((category) => (
-                                        <option key={category._id} value={category._id}>
-                                            {category.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Status</label>
-                                <select
-                                    className="form-select"
-                                    value={formData.status}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="suspended">Suspended</option>
-                                </select>
+                        <div className="modal-body p-4">
+                            <div className="row g-3">
+                                {/* Section 1 */}
+                                <div className="col-12 border-bottom pb-2 mb-2">
+                                    <h6 className="text-warning-emphasis fw-bold mb-0">Personal Profile</h6>
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Full Name <span className="text-danger">*</span></label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Email Address <span className="text-danger">*</span></label>
+                                    <input
+                                        type="email"
+                                        className="form-control"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        className="form-control"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Date of Birth</label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
+                                        <input
+                                            type="date"
+                                            className="form-control"
+                                            value={formData.dob}
+                                            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Section 2 */}
+                                <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                    <h6 className="text-warning-emphasis fw-bold mb-0">Admission & Courses</h6>
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Admission Date <span className="text-danger">*</span></label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
+                                        <input
+                                            type="date"
+                                            className="form-control"
+                                            value={formData.admissionDate}
+                                            onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Profile Category <span className="text-danger">*</span></label>
+                                    <select
+                                        className="form-select border-warning-subtle"
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Select Category</option>
+                                        {categories.map((cat, idx) => (
+                                            <option key={String(cat._id || `cat-edit-${idx}`)} value={cat._id}>{cat.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Section 3 */}
+                                <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                    <h6 className="text-warning-emphasis fw-bold mb-0">Location & Status</h6>
+                                </div>
+
+                                <div className="col-12">
+                                    <label className="form-label small fw-bold">Address</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows="2"
+                                        value={formData.address}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    ></textarea>
+                                </div>
+
+                                <div className="col-md-4">
+                                    <label className="form-label small fw-bold">City</label>
+                                    <input type="text" className="form-control" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
+                                </div>
+                                <div className="col-md-4">
+                                    <label className="form-label small fw-bold">State</label>
+                                    <input type="text" className="form-control" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} />
+                                </div>
+                                <div className="col-md-4">
+                                    <label className="form-label small fw-bold">Pincode</label>
+                                    <input type="text" className="form-control" value={formData.pincode} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} />
+                                </div>
+
+                                <div className="col-md-12">
+                                    <label className="form-label small fw-bold">Student Account Status</label>
+                                    <select
+                                        className="form-select border-soft-danger"
+                                        value={formData.status}
+                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="suspended">Suspended</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                            <button type="submit" className="btn btn-primary" disabled={loading}>
-                                {loading ? 'Updating...' : 'Update Student'}
+
+                        <div className="modal-footer bg-light">
+                            <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={onClose} disabled={loading}>
+                                Close
+                            </button>
+                            <button type="submit" className="btn btn-warning px-5 fw-bold shadow-sm" disabled={loading}>
+                                {loading ? (
+                                    <><span className="spinner-border spinner-border-sm me-2"></span> Updating...</>
+                                ) : (
+                                    'Save Changes'
+                                )}
                             </button>
                         </div>
                     </form>

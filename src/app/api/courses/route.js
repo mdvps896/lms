@@ -24,16 +24,14 @@ export async function GET(request) {
             // Calculate student counts for each course
             const coursesWithStats = await Promise.all(courses.map(async (course) => {
                 const courseObj = course.toObject();
-                let studentCount = 0;
-
-                if (course.category) {
-                    studentCount = await User.countDocuments({
-                        role: 'student',
-                        category: course.category._id
-                    });
-                } else {
-                    studentCount = await User.countDocuments({ role: 'student' });
-                }
+                // Calculate real student counts for this specific course
+                const studentCount = await User.countDocuments({
+                    role: 'student',
+                    $or: [
+                        { 'enrolledCourses.courseId': course._id },
+                        { enrolledCourses: course._id } // Support for legacy simple ID format
+                    ]
+                });
 
                 return { ...courseObj, studentCount };
             }));
@@ -42,7 +40,16 @@ export async function GET(request) {
         }
 
         // Mobile app format - formatted data
-        const formattedCourses = courses.map(course => {
+        const formattedEntities = await Promise.all(courses.map(async course => {
+            // ... (rest of formatting)
+            const studentCount = await User.countDocuments({
+                role: 'student',
+                $or: [
+                    { 'enrolledCourses.courseId': course._id },
+                    { enrolledCourses: course._id }
+                ]
+            });
+
             // Format duration
             let durationText = '0h 0m';
             if (course.duration) {
@@ -102,7 +109,7 @@ export async function GET(request) {
                 totalLectures: totalLectures,
                 totalQuizzes: course.exams?.length || 0,
                 hasCertificate: course.hasCertificate || false,
-                students: '0',
+                students: studentCount.toString(),
                 rating: course.ratings && course.ratings.length > 0
                     ? (course.ratings.reduce((acc, curr) => acc + curr.rating, 0) / course.ratings.length).toFixed(1)
                     : '4.5',
@@ -116,13 +123,12 @@ export async function GET(request) {
                     date: new Date(r.createdAt).toLocaleDateString()
                 })) : []
             };
-            console.log(`📡 [API List] ${course.title} - Language: ${formatted.language}`);
             return formatted;
-        });
+        }));
 
         return NextResponse.json({
             success: true,
-            data: formattedCourses,
+            data: formattedEntities,
         });
     } catch (error) {
         console.error('Error fetching courses:', error);

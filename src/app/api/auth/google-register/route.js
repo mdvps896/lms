@@ -50,20 +50,13 @@ export async function POST(request) {
                 }, { status: 403 });
             }
 
-            // Generate roll number
-            const today = new Date();
-            const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+            // Generate roll number using the new utility
+            const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
+            const rollNumber = await ensureUniqueRollNumber(User);
 
-            const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-            const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+            // Determine register source
+            const registerSource = body.source || body.registerSource || 'app';
 
-            const todayCount = await User.countDocuments({
-                createdAt: { $gte: startOfDay, $lte: endOfDay },
-                role: 'student'
-            });
-
-            const sequence = String(todayCount + 1).padStart(3, '0');
-            const rollNumber = `ST-${dateStr}-${sequence}`;
 
             // Create new user
             user = await User.create({
@@ -75,8 +68,9 @@ export async function POST(request) {
                 role: 'student',
                 isActive: true,
                 enrolledCourses: [],
-                profileImage: photoUrl || '',
+                profileImage: photoUrl || null,
                 authProvider: 'google',
+                registerSource,
                 // No category required - skip it
             });
 
