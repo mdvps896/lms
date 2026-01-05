@@ -9,7 +9,7 @@ const useBootstrapUtils = (pathName) => {
         // Import bootstrap with error handling
         import('bootstrap/dist/js/bootstrap.bundle.min')
             .then(() => {
-                console.log('✅ Bootstrap loaded successfully');
+
             })
             .catch((error) => {
                 console.warn('⚠️ Bootstrap loading failed:', error);

@@ -14,18 +14,18 @@ const NavigationManu = () => {
     const pathName = usePathname()
     const [localSettings, setLocalSettings] = useState(null);
     const [loadingSettings, setLoadingSettings] = useState(true);
-    
+
     useEffect(() => {
         setNavigationOpen(false)
     }, [pathName])
-    
+
     // Apply theme colors from settings context
     useEffect(() => {
         if (settings?.themeDesign?.uiCustomization) {
             applyThemeColors(settings.themeDesign.uiCustomization);
         }
     }, [settings]);
-    
+
     const applyThemeColors = (uiCustomization) => {
         const root = document.documentElement;
         root.style.setProperty('--sidebar-bg-color', uiCustomization.sidebarBackground);
@@ -39,12 +39,12 @@ const NavigationManu = () => {
         root.style.setProperty('--topbar-text-color', uiCustomization.topBarTextColor);
         root.style.setProperty('--button-hover-color', uiCustomization.buttonHoverColor);
     };
-    
+
     // Force refresh settings when component mounts or when page changes
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                console.log('🔄 Fetching settings for navigation menu...');
+
                 const response = await fetch('/api/settings', {
                     cache: 'no-cache',
                     headers: {
@@ -67,11 +67,11 @@ const NavigationManu = () => {
                 setLoadingSettings(false);
             }
         };
-        
+
         // Always fetch settings to ensure latest data
         fetchSettings();
     }, [pathName]); // Refresh when path changes
-    
+
     // Get logos and dimensions from settings context or local settings
     const currentSettings = settings || localSettings;
     const siteLogo = currentSettings?.general?.siteLogo;
@@ -80,25 +80,18 @@ const NavigationManu = () => {
     const siteLogoHeight = currentSettings?.general?.siteLogoHeight || 50;
     const siteSmallLogoWidth = currentSettings?.general?.siteSmallLogoWidth || 40;
     const siteSmallLogoHeight = currentSettings?.general?.siteSmallLogoHeight || 40;
-    
-    // Debug logging
-    console.log('🖼️ Navigation Logo Debug:', {
-        hasSettings: !!currentSettings,
-        hasGeneral: !!currentSettings?.general,
-        siteLogo,
-        siteSmallLogo,
-        dimensions: { siteLogoWidth, siteLogoHeight, siteSmallLogoWidth, siteSmallLogoHeight }
-    });
-    
+
+
+
     // Normalize logo paths to ensure they start with /
-    const normalizedSiteLogo = siteLogo?.startsWith('http') ? siteLogo : 
-        siteLogo?.startsWith('/') ? siteLogo : 
-        siteLogo ? '/' + siteLogo : '/images/logo-full.png';
-        
+    const normalizedSiteLogo = siteLogo?.startsWith('http') ? siteLogo :
+        siteLogo?.startsWith('/') ? siteLogo :
+            siteLogo ? '/' + siteLogo : '/images/logo-full.png';
+
     const normalizedSiteSmallLogo = siteSmallLogo?.startsWith('http') ? siteSmallLogo :
-        siteSmallLogo?.startsWith('/') ? siteSmallLogo : 
-        siteSmallLogo ? '/' + siteSmallLogo : '/images/logo-abbr.png';
-    
+        siteSmallLogo?.startsWith('/') ? siteSmallLogo :
+            siteSmallLogo ? '/' + siteSmallLogo : '/images/logo-abbr.png';
+
     return (
         <nav className={`nxl-navigation ${navigationOpen ? "mob-navigation-active" : ""}`}>
             <div className="navbar-wrapper">
@@ -107,12 +100,12 @@ const NavigationManu = () => {
                         {/* Dynamic Logo with Dynamic Dimensions */}
                         {!loadingSettings ? (
                             <>
-                                <Image 
-                                    width={siteLogoWidth} 
-                                    height={siteLogoHeight} 
-                                    src={normalizedSiteLogo} 
-                                    alt="Site Logo" 
-                                    className="logo logo-lg" 
+                                <Image
+                                    width={siteLogoWidth}
+                                    height={siteLogoHeight}
+                                    src={normalizedSiteLogo}
+                                    alt="Site Logo"
+                                    className="logo logo-lg"
                                     style={{
                                         maxWidth: '100%',
                                         height: 'auto',
@@ -124,12 +117,12 @@ const NavigationManu = () => {
                                     }}
                                     priority
                                 />
-                                <Image 
-                                    width={siteSmallLogoWidth} 
-                                    height={siteSmallLogoHeight} 
-                                    src={normalizedSiteSmallLogo} 
-                                    alt="Small Logo" 
-                                    className="logo logo-sm" 
+                                <Image
+                                    width={siteSmallLogoWidth}
+                                    height={siteSmallLogoHeight}
+                                    src={normalizedSiteSmallLogo}
+                                    alt="Small Logo"
+                                    className="logo logo-sm"
                                     style={{
                                         maxWidth: '100%',
                                         height: 'auto',
@@ -145,10 +138,10 @@ const NavigationManu = () => {
                         ) : (
                             // Loading fallback
                             <>
-                                <div className="logo logo-lg bg-light rounded" style={{width: '150px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                <div className="logo logo-lg bg-light rounded" style={{ width: '150px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span className="text-muted">Loading...</span>
                                 </div>
-                                <div className="logo logo-sm bg-light rounded" style={{width: '40px', height: '40px'}}></div>
+                                <div className="logo logo-sm bg-light rounded" style={{ width: '40px', height: '40px' }}></div>
                             </>
                         )}
                     </Link>

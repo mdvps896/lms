@@ -11,9 +11,9 @@ const DynamicGoogleProvider = ({ children }) => {
             try {
                 const response = await fetch('/api/settings')
                 const data = await response.json()
-                
+
                 if (data.success && data.data.integrations?.googleOAuth?.clientId) {
-                    console.log('Loading Google Client ID from database:', data.data.integrations.googleOAuth.clientId)
+
                     setGoogleClientId(data.data.integrations.googleOAuth.clientId)
                 } else {
                     console.log('No Google OAuth settings found in database')

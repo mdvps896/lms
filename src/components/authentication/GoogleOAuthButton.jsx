@@ -10,7 +10,7 @@ import useGoogleAuth from '@/hooks/useGoogleAuth'
 const GoogleOAuthButton = ({ type = 'login' }) => {
     const [isEnabled, setIsEnabled] = useState(false)
     const [loading, setLoading] = useState(false)
-    
+
     // Use Google Auth hook to handle cross-origin issues
     useGoogleAuth()
 
@@ -20,34 +20,34 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
             try {
                 const response = await fetch('/api/settings')
                 const data = await response.json()
-                
-                console.log('Checking Google OAuth settings:', data.data?.integrations?.googleOAuth)
-                
+
+
+
                 // Check if Google OAuth is configured
-                const googleOAuthEnabled = data.success && 
-                    data.data.integrations?.googleOAuth?.enabled && 
+                const googleOAuthEnabled = data.success &&
+                    data.data.integrations?.googleOAuth?.enabled &&
                     data.data.integrations.googleOAuth.clientId;
-                
+
                 if (!googleOAuthEnabled) {
                     console.log('Google OAuth is disabled or not properly configured in database')
                     setIsEnabled(false)
                     return;
                 }
-                
+
                 // For login page, also check if registration is enabled
                 if (type === 'login') {
                     const registrationEnabled = data.data?.authPages?.enableRegistration !== false;
-                    
+
                     if (!registrationEnabled) {
                         console.log('Google OAuth login disabled because registration is disabled')
                         setIsEnabled(false)
                         return;
                     }
                 }
-                
+
                 console.log('Google OAuth is enabled with Client ID:', data.data.integrations.googleOAuth.clientId)
                 setIsEnabled(true)
-                
+
             } catch (error) {
                 console.error('Error checking Google OAuth status:', error)
                 setIsEnabled(false)
@@ -61,15 +61,15 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
         setLoading(true)
         try {
             const decoded = jwtDecode(credentialResponse.credential);
-            
+
             if (type === 'login') {
                 // Try to login first
                 let response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: decoded.email, 
-                        password: 'google_oauth_' + decoded.sub 
+                    body: JSON.stringify({
+                        email: decoded.email,
+                        password: 'google_oauth_' + decoded.sub
                     }),
                 });
 
@@ -79,17 +79,17 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                 // If login failed, check if user exists by email first
                 if (!data.success) {
                     console.log('Initial login failed, checking if user exists...', data);
-                    
+
                     // Check if user exists by email
                     const checkUserResponse = await fetch('/api/auth/check-user', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: decoded.email }),
                     });
-                    
+
                     const checkUserData = await checkUserResponse.json();
                     console.log('Check user response:', checkUserData);
-                    
+
                     if (checkUserData.success && checkUserData.userExists) {
                         console.log('User exists, updating password for Google OAuth...');
                         // User exists but login failed - might be different password
@@ -97,25 +97,25 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                         const updateResponse = await fetch('/api/auth/update-google-password', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
+                            body: JSON.stringify({
                                 email: decoded.email,
                                 password: 'google_oauth_' + decoded.sub,
-                                isGoogleAuth: true 
+                                isGoogleAuth: true
                             }),
                         });
-                        
+
                         const updateData = await updateResponse.json();
                         console.log('Password update response:', updateData);
-                        
+
                         if (updateResponse.ok) {
                             // Try login again with updated password
                             console.log('Retrying login with updated password...');
                             response = await fetch('/api/auth/login', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    email: decoded.email, 
-                                    password: 'google_oauth_' + decoded.sub 
+                                body: JSON.stringify({
+                                    email: decoded.email,
+                                    password: 'google_oauth_' + decoded.sub
                                 }),
                             });
                             data = await response.json();
@@ -126,8 +126,8 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                         // User doesn't exist - check if registration is enabled before creating account
                         const settingsResponse = await fetch('/api/settings');
                         const settingsData = await settingsResponse.json();
-                        
-                        const registrationEnabled = settingsData.success && 
+
+                        const registrationEnabled = settingsData.success &&
                             settingsData.data?.authPages?.enableRegistration !== false;
 
                         if (!registrationEnabled) {
@@ -159,15 +159,15 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                 if (data.success) {
                     // Login user (works for both new and existing users)
                     localStorage.setItem('user', JSON.stringify(data.data));
-                    
+
                     // Set cookie for middleware
                     document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
 
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
-                        text: isNewUser 
-                            ? 'Account created & logged in successfully with Google!' 
+                        text: isNewUser
+                            ? 'Account created & logged in successfully with Google!'
                             : 'Login successful with Google!',
                         timer: 2000,
                         showConfirmButton: false
@@ -195,7 +195,7 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                         emailVerified: true
                     }),
                 });
-                
+
                 const data = await response.json();
 
                 if (data.success) {
@@ -218,10 +218,10 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
 
         } catch (error) {
             console.log('Google OAuth Error:', error)
-            
+
             // Show specific error message for registration disabled
             const errorMessage = error.message || `Google ${type} failed`;
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Google Login Failed',
@@ -235,12 +235,12 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
     const handleGoogleError = (error) => {
         setLoading(false)
         console.log('Google OAuth Error:', error)
-        
+
         // Don't show error for user-cancelled operations
         if (error && error.type === 'popup_closed') {
             return // User cancelled, no need to show error
         }
-        
+
         Swal.fire({
             icon: 'error',
             title: 'Error',

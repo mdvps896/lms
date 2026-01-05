@@ -7,12 +7,12 @@ export function useGoogleAuth() {
         // Override window.postMessage for Google OAuth
         if (typeof window !== 'undefined') {
             const originalPostMessage = window.postMessage
-            
-            window.postMessage = function(message, targetOrigin, transfer) {
+
+            window.postMessage = function (message, targetOrigin, transfer) {
                 try {
                     return originalPostMessage.call(this, message, targetOrigin, transfer)
                 } catch (error) {
-                    console.log('PostMessage error caught and handled:', error)
+
                     // Continue silently - this prevents the Cross-Origin errors from showing
                 }
             }
