@@ -129,6 +129,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Security: Track device switching frequency
+  deviceChangeCount: {
+    type: Number,
+    default: 0
+  },
+  deviceChangeWindowStart: {
+    type: Date,
+    default: null
+  },
   registerSource: {
     type: String,
     enum: ['web', 'app'],

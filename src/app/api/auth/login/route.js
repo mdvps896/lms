@@ -9,6 +9,7 @@ import { signToken } from '@/utils/auth';
 // Import all models in correct order to ensure proper registration
 // Import all models in correct order to ensure proper registration
 import { Category, User, Settings } from '@/models/init';
+import { sendPushNotification } from '@/utils/firebaseAdmin';
 
 // Input validation and sanitization
 function validateEmail(email) {
@@ -27,7 +28,7 @@ export async function POST(request) {
     await connectDB();
 
     const body = await request.json();
-    let { email, password } = body;
+    let { email, password, deviceId } = body;
 
     // 🔒 SECURITY: Input validation
     if (!email || !password) {
@@ -239,33 +240,76 @@ export async function POST(request) {
 
     // Normal login flow for users without 2FA or non-admin users
 
-    // Generate unique device ID from request headers
-    const userAgent = request.headers.get('user-agent') || '';
-    const deviceId = Buffer.from(`${email}-${userAgent}-${Date.now()}`).toString('base64').substring(0, 32);
-
-    // Check if user is already logged in on another device
-    if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
-      // User is logged in on another device
-      // Update to new device and invalidate old session
-      await User.findByIdAndUpdate(user._id, {
-        activeDeviceId: deviceId,
-        lastActiveAt: new Date()
-      });
-
-
-    } else {
-      // First login or same device
-      await User.findByIdAndUpdate(user._id, {
-        activeDeviceId: deviceId,
-        lastActiveAt: new Date()
-      });
+    // Generate unique device ID if not provided in body (fallback for web)
+    if (!deviceId) {
+      const userAgent = request.headers.get('user-agent') || '';
+      deviceId = Buffer.from(`${email}-${userAgent}-${Date.now()}`).toString('base64').substring(0, 32);
     }
+
+    // 🔒 SECURITY: Device Login Tracking & Lockout
+    // Check if user is switching devices
+    let updateFields = {
+      activeDeviceId: deviceId,
+      lastActiveAt: new Date()
+    };
+
+    if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
+      // User is logged in on another device -> Previous session invalidation happens by overwriting activeDeviceId
+
+      // 1. Notify previous device (Real-time alert)
+      if (user.fcmToken) {
+        sendPushNotification(
+          user.fcmToken,
+          'Security Alert',
+          `New login detected on another device. You have been logged out from this device.`
+        ).catch(err => console.error('Failed to send security alert:', err));
+      }
+
+      // 2. Suspicious Activity Check (Multiple device switches)
+      const DEVICE_CHANGE_LIMIT = 5; // Max switches allowed
+      const DEVICE_CHANGE_WINDOW = 30 * 60 * 1000; // 30 minutes window
+
+      const now = Date.now();
+      let newCount = (user.deviceChangeCount || 0) + 1;
+      let windowStart = user.deviceChangeWindowStart ? new Date(user.deviceChangeWindowStart).getTime() : now;
+
+      // Reset window if expired
+      if (now - windowStart > DEVICE_CHANGE_WINDOW) {
+        newCount = 1;
+        windowStart = now;
+      }
+
+      // Check if limit exceeded
+      if (newCount > DEVICE_CHANGE_LIMIT) {
+        const lockDuration = 30 * 60 * 1000; // 30 Minutes
+        await User.findByIdAndUpdate(user._id, {
+          lockUntil: new Date(now + lockDuration),
+          deviceChangeCount: 0,
+          deviceChangeWindowStart: null
+        });
+
+        return NextResponse.json({
+          success: false,
+          message: 'Account locked due to suspicious activity (multiple device logins). Try again in 30 minutes.',
+          locked: true,
+          remainingTime: 1800
+        }, { status: 403 });
+      }
+
+      // Add tracking fields to update
+      updateFields.deviceChangeCount = newCount;
+      updateFields.deviceChangeWindowStart = new Date(windowStart);
+    }
+
+    // Update User with new device info
+    await User.findByIdAndUpdate(user._id, updateFields);
 
     // Generate JWT Token
     const token = await signToken({
       userId: user._id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      deviceId: deviceId // Add deviceId to token
     });
 
     const userObj = user.toObject();
