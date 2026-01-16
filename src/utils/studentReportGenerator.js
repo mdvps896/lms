@@ -1,7 +1,11 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 export const generateStudentReport = async (student, details, logoUrl) => {
+    if (typeof window === "undefined") return;
+
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
