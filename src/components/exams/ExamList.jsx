@@ -106,23 +106,15 @@ const ExamList = () => {
                             <li><Link className="dropdown-item" href="/exam/add/regular">Regular Exam</Link></li>
                         </ul>
                     </div>
-                    {/* Test button - remove this in production */}
-                    <button 
-                        className="btn btn-warning btn-sm"
-                        onClick={testCreateNotifications}
-                        title="Create test notifications for live exams"
-                    >
-                        🔔 Test Notifications
-                    </button>
                 </div>
                 <div className="btn-group">
-                    <button 
+                    <button
                         className={`btn btn-outline-secondary ${viewMode === 'list' ? 'active' : ''}`}
                         onClick={() => setViewMode('list')}
                     >
                         <FiList />
                     </button>
-                    <button 
+                    <button
                         className={`btn btn-outline-secondary ${viewMode === 'card' ? 'active' : ''}`}
                         onClick={() => setViewMode('card')}
                     >
@@ -137,10 +129,10 @@ const ExamList = () => {
                         <div className="col-md-4">
                             <div className="input-group">
                                 <span className="input-group-text"><FiSearch /></span>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    placeholder="Search exams..." 
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Search exams..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
@@ -148,19 +140,19 @@ const ExamList = () => {
                         </div>
                         <div className="col-md-8">
                             <div className="d-flex gap-2">
-                                <button 
+                                <button
                                     className={`btn ${filterType === '' ? 'btn-dark' : 'btn-outline-dark'}`}
                                     onClick={() => setFilterType('')}
                                 >
                                     All
                                 </button>
-                                <button 
+                                <button
                                     className={`btn ${filterType === 'live' ? 'btn-primary' : 'btn-outline-primary'}`}
                                     onClick={() => setFilterType('live')}
                                 >
                                     Live Exams
                                 </button>
-                                <button 
+                                <button
                                     className={`btn ${filterType === 'regular' ? 'btn-info' : 'btn-outline-info'}`}
                                     onClick={() => setFilterType('regular')}
                                 >
@@ -184,38 +176,38 @@ const ExamList = () => {
                     <h4 className="text-muted">No exams found</h4>
                 </div>
             ) : viewMode === 'list' ? (
-                <ExamTable 
-                    exams={exams} 
-                    onDelete={handleDelete} 
-                    onView={setSelectedExam} 
+                <ExamTable
+                    exams={exams}
+                    onDelete={handleDelete}
+                    onView={setSelectedExam}
                     onAnalytics={handleAnalytics}
-                    currentTime={currentTime} 
+                    currentTime={currentTime}
                 />
             ) : (
                 <div className="row">
                     {exams.map(exam => (
-                        <ExamCard 
-                            key={exam._id} 
-                            exam={exam} 
-                            onDelete={handleDelete} 
-                            onView={setSelectedExam} 
+                        <ExamCard
+                            key={exam._id}
+                            exam={exam}
+                            onDelete={handleDelete}
+                            onView={setSelectedExam}
                             onAnalytics={handleAnalytics}
-                            currentTime={currentTime} 
+                            currentTime={currentTime}
                         />
                     ))}
                 </div>
             )}
 
             {selectedExam && (
-                <ExamViewModal 
-                    exam={selectedExam} 
-                    onClose={() => setSelectedExam(null)} 
+                <ExamViewModal
+                    exam={selectedExam}
+                    onClose={() => setSelectedExam(null)}
                     currentTime={currentTime}
                 />
             )}
 
             {showAnalyticsModal && (
-                <ExamAnalyticsModal 
+                <ExamAnalyticsModal
                     show={showAnalyticsModal}
                     onHide={() => {
                         setShowAnalyticsModal(false);

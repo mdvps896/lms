@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FiX, FiCalendar, FiMapPin, FiBook } from 'react-icons/fi'
+import { FiX, FiCalendar, FiMapPin, FiBook, FiChevronDown } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
 const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
@@ -7,20 +7,26 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         name: '',
         email: '',
         phone: '',
+        password: '', // Leave empty to not change
         status: 'active',
         category: '',
         dob: '',
         admissionDate: '',
         address: '',
-        city: '',
-        state: '',
-        pincode: '',
         enrolledCourses: [] // Array of course IDs
     })
     const [categories, setCategories] = useState([])
     const [courses, setCourses] = useState([])
     const [loading, setLoading] = useState(false)
     const [loadingCourses, setLoadingCourses] = useState(false)
+    const [showCourseDropdown, setShowCourseDropdown] = useState(false)
+
+    useEffect(() => {
+        if (show) {
+            fetchCategories()
+            fetchCourses()
+        }
+    }, [show])
 
     useEffect(() => {
         if (student) {
@@ -28,26 +34,20 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
                 name: student.name || '',
                 email: student.email || '',
                 phone: student.phone || '',
+                password: '', // Don't pre-fill password
                 status: student.status || 'active',
-                category: student.categoryId || '',
+                category: student.category?._id || student.category || '',
                 dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
                 admissionDate: student.admissionDate ? new Date(student.admissionDate).toISOString().split('T')[0] :
                     (student.enrollmentDate ? new Date(student.enrollmentDate).toISOString().split('T')[0] : ''),
                 address: student.address || '',
-                city: student.city || '',
-                state: student.state || '',
-                pincode: student.pincode || '',
                 enrolledCourses: student.enrolledCourses?.map(ec => {
-                    const id = ec.courseId?._id || ec.courseId;
-                    return String(id);
+                    // Handle populated or direct ID
+                    return typeof ec.courseId === 'object' ? ec.courseId._id : ec.courseId;
                 }) || []
             })
         }
-        if (show) {
-            fetchCategories()
-            fetchCourses()
-        }
-    }, [student, show])
+    }, [student])
 
     const fetchCategories = async () => {
         try {
@@ -61,6 +61,7 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
 
     const fetchCourses = async () => {
         try {
+            setLoadingCourses(true)
             const response = await fetch('/api/courses?status=active')
             const data = await response.json()
             if (data.success && Array.isArray(data.data)) {
@@ -71,21 +72,22 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         } catch (error) {
             console.error('Error fetching courses:', error)
             setCourses([])
+        } finally {
+            setLoadingCourses(false)
         }
     }
 
-    const handleCourseToggle = (courseId) => {
-        const idStr = String(courseId);
+    const toggleCourseSelection = (courseId) => {
         setFormData(prev => {
-            const isSelected = prev.enrolledCourses.some(id => String(id) === idStr);
-            return {
-                ...prev,
-                enrolledCourses: isSelected
-                    ? prev.enrolledCourses.filter(id => String(id) !== idStr)
-                    : [...prev.enrolledCourses, idStr]
-            };
+            const current = prev.enrolledCourses;
+            const isSelected = current.includes(courseId);
+            if (isSelected) {
+                return { ...prev, enrolledCourses: current.filter(id => id !== courseId) };
+            } else {
+                return { ...prev, enrolledCourses: [...current, courseId] };
+            }
         });
-    }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -93,7 +95,7 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         if (!formData.name || !formData.email || !formData.category) {
             Swal.fire({
                 icon: 'error',
-                title: 'Required',
+                title: 'Required Fields',
                 text: 'Name, Email and Category are mandatory.',
                 timer: 2000
             })
@@ -103,24 +105,42 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
         setLoading(true)
 
         try {
-            // Re-format enrolledCourses for storage
+            // Prepare enrolledCourses for API
             const formattedEnrolledCourses = formData.enrolledCourses.map(id => {
                 // Check if it was already enrolled to keep original enrollment date
-                const existing = student.enrolledCourses?.find(ec => (ec.courseId?._id || ec.courseId) === id);
+                const existing = student.enrolledCourses?.find(ec => {
+                    const existingId = typeof ec.courseId === 'object' ? ec.courseId._id : ec.courseId;
+                    return existingId === id;
+                });
+
                 return {
                     courseId: id,
                     enrolledAt: existing ? existing.enrolledAt : new Date(),
-                    expiresAt: existing ? existing.expiresAt : new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+                    expiresAt: existing ? existing.expiresAt : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+                    status: 'active'
                 }
             })
 
-            const response = await fetch(`/api/users/${student.id}`, {
+            const payload = {
+                ...formData,
+                role: 'student',
+                enrolledCourses: formattedEnrolledCourses
+            };
+
+            // Only send password if it's not empty
+            if (!payload.password) delete payload.password;
+
+            const studentId = student._id || student.id;
+            if (!studentId) {
+                Swal.fire('Error', 'Invalid User ID', 'error');
+                setLoading(false);
+                return;
+            }
+
+            const response = await fetch(`/api/users/${studentId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    enrolledCourses: formattedEnrolledCourses
-                }),
+                body: JSON.stringify(payload),
             })
 
             const data = await response.json()
@@ -128,15 +148,16 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
             if (data.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Updated!',
-                    text: 'Student profile has been updated.',
+                    title: 'Student Updated!',
+                    text: `${formData.name} has been updated successfully`,
                     timer: 2000,
                     showConfirmButton: false
                 })
+
                 onSuccess()
                 onClose()
             } else {
-                Swal.fire('Error', data.message || 'Update failed', 'error')
+                Swal.fire('Error', data.message || 'Failed to update student', 'error')
             }
         } catch (error) {
             Swal.fire('Error', 'Connection failed', 'error')
@@ -148,9 +169,10 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
     if (!show) return null
 
     return (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060, overflowY: 'auto' }} onClick={onClose}>
-            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-content border-0 shadow-lg">
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }} onClick={onClose}>
+            <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" onClick={(e) => e.stopPropagation()}>
+                <form onSubmit={handleSubmit} className="modal-content border-0 shadow-lg">
+                    {/* Header */}
                     <div className="modal-header bg-warning text-dark py-3">
                         <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
                             Edit Student Profile
@@ -158,150 +180,211 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="modal-body p-4">
-                            <div className="row g-3">
-                                {/* Section 1 */}
-                                <div className="col-12 border-bottom pb-2 mb-2">
-                                    <h6 className="text-warning-emphasis fw-bold mb-0">Personal Profile</h6>
-                                </div>
+                    {/* Body */}
+                    <div className="modal-body p-4">
+                        <div className="row g-3">
+                            {/* Personal Details */}
+                            <div className="col-12 border-bottom pb-2 mb-2">
+                                <h6 className="text-warning-emphasis fw-bold mb-0">Personal Details</h6>
+                            </div>
 
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Full Name <span className="text-danger">*</span></label>
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Full Name <span className="text-danger">*</span></label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Enter student name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Email Address <span className="text-danger">*</span></label>
+                                <input
+                                    type="email"
+                                    className="form-control"
+                                    placeholder="email@example.com"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Phone Number</label>
+                                <input
+                                    type="tel"
+                                    className="form-control"
+                                    placeholder="+91 0000000000"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Date of Birth</label>
+                                <div className="input-group">
+                                    <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
                                     <input
-                                        type="text"
+                                        type="date"
                                         className="form-control"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        required
+                                        value={formData.dob}
+                                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                                     />
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Email Address <span className="text-danger">*</span></label>
-                                    <input
-                                        type="email"
-                                        className="form-control"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        required
-                                    />
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        className="form-control"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Date of Birth</label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
-                                        <input
-                                            type="date"
-                                            className="form-control"
-                                            value={formData.dob}
-                                            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Section 2 */}
-                                <div className="col-12 border-bottom pb-2 mb-2 mt-4">
-                                    <h6 className="text-warning-emphasis fw-bold mb-0">Admission & Courses</h6>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Admission Date <span className="text-danger">*</span></label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
-                                        <input
-                                            type="date"
-                                            className="form-control"
-                                            value={formData.admissionDate}
-                                            onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Profile Category <span className="text-danger">*</span></label>
-                                    <select
-                                        className="form-select border-warning-subtle"
-                                        value={formData.category}
-                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">Select Category</option>
-                                        {categories.map((cat, idx) => (
-                                            <option key={String(cat._id || `cat-edit-${idx}`)} value={cat._id}>{cat.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Section 3 */}
-                                <div className="col-12 border-bottom pb-2 mb-2 mt-4">
-                                    <h6 className="text-warning-emphasis fw-bold mb-0">Location & Status</h6>
-                                </div>
-
-                                <div className="col-12">
-                                    <label className="form-label small fw-bold">Address</label>
-                                    <textarea
-                                        className="form-control"
-                                        rows="2"
-                                        value={formData.address}
-                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                    ></textarea>
-                                </div>
-
-                                <div className="col-md-4">
-                                    <label className="form-label small fw-bold">City</label>
-                                    <input type="text" className="form-control" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
-                                </div>
-                                <div className="col-md-4">
-                                    <label className="form-label small fw-bold">State</label>
-                                    <input type="text" className="form-control" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} />
-                                </div>
-                                <div className="col-md-4">
-                                    <label className="form-label small fw-bold">Pincode</label>
-                                    <input type="text" className="form-control" value={formData.pincode} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} />
-                                </div>
-
-                                <div className="col-md-12">
-                                    <label className="form-label small fw-bold">Student Account Status</label>
-                                    <select
-                                        className="form-select border-soft-danger"
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                        <option value="suspended">Suspended</option>
-                                    </select>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="modal-footer bg-light">
-                            <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={onClose} disabled={loading}>
-                                Close
-                            </button>
-                            <button type="submit" className="btn btn-warning px-5 fw-bold shadow-sm" disabled={loading}>
-                                {loading ? (
-                                    <><span className="spinner-border spinner-border-sm me-2"></span> Updating...</>
-                                ) : (
-                                    'Save Changes'
-                                )}
-                            </button>
+                            {/* Academic & Admission */}
+                            <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 className="text-warning-emphasis fw-bold mb-0">Academic & Admission</h6>
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Admission Date (Join Date) <span className="text-danger">*</span></label>
+                                <div className="input-group">
+                                    <span className="input-group-text bg-light"><FiCalendar size={14} /></span>
+                                    <input
+                                        type="date"
+                                        className="form-control"
+                                        value={formData.admissionDate}
+                                        onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Category (Target Exam) <span className="text-danger">*</span></label>
+                                <select
+                                    className="form-select border-warning-subtle"
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Select Category</option>
+                                    {categories.map((cat, idx) => (
+                                        <option key={String(cat._id || `cat-${idx}`)} value={cat._id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Assign Courses */}
+                            <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 className="text-warning-emphasis fw-bold mb-0">Assign Courses</h6>
+                            </div>
+
+                            <div className="col-12">
+                                <label className="form-label small fw-bold">Select Courses to Assign</label>
+                                <div className="position-relative">
+                                    <div
+                                        className="form-control d-flex justify-content-between align-items-center"
+                                        style={{ cursor: 'pointer', backgroundColor: '#fff' }}
+                                        onClick={() => setShowCourseDropdown(!showCourseDropdown)}
+                                    >
+                                        <span className={formData.enrolledCourses.length === 0 ? 'text-muted' : ''}>
+                                            {formData.enrolledCourses.length > 0
+                                                ? `${formData.enrolledCourses.length} Course(s) Selected`
+                                                : 'Select Courses...'}
+                                        </span>
+                                        <FiChevronDown />
+                                    </div>
+
+                                    {showCourseDropdown && (
+                                        <div className="position-absolute w-100 bg-white border shadow-sm rounded-bottom mt-1 p-2"
+                                            style={{ zIndex: 1050, maxHeight: '200px', overflowY: 'auto' }}>
+                                            {loadingCourses ? (
+                                                <div className="text-center py-2 text-muted small">Loading courses...</div>
+                                            ) : courses.length > 0 ? (
+                                                courses.map(course => {
+                                                    const courseId = course._id || course.id;
+                                                    if (!courseId) return null;
+                                                    return (
+                                                        <div key={courseId} className="form-check py-1">
+                                                            <input
+                                                                className="form-check-input"
+                                                                type="checkbox"
+                                                                id={`course-${courseId}`}
+                                                                checked={formData.enrolledCourses.includes(courseId)}
+                                                                onChange={() => toggleCourseSelection(courseId)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label w-100 ps-1" htmlFor={`course-${courseId}`} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                                {course.title || course.name}
+                                                            </label>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-center py-2 text-muted small">No active courses found</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Location / Address */}
+                            <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 className="text-warning-emphasis fw-bold mb-0">Location / Address</h6>
+                            </div>
+
+                            <div className="col-12">
+                                <label className="form-label small fw-bold">Address</label>
+                                <textarea
+                                    className="form-control"
+                                    rows="3"
+                                    placeholder="Enter full address here..."
+                                    value={formData.address}
+                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                ></textarea>
+                            </div>
+
+                            {/* Account Settings */}
+                            <div className="col-12 border-bottom pb-2 mb-2 mt-4">
+                                <h6 className="text-warning-emphasis fw-bold mb-0">Account Settings</h6>
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Change Password</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Leave empty to keep current"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small fw-bold">Account Status</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                >
+                                    <option value="active">Active (Full Access)</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
                         </div>
-                    </form>
-                </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="modal-footer bg-light">
+                        <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={onClose} disabled={loading}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="btn btn-warning px-5 fw-bold shadow-sm" disabled={loading}>
+                            {loading ? (
+                                <><span className="spinner-border spinner-border-sm me-2"></span> Saving...</>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     )

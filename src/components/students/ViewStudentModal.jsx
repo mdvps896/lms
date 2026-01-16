@@ -8,9 +8,12 @@ import {
 import StudentOverviewTab from './tabs/StudentOverviewTab'
 import StudentExamsTab from './tabs/StudentExamsTab'
 import StudentActivityLog from './tabs/StudentActivityLog'
+import { generateStudentReport } from '@/utils/studentReportGenerator'
+import { useSettings } from '@/contexts/SettingsContext'
 
 const ViewStudentModal = ({ show, student, onClose }) => {
     const [activeTab, setActiveTab] = useState('overview')
+    const { settings } = useSettings() // Get global settings
     const [details, setDetails] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -173,9 +176,13 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                         >
                             Close
                         </button>
+
+
                         <button
                             type="button"
                             className="btn btn-primary"
+                            onClick={() => generateStudentReport(student, details, settings?.general?.siteSmallLogo || settings?.general?.siteLogo)}
+                            disabled={loading || !details}
                         >
                             <FiDownload className="me-2" /> Download Report
                         </button>

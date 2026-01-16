@@ -15,12 +15,30 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
         setExpandedId(expandedId === id ? null : id);
     };
 
+    const formatDuration = (seconds) => {
+        if (!seconds) return '0 min';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h > 0) return `${h} hr ${m > 0 ? `${m} min` : ''}`;
+        return `${m || 1} min`;
+    };
+
+    const globalTotalDuration = data ? data.reduce((sum, item) => sum + (item.duration || 0), 0) : 0;
+    const globalTotalText = formatDuration(globalTotalDuration);
+
     return (
         <div className="animate__animated animate__fadeIn">
             <div className="card border-0 shadow-sm">
                 <div className="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                     <h6 className="card-title fw-bold mb-0">{title}</h6>
-                    <span className={`badge bg-light text-${color}`}>{data?.length || 0} Total Sessions</span>
+                    <div>
+                        <span className={`badge bg-light text-${color} me-2`}>
+                            {data?.length || 0} Total Sessions
+                        </span>
+                        <span className={`badge bg-soft-${color} text-${color}`}>
+                            Total: {globalTotalText}
+                        </span>
+                    </div>
                 </div>
                 <div className="card-body p-0">
                     {data && data.length > 0 ? (
@@ -54,7 +72,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                         <div>
                                                             <span className="fw-semibold text-dark">{itemName}</span>
                                                             <div className="text-muted fs-11 mt-1">
-                                                                {views.length} Sessions • Total: {Math.round(totalDuration / 60)} mins
+                                                                {views.length} Sessions • Total: {formatDuration(totalDuration)}
                                                             </div>
                                                         </div>
                                                     </div>
