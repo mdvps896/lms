@@ -23,11 +23,13 @@ export async function GET(request) {
         const enrolled = user.enrolledCourses || [];
         const courseIds = [];
         const expiryMap = {};
+        const completedLecturesMap = {}; // Track completed lectures per course
 
         enrolled.forEach(entry => {
             if (entry && typeof entry === 'object' && entry.courseId) {
                 courseIds.push(entry.courseId);
                 if (entry.expiresAt) expiryMap[entry.courseId.toString()] = entry.expiresAt;
+                if (entry.completedLectures) completedLecturesMap[entry.courseId.toString()] = entry.completedLectures;
             } else if (entry) {
                 // Legacy ObjectId
                 courseIds.push(entry);
@@ -35,18 +37,23 @@ export async function GET(request) {
         });
 
         const courses = await Course.find({ _id: { $in: courseIds }, isActive: true })
-            .select('title thumbnail description price duration totalLessons instructor rating')
+            .select('title thumbnail description price duration totalLectures totalLessons instructor rating')
             .lean();
 
         const myCourses = courses.map(course => {
-            const expiresAt = expiryMap[course._id.toString()];
+            const courseIdStr = course._id.toString();
+            const expiresAt = expiryMap[courseIdStr];
             const isExpired = expiresAt ? new Date() > new Date(expiresAt) : false;
+            const completedLectures = completedLecturesMap[courseIdStr] || [];
+
             return {
                 ...course,
                 id: course._id.toString(), // Ensure ID is string
                 expiresAt: expiresAt,
                 isExpired: isExpired,
-                isPurchased: true // Explicitly mark as purchased
+                isPurchased: true, // Explicitly mark as purchased
+                completedLectures: completedLectures, // Add completed lectures array
+                totalLectures: course.totalLectures || course.totalLessons || 0 // Ensure totalLectures is present
             };
         });
 
