@@ -26,7 +26,7 @@ export async function POST(request) {
         }
 
         // Check if the device ID matches the active device
-        if (user.activeDeviceId !== deviceId) {
+        if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
             // User is logged in on another device, force logout
             return NextResponse.json({
                 success: false,
@@ -35,10 +35,15 @@ export async function POST(request) {
             });
         }
 
-        // Update last active time
-        await User.findByIdAndUpdate(userId, {
-            lastActiveAt: new Date()
-        });
+        // MIGRATION FIX: If activeDeviceId is missing, claim this device as active
+        if (!user.activeDeviceId) {
+            await User.findByIdAndUpdate(userId, { activeDeviceId: deviceId, lastActiveAt: new Date() });
+        } else {
+            // Update last active time
+            await User.findByIdAndUpdate(userId, {
+                lastActiveAt: new Date()
+            });
+        }
 
         return NextResponse.json({
             success: true,
