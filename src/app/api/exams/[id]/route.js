@@ -23,22 +23,56 @@ export async function GET(req, { params }) {
             return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
         }
 
-        // Only fetch detailed questions if Admin
-        if (isAdmin && exam.questionGroups && exam.questionGroups.length > 0) {
+        // Populate questions for all users (students need them to take the test!)
+        // Only difference: admins might see additional metadata in the future
+        if (exam.questionGroups && exam.questionGroups.length > 0) {
+            console.log(`📝 Populating ${exam.questionGroups.length} question groups for exam: ${exam.name}`);
+
+            // Create a new array to store question groups with questions
+            const populatedGroups = [];
+
             for (let i = 0; i < exam.questionGroups.length; i++) {
-                const groupId = exam.questionGroups[i]._id;
+                const group = exam.questionGroups[i];
+                const groupId = group._id;
+
+                console.log(`  Group ${i + 1}:`, {
+                    id: groupId,
+                    name: group.name,
+                    _id_type: typeof groupId,
+                    _id_string: groupId.toString()
+                });
 
                 const questions = await Question.find({
                     questionGroup: groupId,
                     status: 'active'
                 }).lean();
 
-                exam.questionGroups[i].questions = questions;
+                console.log(`  Group ${i + 1}: Found ${questions.length} questions`);
+
+                // Also check how many questions exist WITHOUT status filter
+                const allQuestions = await Question.find({
+                    questionGroup: groupId
+                }).lean();
+                console.log(`  Group ${i + 1}: Total questions (any status): ${allQuestions.length}`);
+
+                if (allQuestions.length > 0 && questions.length === 0) {
+                    console.log(`  ⚠️ WARNING: Group has questions but none are 'active'`);
+                    console.log(`  Question statuses:`, allQuestions.map(q => ({ id: q._id, status: q.status })));
+                }
+
+                // Create a new object with questions included
+                populatedGroups.push({
+                    ...group,
+                    questions: questions
+                });
             }
-        } else if (!isAdmin) {
-            // For non-admins, ensure we don't leak empty undefined structure that might be expected?
-            // Actually, simply NOT adding questions is safer.
-            // But we might want to strip any existing sensitive data if it was auto-populated (it wasn't fully deep populated above).
+
+            // Replace the questionGroups array with the populated one
+            exam.questionGroups = populatedGroups;
+
+            console.log(`✅ Total questions populated for exam`);
+        } else {
+            console.log(`⚠️ WARNING: Exam "${exam.name}" has no question groups!`);
         }
 
         // Fetch real attempts - This might be sensitive too. 

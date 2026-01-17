@@ -548,21 +548,27 @@ const StudentList = () => {
                                                                 border: '2px solid #e3e6f0'
                                                             }}
                                                             onError={(e) => {
-                                                                e.target.style.display = 'none';
-                                                                e.target.nextSibling.style.display = 'flex';
+                                                                // If image fails to load, replace with initials
+                                                                const parent = e.target.parentElement;
+                                                                const initialsDiv = document.createElement('div');
+                                                                initialsDiv.className = 'avatar avatar-md bg-soft-primary text-primary me-3 fw-bold rounded-circle d-flex align-items-center justify-content-center';
+                                                                initialsDiv.style.width = '40px';
+                                                                initialsDiv.style.height = '40px';
+                                                                initialsDiv.textContent = student.name.charAt(0).toUpperCase();
+                                                                parent.replaceChild(initialsDiv, e.target);
                                                             }}
                                                         />
-                                                    ) : null}
-                                                    <div
-                                                        className="avatar avatar-md bg-soft-primary text-primary me-3 fw-bold rounded-circle d-flex align-items-center justify-content-center"
-                                                        style={{
-                                                            width: '40px',
-                                                            height: '40px',
-                                                            display: student.profileImage ? 'none' : 'flex'
-                                                        }}
-                                                    >
-                                                        {student.name.charAt(0).toUpperCase()}
-                                                    </div>
+                                                    ) : (
+                                                        <div
+                                                            className="avatar avatar-md bg-soft-primary text-primary me-3 fw-bold rounded-circle d-flex align-items-center justify-content-center"
+                                                            style={{
+                                                                width: '40px',
+                                                                height: '40px'
+                                                            }}
+                                                        >
+                                                            {student.name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="fw-bold text-dark" title={student.name}>
                                                             {truncateName(student.name)}

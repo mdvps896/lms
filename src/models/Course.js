@@ -120,7 +120,27 @@ const courseSchema = new mongoose.Schema({
         type: String,
         default: 'English',
     }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
+
+// Virtual field to calculate total lectures from curriculum
+courseSchema.virtual('totalLectures').get(function () {
+    if (!this.curriculum || this.curriculum.length === 0) return 0;
+    return this.curriculum.reduce((total, topic) => {
+        return total + (topic.lectures ? topic.lectures.length : 0);
+    }, 0);
+});
+
+// Virtual field for totalLessons (alias for totalLectures)
+courseSchema.virtual('totalLessons').get(function () {
+    return this.totalLectures;
+});
+
+// Virtual field to calculate average rating
+courseSchema.virtual('rating').get(function () {
+    if (!this.ratings || this.ratings.length === 0) return 0;
+    const sum = this.ratings.reduce((acc, r) => acc + r.rating, 0);
+    return (sum / this.ratings.length).toFixed(1);
+});
 
 // Force model rebuild in dev to handle schema changes (like adding 'subjects')
 if (process.env.NODE_ENV !== 'production') {
