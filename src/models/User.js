@@ -106,7 +106,11 @@ const userSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     },
-    expiresAt: Date
+    expiresAt: Date,
+    completedLectures: [{
+      type: mongoose.Schema.Types.ObjectId,
+      // ref: 'Lecture' 
+    }]
   }],
   fcmToken: {
     type: String,

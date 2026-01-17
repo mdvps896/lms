@@ -25,13 +25,28 @@ export async function GET(request) {
         const expiryMap = {};
         const completedLecturesMap = {}; // Track completed lectures per course
 
-        enrolled.forEach(entry => {
-            if (entry && typeof entry === 'object' && entry.courseId) {
-                courseIds.push(entry.courseId);
-                if (entry.expiresAt) expiryMap[entry.courseId.toString()] = entry.expiresAt;
-                if (entry.completedLectures) completedLecturesMap[entry.courseId.toString()] = entry.completedLectures;
+        console.log(`🔍 Checking ${enrolled.length} enrollments for user ${userId}`);
+        enrolled.forEach((entry, idx) => {
+            console.log(`  [${idx}] Keys: ${Object.keys(entry || {})}`);
+            if (entry && typeof entry === 'object') {
+                const cId = entry.courseId || entry.course;
+                const entryCompleted = entry.completedLectures || [];
+                console.log(`  [${idx}] CourseID resolved: ${cId}, Completed: ${entryCompleted.length}`);
+
+                if (cId) {
+                    courseIds.push(cId);
+                    if (entry.expiresAt) expiryMap[cId.toString()] = entry.expiresAt;
+
+                    // Only update/merge if we have completions (prevents empty duplicates from overwriting)
+                    if (entryCompleted.length > 0) {
+                        const existing = completedLecturesMap[cId.toString()] || [];
+                        // Merge and deduplicate
+                        const merged = [...new Set([...existing, ...entryCompleted])];
+                        completedLecturesMap[cId.toString()] = merged;
+                    }
+                }
             } else if (entry) {
-                // Legacy ObjectId
+                // Legacy ObjectId strings
                 courseIds.push(entry);
             }
         });
