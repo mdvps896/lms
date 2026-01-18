@@ -92,10 +92,13 @@ export async function POST(request) {
 
         await user.save();
 
-        // Generate token
-        const token = Buffer.from(`${user._id}:${Date.now()}`).toString('base64');
-
-
+        // Generate JWT token for auto-login
+        const { signToken } = await import('@/utils/auth');
+        const token = await signToken({
+            userId: user._id,
+            email: user.email,
+            role: user.role
+        });
 
         return NextResponse.json({
             success: true,

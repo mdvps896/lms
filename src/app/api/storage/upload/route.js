@@ -48,6 +48,14 @@ export async function POST(request) {
             console.log('Folder:', folder)
 
             const result = await saveToLocalStorage(fileData, folder, fileName)
+
+            if (!result.success) {
+                return NextResponse.json(
+                    { success: false, message: result.message || 'Storage failed' },
+                    { status: 500 }
+                )
+            }
+
             console.log('Local upload successful:', result.publicId)
 
             return NextResponse.json({

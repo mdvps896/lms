@@ -7,6 +7,11 @@ const FreeMaterialSchema = new mongoose.Schema({
         trim: true,
         maxlength: [100, 'Title cannot be more than 100 characters']
     },
+    type: {
+        type: String,
+        enum: ['document', 'video', 'test'],
+        default: 'document'
+    },
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
@@ -24,6 +29,11 @@ const FreeMaterialSchema = new mongoose.Schema({
         type: { type: String, default: 'file' }, // 'pdf', 'video', 'image', 'other'
         size: { type: Number }
     }],
+    testId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Exam',
+        default: null // Only for type='test'
+    },
     createdAt: {
         type: Date,
         default: Date.now
