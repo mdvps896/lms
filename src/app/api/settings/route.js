@@ -218,6 +218,7 @@ export async function PUT(request) {
         const tabFieldMap = {
             'general': 'general',
             'auth-pages': 'authPages',
+            'auth-settings': 'authSettings',
             'result-display': 'resultDisplay',
             'theme-design': 'themeDesign',
             'security-smtp': 'securitySMTP',

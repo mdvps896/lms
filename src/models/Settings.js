@@ -146,6 +146,21 @@ const settingsSchema = new mongoose.Schema({
         captureOnEnd: { type: Boolean, default: false }
     },
 
+    // Authentication Settings - Platform Specific
+    authSettings: {
+        web: {
+            enableRegistration: { type: Boolean, default: true },
+            allowGoogleAuth: { type: Boolean, default: true },
+            allowEmailAuth: { type: Boolean, default: true }
+        },
+        app: {
+            enableRegistration: { type: Boolean, default: true },
+            enableMobileOTP: { type: Boolean, default: false },
+            allowEmailAuth: { type: Boolean, default: true },
+            allowGoogleAuth: { type: Boolean, default: true }
+        }
+    },
+
     // Single instance - only one settings document
     singleton: { type: Boolean, default: true, unique: true }
 }, { timestamps: true });

@@ -28,11 +28,25 @@ export async function POST(request) {
         await connectDB();
 
         // Check if registration is enabled
-        const db = mongoose.connection.db;
         const settings = await db.collection('settings').findOne({});
-        const registrationEnabled = settings?.authPages?.enableRegistration ||
-            settings?.loginRegister?.enableUserRegistration ||
-            false;
+
+        // Determine register source / platform
+        const registerSource = body.source || body.registerSource || 'app';
+        const platform = registerSource === 'app' ? 'app' : 'web';
+
+        let registrationEnabled = false;
+        if (settings?.authSettings) {
+            if (platform === 'app') {
+                registrationEnabled = settings.authSettings.app?.enableRegistration ?? true;
+            } else {
+                registrationEnabled = settings.authSettings.web?.enableRegistration ?? true;
+            }
+        } else {
+            // Fallback to legacy settings
+            registrationEnabled = settings?.authPages?.enableRegistration ||
+                settings?.loginRegister?.enableUserRegistration ||
+                false;
+        }
 
         // Check if user already exists
         let user = await User.findOne({ email });
@@ -54,8 +68,7 @@ export async function POST(request) {
             const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
             const rollNumber = await ensureUniqueRollNumber(User);
 
-            // Determine register source
-            const registerSource = body.source || body.registerSource || 'app';
+            // Determine register source (already defined above)
 
 
             // Create new user

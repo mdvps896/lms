@@ -12,6 +12,7 @@ import NotificationSoundsTab from '../../components/settings/NotificationSoundsT
 import CertificateSettings from '../../components/settings/CertificateSettings';
 import RollNumberSettings from '../../components/settings/RollNumberSettings';
 import PdfSelfieSettings from '../../components/settings/PdfSelfieSettings';
+import AuthSettingsTab from '../../components/settings/AuthSettingsTab';
 import SettingsSkeleton from '../../components/settings/SettingsSkeleton';
 import { toast } from 'react-toastify';
 
@@ -33,6 +34,12 @@ const SettingsPage = () => {
             label: 'Login & Register',
             icon: <FiLogIn className="me-2" />,
             component: AuthPagesSettings
+        },
+        {
+            id: 'auth-settings',
+            label: 'Login & Register Settings',
+            icon: <FiUser className="me-2" />,
+            component: AuthSettingsTab
         },
         {
             id: 'result-display',

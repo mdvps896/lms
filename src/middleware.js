@@ -20,6 +20,9 @@ export async function middleware(request) {
         '/api/auth/send-registration-otp',
         '/api/auth/verify-registration-otp',
         '/api/auth/check-registration-enabled',
+        '/api/auth/check-app-settings', // Mobile app settings (must be public)
+        '/api/auth/send-mobile-otp', // Mobile OTP login
+        '/api/auth/verify-mobile-login', // Mobile OTP verification
         '/api/auth/google-register',
         '/api/auth/reset-password',
         '/api/settings', // Often public
