@@ -63,6 +63,13 @@ export async function GET(request) {
                 }
             }
 
+            // Format reading duration
+            let readingDurationText = '0 hours';
+            if (course.readingDuration) {
+                const { value, unit } = course.readingDuration;
+                readingDurationText = `${value} ${unit}`;
+            }
+
             // Extract category name as string
             const categoryName = course.category?.name || 'General';
 
@@ -114,6 +121,8 @@ export async function GET(request) {
                     ? (course.ratings.reduce((acc, curr) => acc + curr.rating, 0) / course.ratings.length).toFixed(1)
                     : '4.5',
                 language: course.language || 'English',
+                readingDurationText: readingDurationText,
+                readingDuration: course.readingDuration || { value: 0, unit: 'hours' },
                 // Add curriculum for content tab
                 curriculum: course.curriculum || [],
                 reviews: course.ratings ? course.ratings.map(r => ({

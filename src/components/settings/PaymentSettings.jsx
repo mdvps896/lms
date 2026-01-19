@@ -28,6 +28,10 @@ const PaymentSettings = ({ settings, onUpdate, saving }) => {
             webhookSecret: '',
             webhookUrl: '',
             currency: 'INR'
+        },
+        offlinePayments: {
+            enabled: false,
+            message: 'Please pay offline'
         }
     })
 
@@ -43,7 +47,8 @@ const PaymentSettings = ({ settings, onUpdate, saving }) => {
         if (settings && settings.integrations) {
             setFormData(prev => ({
                 ...prev,
-                razorpay: settings.integrations.razorpay || prev.razorpay
+                razorpay: settings.integrations.razorpay || prev.razorpay,
+                offlinePayments: settings.integrations.offlinePayments || prev.offlinePayments
             }))
         }
     }, [settings])
@@ -59,13 +64,26 @@ const PaymentSettings = ({ settings, onUpdate, saving }) => {
     }
 
     const handleToggle = (provider) => {
-        setFormData(prev => ({
-            ...prev,
-            [provider]: {
-                ...prev[provider],
-                enabled: !prev[provider].enabled
+        setFormData(prev => {
+            const newState = {
+                ...prev,
+                [provider]: {
+                    ...prev[provider],
+                    enabled: !prev[provider].enabled
+                }
+            };
+
+            // If we're enabling offline payments, disable razorpay
+            if (provider === 'offlinePayments' && newState.offlinePayments.enabled) {
+                newState.razorpay.enabled = false;
             }
-        }))
+            // If we're enabling razorpay, disable offline payments
+            else if (provider === 'razorpay' && newState.razorpay.enabled) {
+                newState.offlinePayments.enabled = false;
+            }
+
+            return newState;
+        })
     }
 
     const toggleSecretVisibility = (field) => {
@@ -197,6 +215,51 @@ const PaymentSettings = ({ settings, onUpdate, saving }) => {
                     </div>
                 </div>
             )}
+
+            {/* Offline Payments Section */}
+            <div className={`col-12 mb-4 ${!formData.offlinePayments?.enabled ? 'opacity-75' : ''}`} style={{ transition: 'all 0.3s' }}>
+                <div className={`card shadow-sm border-0 ${formData.offlinePayments?.enabled ? 'border-start border-4 border-warning' : ''}`}>
+                    <div className="card-body p-4">
+                        <div className="d-flex align-items-center justify-content-between mb-4">
+                            <div className="d-flex align-items-center">
+                                <div className="bg-white p-3 rounded-circle shadow-sm me-3 border text-warning">
+                                    <FiCreditCard size={24} />
+                                </div>
+                                <div>
+                                    <h5 className="mb-1">Offline Payments</h5>
+                                    <p className="text-muted mb-0 small">Cash, Bank Transfer, or Manual Payment</p>
+                                </div>
+                            </div>
+                            <div className="form-check form-switch">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    checked={formData.offlinePayments?.enabled || false}
+                                    onChange={() => handleToggle('offlinePayments')}
+                                    style={{ width: '3em', height: '1.5em' }}
+                                />
+                                <label className="form-check-label ms-2 mt-1 fw-bold">
+                                    {formData.offlinePayments?.enabled ? 'Active' : 'Inactive'}
+                                </label>
+                            </div>
+                        </div>
+
+                        {formData.offlinePayments?.enabled && (
+                            <div className="alert alert-warning bg-warning bg-opacity-10 border-warning border-opacity-20">
+                                <h6 className="fw-bold mb-2">Offline Payment Message</h6>
+                                <p className="small mb-3 text-muted">This message will be shown to students in the mobile app when they try to purchase a course.</p>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={formData.offlinePayments?.message || ''}
+                                    onChange={(e) => handleInputChange('offlinePayments', 'message', e.target.value)}
+                                    placeholder="e.g., Please contact administrator for payment"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             {/* Razorpay Section */}
             <div className={`col-12 mb-5 ${!formData.razorpay.enabled ? 'opacity-75' : ''}`} style={{ transition: 'all 0.3s' }}>

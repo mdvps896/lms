@@ -80,7 +80,7 @@ export async function POST(request) {
 
         // Generate proper JWT Token using auth utility
         const token = await signToken({
-            userId: user._id,
+            userId: user._id.toString(),
             email: user.email,
             role: user.role
         });

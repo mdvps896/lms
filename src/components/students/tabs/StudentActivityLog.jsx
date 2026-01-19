@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { FiFileText, FiBookOpen } from 'react-icons/fi'
+import { FiFileText, FiBookOpen, FiCamera } from 'react-icons/fi'
+import SelfieViewerModal from '../SelfieViewerModal'
 
 const StudentActivityLog = ({ activityType, data, formatDate }) => {
     // activityType: 'pdf' or 'course'
@@ -10,9 +11,18 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
     const emptyText = isPdf ? 'No PDF views recorded yet' : 'No Course views recorded yet';
 
     const [expandedId, setExpandedId] = useState(null);
+    const [selfieModal, setSelfieModal] = useState({ show: false, sessionId: null });
 
     const toggleExpand = (id) => {
         setExpandedId(expandedId === id ? null : id);
+    };
+
+    const openSelfieModal = (sessionId) => {
+        setSelfieModal({ show: true, sessionId });
+    };
+
+    const closeSelfieModal = () => {
+        setSelfieModal({ show: false, sessionId: null });
     };
 
     const formatDuration = (seconds) => {
@@ -91,6 +101,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                 <th className="ps-5 text-muted small text-uppercase">Date</th>
                                                                 <th className="text-muted small text-uppercase">Duration</th>
                                                                 <th className="text-muted small text-uppercase">Time</th>
+                                                                {isPdf && <th className="text-end pe-5 text-muted small text-uppercase">Actions</th>}
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -111,6 +122,17 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                             {new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                         </span>
                                                                     </td>
+                                                                    {isPdf && (
+                                                                        <td className="text-end pe-5">
+                                                                            <button
+                                                                                className="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-2"
+                                                                                onClick={() => openSelfieModal(view.id)}
+                                                                            >
+                                                                                <FiCamera size={14} />
+                                                                                View Selfies
+                                                                            </button>
+                                                                        </td>
+                                                                    )}
                                                                 </tr>
                                                             ))}
                                                         </tbody>
@@ -130,6 +152,13 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                     )}
                 </div>
             </div>
+
+            {/* Selfie Viewer Modal */}
+            <SelfieViewerModal
+                show={selfieModal.show}
+                sessionId={selfieModal.sessionId}
+                onClose={closeSelfieModal}
+            />
         </div>
     )
 }

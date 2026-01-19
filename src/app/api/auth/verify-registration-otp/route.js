@@ -95,7 +95,7 @@ export async function POST(request) {
         // Generate JWT token for auto-login
         const { signToken } = await import('@/utils/auth');
         const token = await signToken({
-            userId: user._id,
+            userId: user._id.toString(),
             email: user.email,
             role: user.role
         });

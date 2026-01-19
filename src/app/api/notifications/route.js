@@ -36,11 +36,17 @@ export async function GET(request) {
         const formatted = notifications.map(notif => {
             const recipient = notif.recipients.find(r => r.userId.toString() === userId);
 
-            // Extract data from Map
-            const data = {};
+            // Extract data from Map or plain object
+            let data = {};
             if (notif.data) {
-                for (let [key, value] of notif.data) {
-                    data[key] = value;
+                if (notif.data instanceof Map) {
+                    // If it's a Map, iterate over entries
+                    for (let [key, value] of notif.data) {
+                        data[key] = value;
+                    }
+                } else if (typeof notif.data === 'object') {
+                    // If it's a plain object, just use it
+                    data = notif.data;
                 }
             }
 

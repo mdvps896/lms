@@ -27,7 +27,9 @@ export default function CourseFormModal({ course, onClose, onSave }) {
         gstPercentage: 18,
         description: '',
         hasCertificate: false,
-        language: 'English'
+        language: 'English',
+        readingDurationValue: 0,
+        readingDurationUnit: 'hours'
     });
 
     useEffect(() => {
@@ -59,7 +61,9 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                         gstPercentage: course.gstPercentage || 18,
                         description: course.description || '',
                         hasCertificate: course.hasCertificate || false,
-                        language: course.language || 'English'
+                        language: course.language || 'English',
+                        readingDurationValue: course.readingDuration?.value || 0,
+                        readingDurationUnit: course.readingDuration?.unit || 'hours'
                     });
                 }
             } catch (err) {
@@ -131,6 +135,10 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                 duration: {
                     value: Number(formData.durationValue),
                     unit: formData.durationUnit
+                },
+                readingDuration: {
+                    value: Number(formData.readingDurationValue),
+                    unit: formData.readingDurationUnit
                 },
                 price: formData.isFree ? 0 : Number(formData.price),
                 originalPrice: formData.isFree ? 0 : Number(formData.originalPrice),
@@ -285,6 +293,33 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                                         <option value="days">Days</option>
                                         <option value="months">Months</option>
                                         <option value="years">Years</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="row">
+                                <div className="col-md-6 mb-3">
+                                    <label className="form-label">Reading Duration Value</label>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+                                        min="0"
+                                        value={formData.readingDurationValue}
+                                        onChange={e => setFormData({ ...formData, readingDurationValue: e.target.value })}
+                                        placeholder="e.g. 10"
+                                    />
+                                </div>
+                                <div className="col-md-6 mb-3">
+                                    <label className="form-label">Reading Duration Unit</label>
+                                    <select
+                                        className="form-select"
+                                        value={formData.readingDurationUnit}
+                                        onChange={e => setFormData({ ...formData, readingDurationUnit: e.target.value })}
+                                    >
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                        <option value="days">Days</option>
+                                        <option value="months">Months</option>
                                     </select>
                                 </div>
                             </div>

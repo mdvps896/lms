@@ -223,14 +223,16 @@ export async function PUT(request) {
             'security-smtp': 'securitySMTP',
             'integrations': 'integrations',
             'certificate': 'certificateSettings',
-            'roll-number': 'rollNumberSettings'
+            'roll-number': 'rollNumberSettings',
+            'pdf-selfie': 'pdfSelfieSettings'
         };
 
         let result;
 
         if (tab === 'payment') {
             const updateQuery = {
-                'integrations.razorpay': settingsData.razorpay
+                'integrations.razorpay': settingsData.razorpay,
+                'integrations.offlinePayments': settingsData.offlinePayments
             };
 
             result = await db.collection('settings').updateOne({}, { $set: updateQuery }, { upsert: true });

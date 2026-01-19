@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash, FiCreditCard } from 'react-icons/fi';
+import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash, FiCreditCard, FiCamera } from 'react-icons/fi';
 import GeneralSettings from '../../components/settings/GeneralSettings';
 import AuthPagesSettings from '../../components/settings/AuthPagesSettings';
 import ResultDisplaySettings from '../../components/settings/ResultDisplaySettings';
@@ -11,6 +11,7 @@ import PaymentSettings from '../../components/settings/PaymentSettings';
 import NotificationSoundsTab from '../../components/settings/NotificationSoundsTab';
 import CertificateSettings from '../../components/settings/CertificateSettings';
 import RollNumberSettings from '../../components/settings/RollNumberSettings';
+import PdfSelfieSettings from '../../components/settings/PdfSelfieSettings';
 import SettingsSkeleton from '../../components/settings/SettingsSkeleton';
 import { toast } from 'react-toastify';
 
@@ -80,6 +81,12 @@ const SettingsPage = () => {
             label: 'Roll Number',
             icon: <FiHash className="me-2" />,
             component: RollNumberSettings
+        },
+        {
+            id: 'pdf-selfie',
+            label: 'PDF Selfie',
+            icon: <FiCamera className="me-2" />,
+            component: PdfSelfieSettings
         }
     ];
 

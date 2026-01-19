@@ -215,7 +215,7 @@ const CourseList = () => {
                                             <td>
                                                 {course.isFree ? <span className="text-success fw-bold">FREE</span> : `₹${course.price}`}
                                             </td>
-                                            <td>{course.duration.value} {course.duration.unit}</td>
+                                            <td>{course.duration?.value || '-'} {course.duration?.unit || ''}</td>
                                             <td>
                                                 <span className={`badge ${course.isActive ? 'bg-success' : 'bg-secondary'}`}>
                                                     {course.isActive ? 'Active' : 'Inactive'}

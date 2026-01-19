@@ -114,6 +114,10 @@ const settingsSchema = new mongoose.Schema({
             saltKey: { type: String, default: '' },
             saltIndex: { type: String, default: '1' },
             env: { type: String, default: 'UAT' } // UAT or PROD
+        },
+        offlinePayments: {
+            enabled: { type: Boolean, default: false },
+            message: { type: String, default: 'Please pay offline' }
         }
     },
     // Security Settings
@@ -132,6 +136,14 @@ const settingsSchema = new mongoose.Schema({
         blockedVersions: [{ type: String }], // Specific versions to block
         maintenanceMode: { type: Boolean, default: false },
         maintenanceMessage: { type: String, default: 'App is under maintenance. Please try again later.' }
+    },
+
+    // PDF Selfie Settings
+    pdfSelfieSettings: {
+        enabled: { type: Boolean, default: true },
+        intervalInMinutes: { type: Number, default: 5 },
+        captureOnStart: { type: Boolean, default: true },
+        captureOnEnd: { type: Boolean, default: false }
     },
 
     // Single instance - only one settings document

@@ -57,7 +57,16 @@ export async function GET(request, { params }) {
         courseObj.isLiked = isLiked;
         courseObj.userRating = userRating;
         courseObj.isRated = !!userRating;
+        courseObj.isRated = !!userRating;
         courseObj.language = courseObj.language || 'English';
+
+        // Format reading duration
+        let readingDurationText = 'Not specified';
+        if (courseObj.readingDuration) {
+            const { value, unit } = courseObj.readingDuration;
+            readingDurationText = `${value} ${unit}`;
+        }
+        courseObj.readingDurationText = readingDurationText;
 
         courseObj.reviews = ratings.map(r => ({
             userName: r.user?.name || 'Student',

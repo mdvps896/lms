@@ -54,6 +54,17 @@ const courseSchema = new mongoose.Schema({
             required: true,
         },
     },
+    readingDuration: {
+        value: {
+            type: Number,
+            default: 0
+        },
+        unit: {
+            type: String,
+            enum: ['minutes', 'hours', 'days', 'months'],
+            default: 'hours'
+        }
+    },
     thumbnail: {
         type: String, // URL
         required: true,

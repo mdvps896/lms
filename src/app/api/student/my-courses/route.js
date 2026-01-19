@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Course from '@/models/Course';
+import PDFViewSession from '@/models/PDFViewSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,14 +53,17 @@ export async function GET(request) {
         });
 
         const courses = await Course.find({ _id: { $in: courseIds }, isActive: true })
-            .select('title thumbnail description price duration totalLectures totalLessons instructor rating')
+            .select('title thumbnail description price duration totalLectures totalLessons instructor rating readingDuration')
             .lean();
 
-        const myCourses = courses.map(course => {
+        const myCourses = await Promise.all(courses.map(async course => {
             const courseIdStr = course._id.toString();
             const expiresAt = expiryMap[courseIdStr];
             const isExpired = expiresAt ? new Date() > new Date(expiresAt) : false;
             const completedLectures = completedLecturesMap[courseIdStr] || [];
+
+            // Get total time spent from PDF sessions
+            const timeStats = await PDFViewSession.getTotalCourseTime(userId, course._id);
 
             return {
                 ...course,
@@ -68,9 +72,11 @@ export async function GET(request) {
                 isExpired: isExpired,
                 isPurchased: true, // Explicitly mark as purchased
                 completedLectures: completedLectures, // Add completed lectures array
-                totalLectures: course.totalLectures || course.totalLessons || 0 // Ensure totalLectures is present
+                totalLectures: course.totalLectures || course.totalLessons || 0, // Ensure totalLectures is present
+                totalTimeSpent: timeStats.totalSeconds,
+                readingDuration: course.readingDuration || { value: 0, unit: 'hours' }
             };
-        });
+        }));
 
         return NextResponse.json({ success: true, courses: myCourses });
 

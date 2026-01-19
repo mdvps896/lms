@@ -62,6 +62,15 @@ const pdfViewSessionSchema = new mongoose.Schema({
     currentPage: {
         type: Number,
         default: 1
+    },
+    // Selfie tracking
+    selfies: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SelfieCapture'
+    }],
+    selfieCount: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true
