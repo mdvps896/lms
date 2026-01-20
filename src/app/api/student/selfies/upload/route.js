@@ -87,8 +87,8 @@ export async function POST(request) {
         const buffer = Buffer.from(bytes);
         await writeFile(filePath, buffer);
 
-        // Create relative path for URL
-        const relativePath = `/uploads/selfies/${userIdStr}/${courseIdStr}/${fileName}`;
+        // Create relative path for URL (Use API route for reliable serving)
+        const relativePath = `/api/storage/file/uploads/selfies/${userIdStr}/${courseIdStr}/${fileName}`;
 
         // Get client metadata
         const userAgent = request.headers.get('user-agent') || '';

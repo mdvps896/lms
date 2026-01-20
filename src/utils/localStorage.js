@@ -247,7 +247,8 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
 
         // Generate public URL (relative to public directory)
         const relativePath = path.relative(path.join(process.cwd(), 'public'), filePath);
-        const publicUrl = `/${relativePath.replace(/\\/g, '/')}`; // Ensure forward slashes for URLs
+        // Use the API route to serve files to ensure they work in production/runtime
+        const publicUrl = `/api/storage/file/${relativePath.replace(/\\/g, '/')}`; // Ensure forward slashes for URLs
 
         console.log('✅ File saved successfully to local storage');
         console.log('📁 Path:', filePath);

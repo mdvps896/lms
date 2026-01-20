@@ -8,6 +8,9 @@ export async function GET(request) {
         await connectDB();
 
         // Group by user and get latest message
+        const count = await SupportMessage.countDocuments();
+        console.log(`Debug: Total support messages in DB: ${count}`);
+
         const conversations = await SupportMessage.aggregate([
             { $sort: { createdAt: -1 } },
             {
