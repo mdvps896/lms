@@ -117,6 +117,9 @@ export default function CourseFormModal({ course, onClose, onSave }) {
             // 2. Upload Video if selected
             if (demoVideoFile) {
                 demoVideoUrl = await uploadFile(demoVideoFile, 'courses/videos');
+            } else if (demoVideoUrl && isYouTubeUrl(demoVideoUrl)) {
+                // Convert YouTube URL to embed format before saving
+                demoVideoUrl = getYouTubeEmbedUrl(demoVideoUrl);
             }
 
             // Validate requirements
@@ -189,31 +192,39 @@ export default function CourseFormModal({ course, onClose, onSave }) {
     // Check if URL is a YouTube URL
     const isYouTubeUrl = (url) => {
         if (!url) return false;
-        return url.includes('youtube.com') || url.includes('youtu.be');
+        return /(?:youtube\.com|youtu\.be)/.test(url);
+    };
+
+    // Extract YouTube video ID from various URL formats
+    const extractYouTubeVideoId = (url) => {
+        if (!url) return null;
+
+        url = url.trim();
+
+        // Pattern 1: youtube.com/watch?v=VIDEO_ID
+        let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (match) return match[1];
+
+        // Pattern 2: youtube.com/embed/VIDEO_ID
+        match = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+        if (match) return match[1];
+
+        // Pattern 3: Just the video ID
+        if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+            return url;
+        }
+
+        return null;
     };
 
     // Convert YouTube URL to embed URL
     const getYouTubeEmbedUrl = (url) => {
         if (!url) return '';
 
-        // Handle youtube.com/watch?v=VIDEO_ID
-        if (url.includes('youtube.com/watch')) {
-            const videoId = url.split('v=')[1]?.split('&')[0];
-            return `https://www.youtube.com/embed/${videoId}`;
-        }
+        const videoId = extractYouTubeVideoId(url);
+        if (!videoId) return url; // Return original if not a valid YouTube URL
 
-        // Handle youtu.be/VIDEO_ID
-        if (url.includes('youtu.be/')) {
-            const videoId = url.split('youtu.be/')[1]?.split('?')[0];
-            return `https://www.youtube.com/embed/${videoId}`;
-        }
-
-        // If already embed URL, return as is
-        if (url.includes('youtube.com/embed/')) {
-            return url;
-        }
-
-        return url;
+        return `https://www.youtube.com/embed/${videoId}`;
     };
 
     if (loading) return null;
