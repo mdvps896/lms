@@ -51,14 +51,47 @@ export async function POST(request) {
             isNewUser = true;
         }
 
-        // Firebase will handle OTP sending
-        console.log(`📱 OTP request for ${mobile} - ${isNewUser ? 'New user' : 'Existing user'}`);
+        // Send OTP via 2Factor.in
+        const apiKey = process.env.TWOTACTOR_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json(
+                { success: false, message: 'SMS Gateway not configured' },
+                { status: 500 }
+            );
+        }
 
-        return NextResponse.json({
-            success: true,
-            message: 'Ready to send OTP via Firebase',
-            isNewUser
-        });
+        try {
+            // Try using the default system template if no custom template is approved
+            const twoFactorUrl = `https://2factor.in/API/V1/${apiKey}/SMS/${mobile}/AUTOGEN`;
+            const otpResponse = await fetch(twoFactorUrl);
+            const otpData = await otpResponse.json();
+
+            console.log('------- 2FACTOR RESPONSE -------');
+            console.log(JSON.stringify(otpData, null, 2));
+            console.log('-------------------------------');
+
+            if (otpData.Status !== 'Success') {
+                return NextResponse.json(
+                    { success: false, message: 'Failed to send OTP via SMS Gateway' },
+                    { status: 500 }
+                );
+            }
+
+            console.log(`📱 OTP sent to ${mobile} via 2Factor. Session: ${otpData.Details}`);
+
+            return NextResponse.json({
+                success: true,
+                message: 'OTP sent successfully',
+                sessionId: otpData.Details, // We need this to verify later
+                isNewUser
+            });
+        } catch (smsError) {
+            console.error('SMS Gateway Error:', smsError);
+            return NextResponse.json(
+                { success: false, message: 'SMS Gateway error' },
+                { status: 500 }
+            );
+        }
 
     } catch (error) {
         console.error('Error checking mobile number:', error);

@@ -72,7 +72,7 @@ export async function POST(request) {
 
         // Generate roll number using the new utility
         const { generateRollNumber, ensureUniqueRollNumber } = await import('@/utils/rollNumber');
-        const rollNumber = await ensureUniqueRollNumber(User);
+        const rollNumber = await ensureUniqueRollNumber(User, name || user.name);
 
         // Determine register source
         const source = body.source || body.registerSource || 'app'; // Default to app for this flow if not specified

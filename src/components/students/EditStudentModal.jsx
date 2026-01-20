@@ -36,10 +36,10 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
                 phone: student.phone || '',
                 password: '', // Don't pre-fill password
                 status: student.status || 'active',
-                category: student.category?._id || student.category || '',
+                category: student.categoryId || student.category?._id || (typeof student.category === 'string' && student.category.length === 24 ? student.category : ''),
                 dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
                 admissionDate: student.admissionDate ? new Date(student.admissionDate).toISOString().split('T')[0] :
-                    (student.enrollmentDate ? new Date(student.enrollmentDate).toISOString().split('T')[0] : ''),
+                    (student.enrollmentDate && !isNaN(new Date(student.enrollmentDate).getTime()) ? new Date(student.enrollmentDate).toISOString().split('T')[0] : ''),
                 address: student.address || '',
                 enrolledCourses: student.enrolledCourses?.map(ec => {
                     // Handle populated or direct ID

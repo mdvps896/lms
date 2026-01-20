@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import mongoose from 'mongoose';
+import Settings from '@/models/Settings';
 import { signToken } from '@/utils/auth'; // Import signToken
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export async function POST(request) {
         await connectDB();
 
         // Check if registration is enabled
-        const settings = await db.collection('settings').findOne({});
+        const settings = await Settings.findOne({});
 
         // Determine register source / platform
         const registerSource = body.source || body.registerSource || 'app';
@@ -66,7 +67,7 @@ export async function POST(request) {
 
             // Generate roll number using the new utility
             const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
-            const rollNumber = await ensureUniqueRollNumber(User);
+            const rollNumber = await ensureUniqueRollNumber(User, name);
 
             // Determine register source (already defined above)
 

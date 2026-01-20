@@ -12,37 +12,50 @@ export async function POST(request) {
     try {
         await connectDB();
 
-        const { firebaseToken, name, deviceId } = await request.json();
+        const { firebaseToken, name, deviceId, mobile: mobileNumber, otp, sessionId } = await request.json();
 
-        // Validate inputs
-        if (!firebaseToken) {
+        let mobile = mobileNumber;
+
+        // If firebaseToken is provided, use Firebase verification (optional backward compatibility)
+        if (firebaseToken) {
+            const verificationResult = await verifyFirebaseToken(firebaseToken);
+            if (!verificationResult.success) {
+                return NextResponse.json(
+                    { success: false, message: 'Invalid Firebase token' },
+                    { status: 401 }
+                );
+            }
+            mobile = verificationResult.phoneNumber.replace(/^\+91/, '');
+        }
+        // Otherwise use 2Factor.in verification
+        else if (mobileNumber && otp && sessionId) {
+            const apiKey = process.env.TWOTACTOR_API_KEY;
+            const verifyUrl = `https://2factor.in/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${otp}`;
+
+            try {
+                const verifyResponse = await fetch(verifyUrl);
+                const verifyData = await verifyResponse.json();
+
+                if (verifyData.Status !== 'Success') {
+                    return NextResponse.json(
+                        { success: false, message: 'Invalid OTP or expired session' },
+                        { status: 401 }
+                    );
+                }
+                // Verification successful, mobile is already in mobileNumber
+            } catch (error) {
+                console.error('2Factor Verification Error:', error);
+                return NextResponse.json(
+                    { success: false, message: 'OTP verification failed' },
+                    { status: 500 }
+                );
+            }
+        } else {
             return NextResponse.json(
-                { success: false, message: 'Firebase token is required' },
+                { success: false, message: 'Mobile, OTP and Session ID are required' },
                 { status: 400 }
             );
         }
-
-        // Verify Firebase ID token
-        const verificationResult = await verifyFirebaseToken(firebaseToken);
-
-        if (!verificationResult.success) {
-            return NextResponse.json(
-                { success: false, message: 'Invalid Firebase token' },
-                { status: 401 }
-            );
-        }
-
-        const phoneNumber = verificationResult.phoneNumber;
-
-        if (!phoneNumber) {
-            return NextResponse.json(
-                { success: false, message: 'Phone number not found in Firebase token' },
-                { status: 400 }
-            );
-        }
-
-        // Remove country code prefix (+91) to get just the 10-digit number
-        const mobile = phoneNumber.replace(/^\+91/, '');
 
         // Find or create user by mobile number
         let user = await User.findOne({ phone: mobile });
@@ -54,7 +67,7 @@ export async function POST(request) {
 
             // Generate roll number for new user
             const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
-            const rollNumber = await ensureUniqueRollNumber(User);
+            const rollNumber = await ensureUniqueRollNumber(User, name || `User ${mobile}`);
 
             user = await User.create({
                 name: name || `User ${mobile}`,
@@ -64,6 +77,8 @@ export async function POST(request) {
                 role: 'student',
                 isActive: true,
                 emailVerified: true, // Auto-verify for mobile OTP users
+                registerSource: 'app',
+                authProvider: 'mobile',
                 password: Buffer.from(`${mobile}-${Date.now()}`).toString('base64') // Random password
             });
         } else if (!user.isActive) {
@@ -72,14 +87,16 @@ export async function POST(request) {
 
             // Generate roll number
             const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
-            const rollNumber = await ensureUniqueRollNumber(User);
+            const rollNumber = await ensureUniqueRollNumber(User, name || user.name || `User ${mobile}`);
 
             await User.findByIdAndUpdate(user._id, {
                 name: name || user.name || `User ${mobile}`,
                 email: user.email || `${mobile}@mobile.local`,
                 rollNumber,
                 isActive: true,
-                emailVerified: true
+                emailVerified: true,
+                registerSource: 'app',
+                authProvider: 'mobile'
             });
 
             // Refresh user data

@@ -120,8 +120,8 @@ const StudentOverviewTab = ({ details, formatDate }) => {
                                 label="Email Address"
                                 value={
                                     <span className="d-flex align-items-center gap-2">
-                                        {user.email}
-                                        {user.emailVerified && <FiCheckCircle size={14} className="text-success" title="Verified" />}
+                                        {user.email?.endsWith('@mobile.local') ? 'Not Provided' : user.email}
+                                        {user.emailVerified && !user.email?.endsWith('@mobile.local') && <FiCheckCircle size={14} className="text-success" title="Verified" />}
                                     </span>
                                 }
                                 icon={FiMail}

@@ -56,7 +56,7 @@ export async function POST(request) {
     // Auto-generate roll number for students
     if ((body.role === 'student' || body.role === undefined) && !body.rollNumber) {
       const { ensureUniqueRollNumber } = await import('@/utils/rollNumber');
-      body.rollNumber = await ensureUniqueRollNumber(User, 'PK');
+      body.rollNumber = await ensureUniqueRollNumber(User, body.name);
     }
 
     // Set register source to 'web' for manual admin creation

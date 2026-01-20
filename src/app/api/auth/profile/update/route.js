@@ -26,8 +26,7 @@ export async function POST(request) {
             }
         }
 
-        // Validate that email and rollNumber are NOT being updated here
-        // These are protected fields
+        // Validate that rollNumber is NOT being updated here
         const updateData = {};
         if (name) updateData.name = name;
         if (phone) updateData.phone = phone;
@@ -38,14 +37,35 @@ export async function POST(request) {
         if (profileImage) updateData.profileImage = profileImage;
         if (category) updateData.category = category;
 
+        // Allow email update ONLY IF current email is a dummy mobile.local email
+        if (body.email) {
+            const currentUser = await User.findById(userId);
+            if (currentUser && currentUser.email.endsWith('@mobile.local')) {
+                // Check if new email is already taken
+                const emailExists = await User.findOne({
+                    email: body.email.toLowerCase(),
+                    _id: { $ne: userId }
+                });
+
+                if (emailExists) {
+                    return NextResponse.json(
+                        { success: false, message: 'Email is already registered by another user' },
+                        { status: 400 }
+                    );
+                }
+
+                updateData.email = body.email.toLowerCase();
+            }
+        }
+
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $set: updateData },
             { new: true }
         )
-        .select('-password')
-        .populate('category', 'name')
-        .lean();
+            .select('-password')
+            .populate('category', 'name')
+            .lean();
 
         if (!updatedUser) {
             return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });

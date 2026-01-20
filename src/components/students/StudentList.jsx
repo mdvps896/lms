@@ -581,7 +581,7 @@ const StudentList = () => {
                                             </td>
                                             <td>
                                                 <div className="d-flex flex-column">
-                                                    <span className="text-muted small">{student.email}</span>
+                                                    <span className="text-muted small">{student.email?.endsWith('@mobile.local') ? 'Not Provided' : student.email}</span>
                                                     <span className="text-muted" style={{ fontSize: '10px' }}>{student.phone}</span>
                                                 </div>
                                             </td>
@@ -617,9 +617,11 @@ const StudentList = () => {
                                                         )}
                                                     </div>
                                                     {/* Auth Icon */}
-                                                    <div title={student.isGoogleAuth ? 'Google Account' : 'Email Account'}>
-                                                        {student.isGoogleAuth ? (
+                                                    <div title={student.authProvider === 'google' ? 'Google Account' : student.authProvider === 'mobile' ? 'Mobile OTP Account' : 'Email Account'}>
+                                                        {student.authProvider === 'google' ? (
                                                             <FcGoogle size={18} />
+                                                        ) : student.authProvider === 'mobile' ? (
+                                                            <FiSmartphone className="text-primary" size={18} />
                                                         ) : (
                                                             <div className="position-relative">
                                                                 <FiMail className="text-danger" size={18} />
