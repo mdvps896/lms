@@ -56,6 +56,14 @@ export async function GET(request) {
             .select('title thumbnail description price duration totalLectures totalLessons instructor rating readingDuration')
             .lean();
 
+        // URL Fixer
+        const fixUrl = (url) => {
+            if (typeof url === 'string' && url.startsWith('/uploads/')) {
+                return `/api/storage/file${url}`;
+            }
+            return url;
+        };
+
         const myCourses = await Promise.all(courses.map(async course => {
             const courseIdStr = course._id.toString();
             const expiresAt = expiryMap[courseIdStr];
@@ -68,6 +76,7 @@ export async function GET(request) {
             return {
                 ...course,
                 id: course._id.toString(), // Ensure ID is string
+                thumbnail: fixUrl(course.thumbnail), // Fix thumbnail URL
                 expiresAt: expiresAt,
                 isExpired: isExpired,
                 isPurchased: true, // Explicitly mark as purchased

@@ -98,6 +98,29 @@ export async function GET(request, { params }) {
             }
         }
 
+        // URL Fixer for local uploads in production
+        const fixUrl = (url) => {
+            if (typeof url === 'string' && url.startsWith('/uploads/')) {
+                return `/api/storage/file${url}`;
+            }
+            return url;
+        };
+
+        // Apply URL fix to course fields
+        courseObj.thumbnail = fixUrl(courseObj.thumbnail);
+        courseObj.demoVideo = fixUrl(courseObj.demoVideo);
+
+        // Apply URL fix to curriculum
+        if (courseObj.curriculum) {
+            courseObj.curriculum.forEach(topic => {
+                if (topic.lectures) {
+                    topic.lectures.forEach(lecture => {
+                        lecture.content = fixUrl(lecture.content);
+                    });
+                }
+            });
+        }
+
         return NextResponse.json({ success: true, data: courseObj });
     } catch (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });

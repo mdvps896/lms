@@ -19,6 +19,14 @@ export async function GET(request) {
             .populate('ratings.user', 'name')
             .sort({ createdAt: -1 });
 
+        // URL Fixer for local uploads in production
+        const fixUrl = (url) => {
+            if (typeof url === 'string' && url.startsWith('/uploads/')) {
+                return `/api/storage/file${url}`;
+            }
+            return url;
+        };
+
         // If admin format explicitly requested, return raw data
         if (format === 'admin') {
             // Calculate student counts for each course
@@ -32,6 +40,19 @@ export async function GET(request) {
                         { enrolledCourses: course._id } // Support for legacy simple ID format
                     ]
                 });
+
+                // Apply URL fix
+                courseObj.thumbnail = fixUrl(courseObj.thumbnail);
+                courseObj.demoVideo = fixUrl(courseObj.demoVideo);
+                if (courseObj.curriculum) {
+                    courseObj.curriculum.forEach(topic => {
+                        if (topic.lectures) {
+                            topic.lectures.forEach(lecture => {
+                                lecture.content = fixUrl(lecture.content);
+                            });
+                        }
+                    });
+                }
 
                 return { ...courseObj, studentCount };
             }));
@@ -78,6 +99,10 @@ export async function GET(request) {
             if (course.curriculum && Array.isArray(course.curriculum)) {
                 course.curriculum.forEach(topic => {
                     if (topic.lectures && Array.isArray(topic.lectures)) {
+                        topic.lectures.forEach(lecture => {
+                            // Fix content URL
+                            lecture.content = fixUrl(lecture.content);
+                        });
                         totalLectures += topic.lectures.length;
                     }
                 });
@@ -93,6 +118,14 @@ export async function GET(request) {
                 totalPrice = basePrice + gstAmount;
             }
 
+            // Fix demo Video URL
+            let demoVideo = course.demoVideo || '';
+            if (demoVideo.includes('/api/storage/secure-file')) {
+                demoVideo = demoVideo.replace('/api/storage/secure-file', '/api/storage/demo-video');
+            } else {
+                demoVideo = fixUrl(demoVideo);
+            }
+
             const formatted = {
                 id: course._id.toString(),
                 title: course.title || 'Untitled Course',
@@ -104,12 +137,8 @@ export async function GET(request) {
                 gstPercentage: course.gstPercentage || 0,
                 gstAmount: Math.round(gstAmount).toString(),
                 totalPrice: Math.round(totalPrice).toString(),
-                thumbnail: course.thumbnail || '',
-                demoVideo: course.demoVideo
-                    ? (course.demoVideo.includes('/api/storage/secure-file')
-                        ? course.demoVideo.replace('/api/storage/secure-file', '/api/storage/demo-video')
-                        : course.demoVideo)
-                    : '',
+                thumbnail: fixUrl(course.thumbnail) || '',
+                demoVideo: demoVideo,
                 instructor: 'Admin',
                 duration: durationText,
                 totalTopics: course.curriculum?.length || 0,
