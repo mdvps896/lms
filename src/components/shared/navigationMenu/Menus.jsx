@@ -91,6 +91,13 @@ const Menus = () => {
     // Filter menu items based on user role
     const filteredMenuList = menuList.filter(item => {
         if (!user || !user.role) return false;
+
+        // For students, only show Dashboard
+        if (user.role === 'student') {
+            return item.name === 'Dashboard';
+        }
+
+        // For other roles, show all allowed menus
         return item.roles.includes(user.role);
     });
 
