@@ -176,35 +176,43 @@ const userSchema = new mongoose.Schema({
 });
 
 // Cascade delete support messages when user is deleted
-userSchema.pre('findOneAndDelete', async function (next) {
+userSchema.pre('findOneAndDelete', async function () {
   try {
     const userId = this.getQuery()._id;
     if (userId) {
       // Delete all support messages for this user
-      const SupportMessage = mongoose.model('SupportMessage');
-      await SupportMessage.deleteMany({ user: userId });
-      console.log(`Deleted support messages for user: ${userId}`);
+      try {
+        const SupportMessage = mongoose.models.SupportMessage;
+        if (SupportMessage) {
+          await SupportMessage.deleteMany({ user: userId });
+          console.log(`Deleted support messages for user: ${userId}`);
+        }
+      } catch (modelError) {
+        console.log('SupportMessage model not available, skipping cascade delete');
+      }
     }
-    next();
   } catch (error) {
     console.error('Error in cascade delete:', error);
-    next(error);
   }
 });
 
-userSchema.pre('deleteOne', async function (next) {
+userSchema.pre('deleteOne', async function () {
   try {
     const userId = this.getQuery()._id;
     if (userId) {
       // Delete all support messages for this user
-      const SupportMessage = mongoose.model('SupportMessage');
-      await SupportMessage.deleteMany({ user: userId });
-      console.log(`Deleted support messages for user: ${userId}`);
+      try {
+        const SupportMessage = mongoose.models.SupportMessage;
+        if (SupportMessage) {
+          await SupportMessage.deleteMany({ user: userId });
+          console.log(`Deleted support messages for user: ${userId}`);
+        }
+      } catch (modelError) {
+        console.log('SupportMessage model not available, skipping cascade delete');
+      }
     }
-    next();
   } catch (error) {
     console.error('Error in cascade delete:', error);
-    next(error);
   }
 });
 

@@ -63,112 +63,34 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
             const decoded = jwtDecode(credentialResponse.credential);
 
             if (type === 'login') {
-                // Try to login first
-                let response = await fetch('/api/auth/login', {
+                // Use Google register endpoint which handles both login and registration
+                const response = await fetch('/api/auth/google-register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        name: decoded.name,
                         email: decoded.email,
-                        password: 'google_oauth_' + decoded.sub
+                        photoUrl: decoded.picture,
+                        source: 'web'
                     }),
                 });
 
-                let data = await response.json();
-                let isNewUser = false;
-
-                // If login failed, check if user exists by email first
-                if (!data.success) {
-                    console.log('Initial login failed, checking if user exists...', data);
-
-                    // Check if user exists by email
-                    const checkUserResponse = await fetch('/api/auth/check-user', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: decoded.email }),
-                    });
-
-                    const checkUserData = await checkUserResponse.json();
-                    console.log('Check user response:', checkUserData);
-
-                    if (checkUserData.success && checkUserData.userExists) {
-                        console.log('User exists, updating password for Google OAuth...');
-                        // User exists but login failed - might be different password
-                        // For Google OAuth users, update their password and login
-                        const updateResponse = await fetch('/api/auth/update-google-password', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                email: decoded.email,
-                                password: 'google_oauth_' + decoded.sub,
-                                isGoogleAuth: true
-                            }),
-                        });
-
-                        const updateData = await updateResponse.json();
-                        console.log('Password update response:', updateData);
-
-                        if (updateResponse.ok) {
-                            // Try login again with updated password
-                            console.log('Retrying login with updated password...');
-                            response = await fetch('/api/auth/login', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    email: decoded.email,
-                                    password: 'google_oauth_' + decoded.sub
-                                }),
-                            });
-                            data = await response.json();
-                            console.log('Retry login response:', data);
-                        }
-                    } else {
-                        console.log('User does not exist, checking registration settings...');
-                        // User doesn't exist - check if registration is enabled before creating account
-                        const settingsResponse = await fetch('/api/settings');
-                        const settingsData = await settingsResponse.json();
-
-                        const registrationEnabled = settingsData.success &&
-                            settingsData.data?.authPages?.enableRegistration !== false;
-
-                        if (!registrationEnabled) {
-                            throw new Error('Registration is currently disabled by administrator. Please contact admin to create your account.');
-                        }
-
-                        console.log('Creating new user account...');
-                        // Proceed with automatic registration only if enabled
-                        response = await fetch('/api/auth/register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                name: decoded.name,
-                                email: decoded.email,
-                                password: 'google_oauth_' + decoded.sub,
-                                role: 'student',
-                                isGoogleAuth: true,
-                                emailVerified: true,
-                            }),
-                        });
-                        data = await response.json();
-                        console.log('Registration response:', data);
-                        isNewUser = true;
-                    }
-                }
-
-                console.log('Google OAuth final response:', data);
+                const data = await response.json();
+                console.log('Google OAuth response:', data);
 
                 if (data.success) {
                     // Login user (works for both new and existing users)
-                    localStorage.setItem('user', JSON.stringify(data.data));
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('token', data.token);
 
                     // Set cookie for middleware
-                    document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
+                    document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`;
+                    document.cookie = `token=${data.token}; path=/; max-age=86400`;
 
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
-                        text: isNewUser
-                            ? 'Account created & logged in successfully with Google!'
-                            : 'Login successful with Google!',
+                        text: data.message || 'Login successful with Google!',
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -179,20 +101,18 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     }, 500);
                 } else {
                     // Handle failed login/registration
-                    throw new Error(data.error || 'Google authentication failed');
+                    throw new Error(data.message || 'Google authentication failed');
                 }
             } else if (type === 'register') {
-                // Register with Google data (skip OTP verification)
-                const response = await fetch('/api/auth/register', {
+                // Use Google register endpoint
+                const response = await fetch('/api/auth/google-register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: decoded.name,
                         email: decoded.email,
-                        mobile: '', // Google doesn't provide phone - use 'mobile' to match API
-                        password: 'google_oauth_' + decoded.sub,
-                        isGoogleAuth: true,
-                        emailVerified: true
+                        photoUrl: decoded.picture,
+                        source: 'web'
                     }),
                 });
 
@@ -200,13 +120,15 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
 
                 if (data.success) {
                     // Store user data and redirect
-                    localStorage.setItem('user', JSON.stringify(data.data));
-                    document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('token', data.token);
+                    document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`;
+                    document.cookie = `token=${data.token}; path=/; max-age=86400`;
 
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
-                        text: 'Registration successful with Google! No OTP needed.',
+                        text: data.message || 'Registration successful with Google!',
                         timer: 1500,
                         showConfirmButton: false
                     });
