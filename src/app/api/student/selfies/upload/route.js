@@ -6,11 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { verifyToken } from '@/utils/auth';
 
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
+
 
 export async function POST(request) {
     try {
