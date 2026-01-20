@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { FaChevronDown, FaChevronUp, FaUserCircle, FaFilePdf, FaBook, FaPenAlt, FaInbox } from 'react-icons/fa';
 
-const RecentTables = ({ attempts, materials }) => {
+const RecentTables = ({ attempts, materials, pdfViews, payments }) => {
     const [activeTab, setActiveTab] = useState('activity');
     const [expandedUsers, setExpandedUsers] = useState({});
     // Track active sub-tab for each user: { userId: 'exam' | 'pdf' | 'course' }
@@ -10,46 +10,89 @@ const RecentTables = ({ attempts, materials }) => {
 
     // Group attempts by user
     const groupedData = useMemo(() => {
-        if (!attempts || attempts.length === 0) return [];
-
         const groups = {};
-        attempts.forEach(attempt => {
-            if (!attempt.user) return; // Skip if no user data
-            const userId = attempt.user._id;
 
+        // Helper to add user if not exists
+        const ensureUser = (user, date) => {
+            if (!user) return null;
+            const userId = user._id;
             if (!groups[userId]) {
                 groups[userId] = {
-                    user: attempt.user,
-                    activities: [], // This will hold ALL types
+                    user: user,
+                    activities: [],
                     exams: [],
-                    pdfs: [], // Placeholder for future data
-                    courses: [], // Placeholder for future data
-                    latestActivity: new Date(attempt.startedAt)
+                    pdfs: [],
+                    courses: [],
+                    latestActivity: new Date(date)
                 };
             }
-
-            const activityItem = {
-                type: 'exam',
-                title: attempt.exam ? (attempt.exam.name || attempt.exam.title) : 'Deleted Exam',
-                date: attempt.startedAt,
-                status: attempt.status,
-                score: attempt.score,
-                id: attempt._id
-            };
-
-            groups[userId].activities.push(activityItem);
-            groups[userId].exams.push(activityItem);
-
-            // Update latest activity
-            const attemptDate = new Date(attempt.startedAt);
-            if (attemptDate > groups[userId].latestActivity) {
-                groups[userId].latestActivity = attemptDate;
+            const currentDate = new Date(date);
+            if (currentDate > groups[userId].latestActivity) {
+                groups[userId].latestActivity = currentDate;
             }
-        });
+            return groups[userId];
+        };
+
+        // Process Exam Attempts
+        if (attempts && attempts.length > 0) {
+            attempts.forEach(attempt => {
+                const group = ensureUser(attempt.user, attempt.startedAt);
+                if (!group) return;
+
+                const item = {
+                    type: 'exam',
+                    title: attempt.exam ? (attempt.exam.name || attempt.exam.title) : 'Deleted Exam',
+                    date: attempt.startedAt,
+                    status: attempt.status,
+                    score: attempt.score,
+                    id: attempt._id
+                };
+                group.exams.push(item);
+                group.activities.push(item);
+            });
+        }
+
+        // Process PDF Views
+        if (pdfViews && pdfViews.length > 0) {
+            pdfViews.forEach(view => {
+                const group = ensureUser(view.user, view.createdAt);
+                if (!group) return;
+
+                const item = {
+                    type: 'pdf',
+                    title: view.pdfName || view.lectureName || 'Untitled PDF',
+                    date: view.createdAt,
+                    status: 'viewed',
+                    score: view.duration ? `${Math.floor(view.duration / 60)}m ${view.duration % 60}s` : '0s',
+                    id: view._id
+                };
+                group.pdfs.push(item);
+                group.activities.push(item);
+            });
+        }
+
+        // Process Course Payments
+        if (payments && payments.length > 0) {
+            payments.forEach(payment => {
+                const group = ensureUser(payment.user, payment.createdAt);
+                if (!group) return;
+
+                const item = {
+                    type: 'course',
+                    title: payment.course?.title || 'Unknown Course',
+                    date: payment.createdAt,
+                    status: 'purchased',
+                    score: `₹${payment.amount}`,
+                    id: payment._id
+                };
+                group.courses.push(item);
+                group.activities.push(item);
+            });
+        }
 
         // Convert to array and sort by latest activity
         return Object.values(groups).sort((a, b) => b.latestActivity - a.latestActivity);
-    }, [attempts]);
+    }, [attempts, pdfViews, payments]);
 
     const toggleUser = (userId) => {
         setExpandedUsers(prev => ({
@@ -185,12 +228,15 @@ const RecentTables = ({ attempts, materials }) => {
                                                                         </td>
                                                                         <td className="small text-muted">{new Date(activity.date).toLocaleString()}</td>
                                                                         <td>
-                                                                            <span className={`badge bg-${activity.status === 'submitted' ? 'success' :
-                                                                                    activity.status === 'active' ? 'primary' : 'warning'
-                                                                                }-subtle text-${activity.status === 'submitted' ? 'success' :
-                                                                                    activity.status === 'active' ? 'primary' : 'warning'
-                                                                                } border border-${activity.status === 'submitted' ? 'success' :
-                                                                                    activity.status === 'active' ? 'primary' : 'warning'
+                                                                            <span className={`badge bg-${activity.status === 'submitted' || activity.status === 'success' || activity.status === 'viewed' ? 'success' :
+                                                                                activity.status === 'active' ? 'primary' :
+                                                                                    activity.status === 'purchased' ? 'info' : 'warning'
+                                                                                }-subtle text-${activity.status === 'submitted' || activity.status === 'success' || activity.status === 'viewed' ? 'success' :
+                                                                                    activity.status === 'active' ? 'primary' :
+                                                                                        activity.status === 'purchased' ? 'info' : 'warning'
+                                                                                } border border-${activity.status === 'submitted' || activity.status === 'success' || activity.status === 'viewed' ? 'success' :
+                                                                                    activity.status === 'active' ? 'primary' :
+                                                                                        activity.status === 'purchased' ? 'info' : 'warning'
                                                                                 }-subtle`}>
                                                                                 {activity.status}
                                                                             </span>

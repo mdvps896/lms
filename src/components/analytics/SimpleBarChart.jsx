@@ -27,6 +27,12 @@ const SimpleBarChart = ({ data, title, type = 'category' }) => {
             const found = data.find(d => d._id === k);
             return found ? found.count : 0;
         });
+    } else if (type === 'pdf') {
+        categories = data.map(item => item.name);
+        seriesData = data.map(item => item.views);
+    } else if (type === 'course') {
+        categories = data.map(item => item.name);
+        seriesData = data.map(item => item.sales);
     } else {
         categories = data.map(item => item._id);
         seriesData = data.map(item => item.count);
@@ -58,7 +64,7 @@ const SimpleBarChart = ({ data, title, type = 'category' }) => {
             labels: { style: { colors: '#64748b' } }
         },
         fill: { opacity: 1 },
-        colors: type === 'score' ? ['#10b981'] : ['#3b82f6'], // Green for scores, Blue for categories
+        colors: type === 'score' ? ['#10b981'] : type === 'pdf' ? ['#f59e0b'] : type === 'course' ? ['#8b5cf6'] : ['#3b82f6'],
         grid: {
             borderColor: '#f1f5f9',
             strokeDashArray: 4
@@ -67,14 +73,14 @@ const SimpleBarChart = ({ data, title, type = 'category' }) => {
             theme: 'light',
             y: {
                 formatter: function (val) {
-                    return val
+                    return val + (type === 'course' ? ' Sales' : type === 'pdf' ? ' Views' : '')
                 }
             }
         }
     };
 
     const series = [{
-        name: 'Count',
+        name: type === 'course' ? 'Sales' : type === 'pdf' ? 'Views' : 'Count',
         data: seriesData
     }];
 

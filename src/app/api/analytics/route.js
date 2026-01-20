@@ -6,6 +6,8 @@ import ExamAttempt from '@/models/ExamAttempt';
 import Course from '@/models/Course';
 import FreeMaterial from '@/models/FreeMaterial';
 import User from '@/models/User';
+import PDFViewSession from '@/models/PDFViewSession';
+import Payment from '@/models/Payment';
 import mongoose from 'mongoose';
 
 export async function GET(request) {
@@ -136,12 +138,88 @@ export async function GET(request) {
             .lean();
 
         // --- 6. Recent Materials (Table proxy for "PDF Views") ---
-        // Since we don't track views, we return recently added materials
         const recentMaterials = await FreeMaterial.find()
             .sort({ createdAt: -1 })
             .limit(5)
             .populate('category', 'name')
             .lean();
+
+        // --- 6.1 Recent PDF View Sessions ---
+        const recentPDFViews = await PDFViewSession.find()
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('user', 'name email')
+            .lean();
+
+        // --- 6.2 Recent Payments ---
+        const recentPayments = await Payment.find({ status: 'success' })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('user', 'name email')
+            .populate('course', 'title')
+            .lean();
+
+        // --- 7. PDF View Analytics ---
+        const pdfViews = await PDFViewSession.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                $group: {
+                    _id: "$pdfName",
+                    views: { $sum: 1 },
+                    totalDuration: { $sum: "$duration" },
+                    uniqueUsers: { $addToSet: "$user" }
+                }
+            },
+            {
+                $project: {
+                    name: "$_id",
+                    views: 1,
+                    avgDuration: { $divide: ["$totalDuration", "$views"] },
+                    users: { $size: "$uniqueUsers" }
+                }
+            },
+            { $sort: { views: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // --- 8. Course Sales Analytics ---
+        const courseSales = await Payment.aggregate([
+            {
+                $match: {
+                    status: 'success',
+                    createdAt: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                $lookup: {
+                    from: "courses",
+                    localField: "course",
+                    foreignField: "_id",
+                    as: "courseDetails"
+                }
+            },
+            { $unwind: "$courseDetails" },
+            {
+                $group: {
+                    _id: "$courseDetails.title",
+                    sales: { $sum: 1 },
+                    revenue: { $sum: "$amount" }
+                }
+            },
+            {
+                $project: {
+                    name: "$_id",
+                    sales: 1,
+                    revenue: 1
+                }
+            },
+            { $sort: { sales: -1 } },
+            { $limit: 10 }
+        ]);
 
         return NextResponse.json({
             success: true,
@@ -151,7 +229,9 @@ export async function GET(request) {
                     status: examStatus,
                     devices: deviceStats,
                     categories: attemptsPerCategory,
-                    scores: scoreDistribution
+                    scores: scoreDistribution,
+                    pdfViews: pdfViews,
+                    courseSales: courseSales
                 },
                 counts: {
                     users: totalUsers,
@@ -160,7 +240,9 @@ export async function GET(request) {
                     activeExams: activeExamAttempts
                 },
                 recentActivity: recentAttempts,
-                recentMaterials: recentMaterials
+                recentMaterials: recentMaterials,
+                recentPDFViews: recentPDFViews,
+                recentPayments: recentPayments
             }
         });
 

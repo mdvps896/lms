@@ -181,12 +181,32 @@ const AnalyticsDashboard = () => {
                 </div>
             </div>
 
+            {/* Additional Analytics Row */}
+            <div className="row g-3 mb-4">
+                <div className="col-lg-6">
+                    <SimpleBarChart
+                        title="PDF View Analytics"
+                        data={stats.chartData.pdfViews || []}
+                        type="pdf"
+                    />
+                </div>
+                <div className="col-lg-6">
+                    <SimpleBarChart
+                        title="Course Sales Analytics"
+                        data={stats.chartData.courseSales || []}
+                        type="course"
+                    />
+                </div>
+            </div>
+
             {/* Recent Activity */}
             <div className="row">
                 <div className="col-12">
                     <RecentTables
                         attempts={stats.recentActivity}
                         materials={stats.recentMaterials}
+                        pdfViews={stats.recentPDFViews}
+                        payments={stats.recentPayments}
                     />
                 </div>
             </div>
