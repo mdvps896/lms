@@ -8,13 +8,15 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
         web: {
             enableRegistration: settings?.authSettings?.web?.enableRegistration ?? true,
             allowGoogleAuth: settings?.authSettings?.web?.allowGoogleAuth ?? true,
-            allowEmailAuth: settings?.authSettings?.web?.allowEmailAuth ?? true
+            allowEmailAuth: settings?.authSettings?.web?.allowEmailAuth ?? true,
+            enableForgotPassword: settings?.authSettings?.web?.enableForgotPassword ?? true
         },
         app: {
             enableRegistration: settings?.authSettings?.app?.enableRegistration ?? true,
             enableMobileOTP: settings?.authSettings?.app?.enableMobileOTP ?? false,
             allowEmailAuth: settings?.authSettings?.app?.allowEmailAuth ?? true,
-            allowGoogleAuth: settings?.authSettings?.app?.allowGoogleAuth ?? true
+            allowGoogleAuth: settings?.authSettings?.app?.allowGoogleAuth ?? true,
+            enableForgotPassword: settings?.authSettings?.app?.enableForgotPassword ?? true
         }
     });
 
@@ -115,6 +117,22 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                                 </label>
                             </div>
                         </div>
+
+                        <div className="mb-3">
+                            <div className="form-check form-switch">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="webEnableForgotPassword"
+                                    checked={formData.web.enableForgotPassword}
+                                    onChange={(e) => handleChange('web', 'enableForgotPassword', e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="webEnableForgotPassword">
+                                    <strong>Enable Forgot Password</strong>
+                                    <div className="text-muted small">Show Forgot Password link and allow password reset</div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -189,6 +207,22 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                                 <label className="form-check-label" htmlFor="appAllowGoogleAuth">
                                     <strong>Allow Google Authentication</strong>
                                     <div className="text-muted small">Enable Google Sign-In for app users</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="mb-3">
+                            <div className="form-check form-switch">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="appEnableForgotPassword"
+                                    checked={formData.app.enableForgotPassword}
+                                    onChange={(e) => handleChange('app', 'enableForgotPassword', e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="appEnableForgotPassword">
+                                    <strong>Enable Forgot Password</strong>
+                                    <div className="text-muted small">Show Forgot Password link in mobile app</div>
                                 </label>
                             </div>
                         </div>

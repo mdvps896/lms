@@ -151,13 +151,15 @@ const settingsSchema = new mongoose.Schema({
         web: {
             enableRegistration: { type: Boolean, default: true },
             allowGoogleAuth: { type: Boolean, default: true },
-            allowEmailAuth: { type: Boolean, default: true }
+            allowEmailAuth: { type: Boolean, default: true },
+            enableForgotPassword: { type: Boolean, default: true }
         },
         app: {
             enableRegistration: { type: Boolean, default: true },
             enableMobileOTP: { type: Boolean, default: false },
             allowEmailAuth: { type: Boolean, default: true },
-            allowGoogleAuth: { type: Boolean, default: true }
+            allowGoogleAuth: { type: Boolean, default: true },
+            enableForgotPassword: { type: Boolean, default: true }
         }
     },
 

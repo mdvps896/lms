@@ -10,7 +10,7 @@ import GoogleOAuthButton from './GoogleOAuthButton'
 import GoogleRecaptcha from './GoogleRecaptcha'
 import TwoFactorVerification from './TwoFactorVerification'
 
-const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
+const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableForgotPassword = true }) => {
     const { login, completeTwoFactorAuth } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
@@ -308,7 +308,9 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true }) => {
                         </div>
                     </div>
                     <div>
-                        <Link href={resetPath} className="fs-11 text-primary">Forget password?</Link>
+                        {enableForgotPassword && (
+                            <Link href={resetPath} className="fs-11 text-primary">Forget password?</Link>
+                        )}
                     </div>
                 </div>
                 <div className="mt-5">

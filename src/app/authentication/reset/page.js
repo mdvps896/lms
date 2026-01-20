@@ -3,21 +3,23 @@
 import ResetPasswordForm from '@/components/authentication/ResetPasswordForm'
 import Image from 'next/image'
 import Head from 'next/head'
+import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 
 const AuthLogo = () => {
-    const [logo, setLogo] = useState(null);
-    useEffect(() => {
-        fetch('/api/settings')
-            .then(res => res.json())
-            .then(data => data.success && setLogo(data.data.general?.siteLogo))
-            .catch(console.error);
-    }, []);
-    return logo ? <div className="wd-150 mb-5"><img src={logo} alt="logo" className="img-fluid" style={{maxHeight: '80px', width: 'auto'}} /></div> : null;
+  const [logo, setLogo] = useState(null);
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => data.success && setLogo(data.data.general?.siteLogo))
+      .catch(console.error);
+  }, []);
+  return logo ? <div className="wd-150 mb-5"><img src={logo} alt="logo" className="img-fluid" style={{ maxHeight: '80px', width: 'auto' }} /></div> : null;
 }
 
 const ResetPasswordPage = () => {
   const [settings, setSettings] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetch('/api/settings')
@@ -25,6 +27,14 @@ const ResetPasswordPage = () => {
       .then(data => {
         if (data.success) {
           setSettings(data.data);
+
+          // Check if forgot password is disabled
+          const enableForgot = data.data.authSettings?.web?.enableForgotPassword ?? true;
+          if (!enableForgot) {
+            router.push('/authentication/login');
+            return;
+          }
+
           // Set dynamic favicon
           if (data.data.general?.siteFavIcon) {
             const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
@@ -36,8 +46,8 @@ const ResetPasswordPage = () => {
         }
       })
       .catch(console.error);
-  }, []);
-  
+  }, [router]);
+
   // Get background image URL
   const getBackgroundImage = () => {
     if (settings?.authPages?.resetBgImage) {
@@ -60,13 +70,13 @@ const ResetPasswordPage = () => {
         <div className="auth-cover-content-inner">
           <div className="auth-cover-content-wrapper">
             <div className="auth-img">
-              <Image 
-                width={600} 
-                height={600} 
-                sizes='100vw' 
-                src={backgroundImageUrl} 
-                alt="img" 
-                className="img-fluid" 
+              <Image
+                width={600}
+                height={600}
+                sizes='100vw'
+                src={backgroundImageUrl}
+                alt="img"
+                className="img-fluid"
                 priority
               />
             </div>
@@ -76,7 +86,7 @@ const ResetPasswordPage = () => {
           <div className="auth-cover-card-wrapper">
             <div className="auth-cover-card p-sm-5">
               <AuthLogo />
-              <ResetPasswordForm 
+              <ResetPasswordForm
                 loginPath="/authentication/login"
                 settings={settings}
               />

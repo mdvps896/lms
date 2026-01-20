@@ -15,7 +15,7 @@ const AuthLogo = () => {
             .then(data => data.success && setLogo(data.data.general?.siteLogo))
             .catch(console.error);
     }, []);
-    return logo ? <div className="wd-150 mb-5"><img src={logo} alt="logo" className="img-fluid" style={{maxHeight: '80px', width: 'auto'}} /></div> : null;
+    return logo ? <div className="wd-150 mb-5"><img src={logo} alt="logo" className="img-fluid" style={{ maxHeight: '80px', width: 'auto' }} /></div> : null;
 }
 
 const Page = () => {
@@ -65,13 +65,13 @@ const Page = () => {
                 <div className="auth-cover-content-inner">
                     <div className="auth-cover-content-wrapper">
                         <div className="auth-img">
-                            <Image 
-                                width={600} 
-                                height={600} 
-                                sizes='100vw' 
-                                src={settings?.authPages?.loginBgImage || '/images/auth/auth-cover-login-bg.svg'} 
-                                alt="img" 
-                                className="img-fluid" 
+                            <Image
+                                width={600}
+                                height={600}
+                                sizes='100vw'
+                                src={settings?.authPages?.loginBgImage || '/images/auth/auth-cover-login-bg.svg'}
+                                alt="img"
+                                className="img-fluid"
                                 priority
                             />
                         </div>
@@ -81,10 +81,11 @@ const Page = () => {
                     <div className="auth-cover-card-wrapper">
                         <div className="auth-cover-card p-sm-5">
                             <AuthLogo />
-                            <LoginForm 
-                                registerPath="/authentication/register" 
-                                resetPath="/authentication/reset" 
-                                enableRegistration={settings?.authPages?.enableRegistration !== false}
+                            <LoginForm
+                                registerPath="/authentication/register"
+                                resetPath="/authentication/reset"
+                                enableRegistration={settings?.authSettings?.web?.enableRegistration ?? true}
+                                enableForgotPassword={settings?.authSettings?.web?.enableForgotPassword ?? true}
                             />
                         </div>
                     </div>
