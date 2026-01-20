@@ -189,7 +189,7 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     body: JSON.stringify({
                         name: decoded.name,
                         email: decoded.email,
-                        phone: '', // Google doesn't provide phone
+                        mobile: '', // Google doesn't provide phone - use 'mobile' to match API
                         password: 'google_oauth_' + decoded.sub,
                         isGoogleAuth: true,
                         emailVerified: true
@@ -199,6 +199,10 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                 const data = await response.json();
 
                 if (data.success) {
+                    // Store user data and redirect
+                    localStorage.setItem('user', JSON.stringify(data.data));
+                    document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
@@ -206,6 +210,11 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                         timer: 1500,
                         showConfirmButton: false
                     });
+
+                    // Redirect to home
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 500);
                 } else {
                     Swal.fire({
                         icon: 'error',
