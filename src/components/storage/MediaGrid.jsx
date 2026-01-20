@@ -37,9 +37,9 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
                         </tr>
                     </thead>
                     <tbody>
-                        {files.map((file, index) => (
+                        {files.map((file) => (
                             <FileListItem
-                                key={index}
+                                key={file.path || file.publicId || file.url || file._id}
                                 file={file}
                                 onDelete={onDelete}
                                 onRefresh={onRefresh}
@@ -53,8 +53,8 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
 
     return (
         <div className="row g-3 mt-3">
-            {files.map((file, index) => (
-                <div key={index} className="col-home-5 col-xl-3 col-lg-4 col-md-6 mb-3">
+            {files.map((file) => (
+                <div key={file.path || file.publicId || file.url || file._id} className="col-home-5 col-xl-3 col-lg-4 col-md-6 mb-3">
                     <FileCard
                         file={file}
                         onDelete={onDelete}

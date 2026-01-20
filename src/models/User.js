@@ -175,4 +175,37 @@ const userSchema = new mongoose.Schema({
   strict: false  // Allow additional fields
 });
 
+// Cascade delete support messages when user is deleted
+userSchema.pre('findOneAndDelete', async function (next) {
+  try {
+    const userId = this.getQuery()._id;
+    if (userId) {
+      // Delete all support messages for this user
+      const SupportMessage = mongoose.model('SupportMessage');
+      await SupportMessage.deleteMany({ user: userId });
+      console.log(`Deleted support messages for user: ${userId}`);
+    }
+    next();
+  } catch (error) {
+    console.error('Error in cascade delete:', error);
+    next(error);
+  }
+});
+
+userSchema.pre('deleteOne', async function (next) {
+  try {
+    const userId = this.getQuery()._id;
+    if (userId) {
+      // Delete all support messages for this user
+      const SupportMessage = mongoose.model('SupportMessage');
+      await SupportMessage.deleteMany({ user: userId });
+      console.log(`Deleted support messages for user: ${userId}`);
+    }
+    next();
+  } catch (error) {
+    console.error('Error in cascade delete:', error);
+    next(error);
+  }
+});
+
 export default mongoose.models.User || mongoose.model('User', userSchema);
