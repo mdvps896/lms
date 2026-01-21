@@ -69,23 +69,23 @@ export async function GET(req, { params }) {
                 // Public/Unauth access to exam details? Maybe allow basic meta, but NO attempts.
                 attemptQuery = null;
             } else {
-                attemptQuery.userId = user.id || user._id;
+                attemptQuery.user = user.id || user._id;
             }
         }
 
         let attempts = [];
         if (attemptQuery) {
             attempts = await ExamAttempt.find(attemptQuery)
-                .populate('userId', 'name email')
-                .select('userId score passed timeTaken status submittedAt updatedAt answers')
+                .populate('user', 'name email')
+                .select('user score passed timeTaken status submittedAt updatedAt answers')
                 .lean();
         }
 
         // Add attempts array
         exam.attempts = attempts.map(attempt => ({
-            userId: attempt.userId?._id,
-            userName: attempt.userId?.name || 'Student',
-            userEmail: attempt.userId?.email || '',
+            userId: attempt.user?._id,
+            userName: attempt.user?.name || 'Student',
+            userEmail: attempt.user?.email || '',
             score: attempt.score || 0,
             passed: attempt.passed || false,
             timeTaken: attempt.timeTaken || 0,
