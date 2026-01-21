@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
 
         // Fetch Exam Attempts
         const attempts = await ExamAttempt.find({ user: id })
-            .populate('exam', 'title duration totalMarks passPercentage')
+            .populate('exam', 'name duration totalMarks passingPercentage')
             .sort({ startedAt: -1 })
             .lean();
 
@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
         const totalAttempts = attempts.length;
         const passedAttempts = attempts.filter(a => {
             if (!a.exam || !a.percentage) return false;
-            return a.percentage >= (a.exam.passPercentage || 0);
+            return a.percentage >= (a.exam.passingPercentage || 40);
         }).length;
 
         // Last Activity (Login or Exam)
@@ -86,14 +86,14 @@ export async function GET(request, { params }) {
             },
             attempts: attempts.map(attempt => ({
                 id: attempt._id,
-                examTitle: attempt.exam?.title || 'Unknown Exam',
+                examTitle: attempt.exam?.name || 'Unknown Exam',
                 startedAt: attempt.startedAt,
                 submittedAt: attempt.submittedAt,
                 status: attempt.status,
                 score: attempt.score,
                 totalMarks: attempt.totalMarks,
                 percentage: attempt.percentage,
-                result: attempt.percentage >= (attempt.exam?.passPercentage || 0) ? 'Pass' : 'Fail'
+                result: attempt.percentage >= (attempt.exam?.passingPercentage ?? 40) ? 'Pass' : 'Fail'
             })),
             pdfViews: pdfViews,
             courseViews: courseViews

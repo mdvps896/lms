@@ -5,7 +5,32 @@ import { NextResponse } from 'next/server';
  * @param {Request} request 
  * @returns {Object|null} user object if admin, null otherwise.
  */
-export function getAuthenticatedUser(request) {
+import { verifyToken } from './auth';
+
+/**
+ * Checks if the request is from an authenticated admin or user.
+ * Supports both Cookie (web) and Bearer Token (mobile/api).
+ * @param {Request} request 
+ * @returns {Object|null} user object if authenticated, null otherwise.
+ */
+export async function getAuthenticatedUser(request) {
+    // 1. Check Bearer Token (Authorization Header)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const payload = await verifyToken(token);
+        if (payload && payload.userId) {
+            // Normalize user object structure
+            return {
+                id: payload.userId,
+                _id: payload.userId,
+                role: payload.role || 'student', // Default to student if not in token
+                ...payload
+            };
+        }
+    }
+
+    // 2. Fallback to Cookie
     const userCookie = request.cookies.get('user');
     if (!userCookie) return null;
     try {

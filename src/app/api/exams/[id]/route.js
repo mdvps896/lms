@@ -10,7 +10,7 @@ import { requireAdmin, getAuthenticatedUser } from '@/utils/apiAuth';
 export async function GET(req, { params }) {
     try {
         await dbConnect();
-        const user = getAuthenticatedUser(req);
+        const user = await getAuthenticatedUser(req);
         const isAdmin = user && user.role === 'admin';
 
         const exam = await Exam.findById(params.id)
@@ -109,7 +109,7 @@ export async function PUT(req, { params }) {
     try {
         await dbConnect();
 
-        const currentUser = getAuthenticatedUser(req);
+        const currentUser = await getAuthenticatedUser(req);
         const body = await req.json();
 
         const exam = await Exam.findByIdAndUpdate(params.id, body, {

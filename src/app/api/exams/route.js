@@ -160,7 +160,7 @@ export async function POST(req) {
     try {
         await connectDB();
 
-        const currentUser = getAuthenticatedUser(req);
+        const currentUser = await getAuthenticatedUser(req);
         const body = await req.json();
 
         // Add createdBy field if user is available
