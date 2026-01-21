@@ -175,6 +175,21 @@ const AdminSupportChat = () => {
         setShowWhatsAppModal(true)
     }
 
+    const handleSaveWhatsAppSettings = async () => {
+        try {
+            await handleSaveSettings({
+                phoneNumber: tempNumber,
+                message: tempMessage
+            })
+
+            // Show success feedback
+            alert('WhatsApp settings saved successfully!')
+        } catch (error) {
+            console.error('Save error:', error)
+            alert('Failed to save settings')
+        }
+    }
+
     const handleSendWhatsApp = () => {
         const message = encodeURIComponent(tempMessage)
         const number = tempNumber.replace(/[^0-9]/g, '')
@@ -404,6 +419,14 @@ const AdminSupportChat = () => {
                                     }}
                                 >
                                     Use Default Chat
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={handleSaveWhatsAppSettings}
+                                    disabled={!tempNumber || !tempMessage}
+                                >
+                                    Save Settings
                                 </button>
                                 <button
                                     type="button"
