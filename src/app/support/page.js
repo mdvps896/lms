@@ -13,17 +13,7 @@ const SupportPage = () => {
             <NavigationManu />
             <main className="nxl-container">
                 <div className="nxl-content">
-                    <div className="page-header">
-                        <div className="page-header-left d-flex align-items-center">
-                            <div className="page-header-title">
-                                <h5 className="m-b-10">Support Chat</h5>
-                            </div>
-                            <ul className="breadcrumb">
-                                <li className="breadcrumb-item"><a href="/">Home</a></li>
-                                <li className="breadcrumb-item">Support</li>
-                            </ul>
-                        </div>
-                    </div>
+                    {/* Breadcrumb Removed */}
 
                     <div className="main-content">
                         <div className="row">

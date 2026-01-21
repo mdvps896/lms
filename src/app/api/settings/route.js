@@ -224,7 +224,8 @@ export async function PUT(request) {
             'certificate': 'certificateSettings',
             'roll-number': 'rollNumberSettings',
             'pdf-selfie': 'pdfSelfieSettings',
-            'whatsapp-support': 'whatsappSupport'
+            'whatsapp-support': 'whatsappSupport',
+            'social-media': 'socialMediaLinks'
         };
 
         let result;

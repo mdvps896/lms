@@ -170,6 +170,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // Support blocking
+  isSupportBlocked: {
+    type: Boolean,
+    default: false
+  },
 }, {
   timestamps: true,
   strict: false  // Allow additional fields
@@ -185,9 +190,9 @@ userSchema.pre('findOneAndDelete', async function () {
         const SupportMessage = mongoose.models.SupportMessage;
         if (SupportMessage) {
           await SupportMessage.deleteMany({ user: userId });
-          }
-      } catch (modelError) {
         }
+      } catch (modelError) {
+      }
     }
   } catch (error) {
     console.error('Error in cascade delete:', error);
@@ -203,9 +208,9 @@ userSchema.pre('deleteOne', async function () {
         const SupportMessage = mongoose.models.SupportMessage;
         if (SupportMessage) {
           await SupportMessage.deleteMany({ user: userId });
-          }
-      } catch (modelError) {
         }
+      } catch (modelError) {
+      }
     }
   } catch (error) {
     console.error('Error in cascade delete:', error);

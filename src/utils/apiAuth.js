@@ -45,8 +45,8 @@ export async function getAuthenticatedUser(request) {
  * @param {Request} request 
  * @returns {NextResponse|null} Error response if unauthorized, null if authorized.
  */
-export function requireAdmin(request) {
-    const user = getAuthenticatedUser(request);
+export async function requireAdmin(request) {
+    const user = await getAuthenticatedUser(request);
     if (!user || user.role !== 'admin') {
         return NextResponse.json(
             { success: false, error: 'Unauthorized: Admin access required' },

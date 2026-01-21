@@ -146,6 +146,14 @@ const settingsSchema = new mongoose.Schema({
         primaryMethod: { type: String, default: 'whatsapp', enum: ['chat', 'whatsapp'] }
     },
 
+    // Social Media Links
+    socialMediaLinks: [{
+        platform: { type: String, required: true }, // 'facebook', 'instagram', etc.
+        url: { type: String, required: true },
+        icon: { type: String }, // FontAwesome icon name or similar identifier
+        enabled: { type: Boolean, default: true }
+    }],
+
     // PDF Selfie Settings
     pdfSelfieSettings: {
         enabled: { type: Boolean, default: true },
