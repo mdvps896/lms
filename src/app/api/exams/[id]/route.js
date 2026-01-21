@@ -60,7 +60,7 @@ export async function GET(req, { params }) {
         // I will restrict attempts to the current user if not admin.
 
         let attemptQuery = {
-            examId: params.id,
+            exam: params.id,
             status: { $in: ['submitted', 'expired'] }
         };
 
