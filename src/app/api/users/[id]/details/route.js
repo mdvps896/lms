@@ -48,7 +48,7 @@ export async function GET(request, { params }) {
             .sort({ startTime: -1 })
             .lean();
         if (activities.length > 0) {
-            }
+        }
 
         // Fetch PDF View Sessions from the specialized model
         const pdfSessions = await PDFViewSession.find({ user: id })
@@ -61,7 +61,9 @@ export async function GET(request, { params }) {
             title: session.pdfName || session.lectureName || 'Untitled PDF',
             startTime: session.startTime,
             duration: session.duration || 0, // seconds
-            lastViewed: session.lastActiveTime || session.endTime || session.startTime
+            lastViewed: session.lastActiveTime || session.endTime || session.startTime,
+            latitude: session.latitude,
+            longitude: session.longitude
         }));
 
         const courseViews = activities.map(a => ({
