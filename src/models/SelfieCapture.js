@@ -44,7 +44,8 @@ const selfieCaptureSchema = new mongoose.Schema({
         appVersion: String,
         ipAddress: String,
         latitude: Number,
-        longitude: Number
+        longitude: Number,
+        locationName: String
     }
 }, {
     timestamps: true

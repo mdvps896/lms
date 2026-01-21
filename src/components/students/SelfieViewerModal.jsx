@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { FiX, FiDownload, FiTrash2, FiCamera, FiCheck } from 'react-icons/fi'
+import { FiX, FiDownload, FiTrash2, FiCamera, FiCheck, FiMapPin } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
 const SelfieViewerModal = ({ show, sessionId, onClose }) => {
@@ -116,6 +116,12 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                                                     } fs-10 opacity-75`}>
                                                     {selfie.captureType === 'pdf_initial' ? 'Entry' : 'Middle'}
                                                 </span>
+                                                {selfie.metadata?.locationName && (
+                                                    <span className="badge bg-dark fs-10 opacity-75 ms-1" title={selfie.metadata.locationName}>
+                                                        <FiMapPin size={8} className="me-1" />
+                                                        {selfie.metadata.locationName.split(',')[0]}
+                                                    </span>
+                                                )}
                                             </div>
 
                                             {/* Actions Overlay */}
@@ -179,7 +185,21 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                         />
                         <div className="mt-4 text-white">
                             <h5 className="mb-1">{selectedImage.captureType === 'pdf_initial' ? 'Initial Attendance' : 'Periodic Check'}</h5>
-                            <p className="opacity-75">Captured on Page {selectedImage.currentPage} at {new Date(selectedImage.createdAt).toLocaleString()}</p>
+                            <p className="opacity-75 mb-2">Captured on Page {selectedImage.currentPage} at {new Date(selectedImage.createdAt).toLocaleString()}</p>
+                            {selectedImage.metadata?.locationName && (
+                                <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                                    <FiMapPin className="text-success" />
+                                    <span className="fs-14">{selectedImage.metadata.locationName}</span>
+                                    <a
+                                        href={`https://www.google.com/maps?q=${selectedImage.metadata.latitude},${selectedImage.metadata.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn btn-sm btn-link text-info p-0 fs-12 text-decoration-none"
+                                    >
+                                        (View Map)
+                                    </a>
+                                </div>
+                            )}
                             <div className="d-flex justify-content-center gap-3 mt-3">
                                 <button className="btn btn-primary d-flex align-items-center gap-2" onClick={() => handleDownload(selectedImage.imageUrl)}>
                                     <FiDownload /> Download

@@ -63,7 +63,8 @@ export async function GET(request, { params }) {
             duration: session.duration || 0, // seconds
             lastViewed: session.lastActiveTime || session.endTime || session.startTime,
             latitude: session.latitude,
-            longitude: session.longitude
+            longitude: session.longitude,
+            locationName: session.locationName
         }));
 
         const courseViews = activities.map(a => ({

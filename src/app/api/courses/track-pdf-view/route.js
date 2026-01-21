@@ -14,7 +14,7 @@ export async function POST(request) {
         await connectDB();
 
         const body = await request.json();
-        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude } = body;
+        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude, locationName } = body;
 
         if (!userId || !courseId || !lectureId) {
             return NextResponse.json({
@@ -39,7 +39,8 @@ export async function POST(request) {
                     currentPage: currentPage || 1,
                     totalPages: totalPages || 0,
                     latitude: latitude,
-                    longitude: longitude
+                    longitude: longitude,
+                    locationName: locationName
                 });
 
                 return NextResponse.json({

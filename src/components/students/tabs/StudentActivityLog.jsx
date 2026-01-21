@@ -124,7 +124,20 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                         </span>
                                                                     </td>
                                                                     <td>
-                                                                        {view.latitude && view.longitude ? (
+                                                                        {view.locationName ? (
+                                                                            <div className="d-flex flex-column">
+                                                                                <span className="fs-12 fw-medium text-dark">{view.locationName}</span>
+                                                                                <a
+                                                                                    href={`https://www.google.com/maps?q=${view.latitude},${view.longitude}`}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-primary fs-11 text-decoration-none d-flex align-items-center gap-1 mt-1"
+                                                                                >
+                                                                                    <FiMapPin size={10} />
+                                                                                    See coordinates
+                                                                                </a>
+                                                                            </div>
+                                                                        ) : view.latitude && view.longitude ? (
                                                                             <a
                                                                                 href={`https://www.google.com/maps?q=${view.latitude},${view.longitude}`}
                                                                                 target="_blank"
@@ -132,7 +145,6 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                                 className="btn btn-sm btn-soft-success d-inline-flex align-items-center gap-1"
                                                                             >
                                                                                 <FiMapPin size={12} />
-                                                                                <span className="fs-11">View Map</span>
                                                                             </a>
                                                                         ) : (
                                                                             <span className="text-muted fs-11">Not Available</span>
