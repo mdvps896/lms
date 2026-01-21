@@ -39,6 +39,8 @@ export async function POST(request) {
         const sessionId = formData.get('sessionId');
         const captureType = formData.get('captureType');
         const currentPage = formData.get('currentPage') || '1';
+        const latitude = formData.get('latitude');
+        const longitude = formData.get('longitude');
 
         // Ensure IDs are strings and handle potential object in token
         let userIdStr = String(userId);
@@ -108,7 +110,9 @@ export async function POST(request) {
             currentPage: parseInt(currentPage),
             metadata: {
                 deviceInfo: userAgent,
-                ipAddress: ipAddress
+                ipAddress: ipAddress,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null
             }
         });
 

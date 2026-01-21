@@ -14,7 +14,7 @@ export async function POST(request) {
         await connectDB();
 
         const body = await request.json();
-        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages } = body;
+        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude } = body;
 
         if (!userId || !courseId || !lectureId) {
             return NextResponse.json({
@@ -37,7 +37,9 @@ export async function POST(request) {
                     lastActiveTime: new Date(),
                     isActive: true,
                     currentPage: currentPage || 1,
-                    totalPages: totalPages || 0
+                    totalPages: totalPages || 0,
+                    latitude: latitude,
+                    longitude: longitude
                 });
 
                 return NextResponse.json({
@@ -213,7 +215,10 @@ export async function GET(request) {
                     duration: s.duration,
                     formattedDuration: formatDuration(s.duration),
                     startTime: s.startTime,
-                    endTime: s.endTime
+                    endTime: s.endTime,
+                    latitude: s.latitude,
+                    longitude: s.longitude,
+                    id: s._id
                 }))
             };
         }

@@ -71,6 +71,16 @@ const pdfViewSessionSchema = new mongoose.Schema({
     selfieCount: {
         type: Number,
         default: 0
+    },
+    // Location tracking
+    latitude: {
+        type: Number
+    },
+    longitude: {
+        type: Number
+    },
+    locationName: {
+        type: String
     }
 }, {
     timestamps: true

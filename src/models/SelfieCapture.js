@@ -42,7 +42,9 @@ const selfieCaptureSchema = new mongoose.Schema({
     metadata: {
         deviceInfo: String,
         appVersion: String,
-        ipAddress: String
+        ipAddress: String,
+        latitude: Number,
+        longitude: Number
     }
 }, {
     timestamps: true

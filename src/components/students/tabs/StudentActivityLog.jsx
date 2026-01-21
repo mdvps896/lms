@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { FiFileText, FiBookOpen, FiCamera } from 'react-icons/fi'
+import { FiFileText, FiBookOpen, FiCamera, FiMapPin } from 'react-icons/fi'
 import SelfieViewerModal from '../SelfieViewerModal'
 
 const StudentActivityLog = ({ activityType, data, formatDate }) => {
@@ -101,6 +101,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                 <th className="ps-5 text-muted small text-uppercase">Date</th>
                                                                 <th className="text-muted small text-uppercase">Duration</th>
                                                                 <th className="text-muted small text-uppercase">Time</th>
+                                                                <th className="text-muted small text-uppercase">Location</th>
                                                                 {isPdf && <th className="text-end pe-5 text-muted small text-uppercase">Actions</th>}
                                                             </tr>
                                                         </thead>
@@ -121,6 +122,21 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                             {' - '}
                                                                             {new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                         </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        {view.latitude && view.longitude ? (
+                                                                            <a
+                                                                                href={`https://www.google.com/maps?q=${view.latitude},${view.longitude}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="btn btn-sm btn-soft-success d-inline-flex align-items-center gap-1"
+                                                                            >
+                                                                                <FiMapPin size={12} />
+                                                                                <span className="fs-11">View Map</span>
+                                                                            </a>
+                                                                        ) : (
+                                                                            <span className="text-muted fs-11">Not Available</span>
+                                                                        )}
                                                                     </td>
                                                                     {isPdf && (
                                                                         <td className="text-end pe-5">
