@@ -12,8 +12,6 @@ async function updateExams() {
             { $set: { maxAttempts: 5 } }
         );
         
-        console.log('Updated exams:', result);
-        
         return { 
             success: true, 
             message: `Updated ${result.modifiedCount} exams to have maxAttempts: 5`,

@@ -3,9 +3,9 @@
 import React, { useState } from 'react'
 import Swal from 'sweetalert2'
 import Image from 'next/image'
-import { Eye, Copy, Trash2, PlayCircle, Image as ImageIcon, Video, Music, FileText, File } from 'feather-icons-react'
+import { Eye, Copy, Trash2, PlayCircle, Image as ImageIcon, Video, Music, FileText, File, CheckSquare, Square } from 'feather-icons-react'
 
-const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
+const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...props }) => {
     const [imageError, setImageError] = useState(false)
 
     const getFileIcon = (type) => {
@@ -85,8 +85,6 @@ const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
                 try {
                     // Special handling for exam recordings
                     if (file.category === 'exam-recording' && file.attemptId && file.recordingType) {
-                        console.log('Deleting exam recording:', file)
-
                         const response = await fetch('/api/exams/delete-recording', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -105,8 +103,6 @@ const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
                         // For regular files, use the standard delete method
                         // Use publicId if available (for Cloudinary), otherwise path/url
                         const deleteIdentifier = file.publicId || file.path || file.url
-
-                        console.log('Deleting file:', { deleteIdentifier, file })
 
                         await onDelete(deleteIdentifier, file.resourceType || null, file.source || null)
                     }
@@ -205,9 +201,28 @@ const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
     }
 
     return (
-        <div className={`card file-card ${!props.fluidHeight ? 'h-100' : ''}`}>
+        <div className={`card file-card ${!props.fluidHeight ? 'h-100' : ''} ${isSelected ? 'selected-card' : ''}`}>
             <div className="position-relative thumbnail-container" style={{ cursor: 'pointer' }}>
                 {renderThumbnail()}
+
+                {/* Checkbox Overlay */}
+                {onSelect && (
+                    <div
+                        className="checkbox-overlay"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onSelect()
+                        }}
+                    >
+                        <div className="checkbox-icon">
+                            {isSelected ? (
+                                <CheckSquare size={24} color="#fff" fill="#007bff" />
+                            ) : (
+                                <Square size={24} color="#fff" />
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Overlay with action buttons */}
                 <div className="overlay-actions">
@@ -305,9 +320,37 @@ const FileCard = ({ file, onDelete, onRefresh, ...props }) => {
                     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
                 }
                 
+                .selected-card {
+                    border: 2px solid #007bff;
+                    box-shadow: 0 0 10px rgba(0,123,255,0.3);
+                }
+                
                 .thumbnail-container {
                     position: relative;
                     overflow: hidden;
+                }
+                
+                .checkbox-overlay {
+                    position: absolute;
+                    top: 10px;
+                    left: 10px;
+                    z-index: 10;
+                    cursor: pointer;
+                }
+                
+                .checkbox-icon {
+                    background: rgba(0, 0, 0, 0.5);
+                    border-radius: 4px;
+                    padding: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                }
+                
+                .checkbox-icon:hover {
+                    background: rgba(0, 0, 0, 0.7);
+                    transform: scale(1.1);
                 }
                 
                 .overlay-actions {

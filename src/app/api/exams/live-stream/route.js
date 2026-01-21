@@ -89,7 +89,6 @@ setInterval(() => {
     for (const [attemptId, data] of activeStreams.entries()) {
         if (now - data.lastUpdate > 30000) { // 30 seconds
             activeStreams.delete(attemptId);
-            console.log(`Cleaned up inactive stream: ${attemptId}`);
-        }
+            }
     }
 }, 30000);

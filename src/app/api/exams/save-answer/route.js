@@ -9,8 +9,6 @@ export async function POST(request) {
 
         const { attemptId, questionId, answer, sessionToken, examId } = await request.json()
 
-        // console.log('Save answer request:', { attemptId, questionId, answer: answer ? 'provided' : 'empty', examId });
-
         if (!attemptId || !questionId || !sessionToken || !examId) {
             return NextResponse.json(
                 { message: 'Missing required fields' },
@@ -65,7 +63,6 @@ export async function POST(request) {
         if (attempt.endTime) {
             const now = new Date()
             if (now > attempt.endTime) {
-                console.log('Exam time expired');
                 attempt.status = 'expired';
                 attempt.isActive = false;
 
@@ -83,8 +80,6 @@ export async function POST(request) {
         }
 
         // Update answer
-        // console.log('Saving answer for question:', questionId);
-
         if (isIndependentAttempt) {
             // Update ExamAttempt document
             if (!attempt.answers) {

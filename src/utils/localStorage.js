@@ -25,7 +25,6 @@ function initializeDirectories() {
     directories.forEach(dir => {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
-            console.log(`📁 Created directory: ${dir}`);
         }
     });
 }
@@ -109,8 +108,6 @@ function generateUniqueFileName(originalName) {
  */
 async function compressImage(inputBuffer, fileName) {
     try {
-        console.log('🗜️ Compressing image:', fileName);
-
         const compressedBuffer = await sharp(inputBuffer)
             .resize(2048, 2048, {
                 fit: 'inside',
@@ -122,7 +119,6 @@ async function compressImage(inputBuffer, fileName) {
             })
             .toBuffer();
 
-        console.log(`✅ Image compressed: ${inputBuffer.length} → ${compressedBuffer.length} bytes`);
         return compressedBuffer;
     } catch (error) {
         console.error('❌ Error compressing image:', error);
@@ -211,14 +207,12 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         }
 
         const fileSize = fileBuffer.length;
-        console.log(`📊 File size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
 
         // Validate file size
         validateFileSize(fileSize, originalFileName);
 
         // Compress image if needed and file is large
         if (isImage(originalFileName) && fileSize > 2 * 1024 * 1024) { // 2MB threshold
-            console.log('🔄 Large image detected, applying compression...');
             fileBuffer = await compressImage(fileBuffer, originalFileName);
         }
 
@@ -250,10 +244,6 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         // Use the API route to serve files to ensure they work in production/runtime
         const publicUrl = `/api/storage/file/${relativePath.replace(/\\/g, '/')}`; // Ensure forward slashes for URLs
 
-        console.log('✅ File saved successfully to local storage');
-        console.log('📁 Path:', filePath);
-        console.log('🔗 Public URL:', publicUrl);
-
         return {
             success: true,
             url: publicUrl,
@@ -279,8 +269,6 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
  */
 export async function deleteFromLocalStorage(filePath) {
     try {
-        console.log('🗑️ Delete request for:', filePath);
-
         const pathsToTry = [];
 
         // Normalize the path to use forward slashes
@@ -365,26 +353,19 @@ export async function deleteFromLocalStorage(filePath) {
             }
         }
 
-        console.log('🔍 Will try these paths:', pathsToTry);
-
         // Try each path until we find the file
         for (const tryPath of pathsToTry) {
             const exists = fs.existsSync(tryPath);
-            console.log('   Checking:', tryPath, 'Exists?', exists);
-
             if (exists) {
                 // Check if it's a file or directory
                 const stats = fs.statSync(tryPath);
 
                 if (stats.isDirectory()) {
-                    console.log('   ⚠️ Path is a directory, skipping');
                     continue;
                 }
 
                 try {
                     fs.unlinkSync(tryPath);
-                    console.log('✅ File deleted successfully at:', tryPath);
-
                     return {
                         success: true,
                         message: 'File deleted successfully',
@@ -418,10 +399,6 @@ export async function deleteFromLocalStorage(filePath) {
                 }
             }
         }
-
-        console.log('⚠️ File not found at any of these paths');
-        console.log('   Current working directory:', process.cwd());
-        console.log('   Public directory check:', fs.existsSync(path.join(process.cwd(), 'public')));
 
         return {
             success: false,

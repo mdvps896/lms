@@ -41,16 +41,11 @@ const ExamAttempt = mongoose.models.ExamAttempt || mongoose.model('ExamAttempt',
 
 async function migrateExamAttempts() {
     try {
-        console.log('🔄 Starting migration of ExamAttempt data to Exam.attempts...')
-        
         await connectDB()
         
         // Get all exam attempts
         const allAttempts = await ExamAttempt.find({})
-        console.log(`📊 Found ${allAttempts.length} exam attempts to migrate`)
-        
         if (allAttempts.length === 0) {
-            console.log('✅ No attempts to migrate. Migration complete!')
             return
         }
 
@@ -74,7 +69,6 @@ async function migrateExamAttempts() {
                 const exam = await Exam.findById(examId)
                 
                 if (!exam) {
-                    console.log(`⚠️  Exam ${examId} not found, skipping ${attempts.length} attempts`)
                     errorCount += attempts.length
                     errors.push({ examId, reason: 'Exam not found', attemptsCount: attempts.length })
                     continue
@@ -101,35 +95,24 @@ async function migrateExamAttempts() {
 
                 await exam.save()
                 successCount += attempts.length
-                console.log(`✅ Migrated ${attempts.length} attempts for exam: ${exam.name}`)
-
-            } catch (error) {
+                } catch (error) {
                 console.error(`❌ Error migrating attempts for exam ${examId}:`, error.message)
                 errorCount += attempts.length
                 errors.push({ examId, reason: error.message, attemptsCount: attempts.length })
             }
         }
 
-        console.log('\n📈 Migration Summary:')
-        console.log(`   ✅ Successfully migrated: ${successCount} attempts`)
-        console.log(`   ❌ Failed: ${errorCount} attempts`)
-        
         if (errors.length > 0) {
-            console.log('\n⚠️  Errors encountered:')
             errors.forEach(err => {
-                console.log(`   - Exam ${err.examId}: ${err.reason} (${err.attemptsCount} attempts)`)
+                `)
             })
         }
 
         if (successCount > 0) {
-            console.log('\n⚠️  IMPORTANT: Backup created successfully!')
-            console.log('   You can now safely delete the ExamAttempt collection if migration was successful.')
-            console.log('   To delete: db.examattempts.drop() in MongoDB')
+            in MongoDB')
         }
 
-        console.log('\n✨ Migration complete!')
-
-    } catch (error) {
+        } catch (error) {
         console.error('❌ Migration failed:', error)
         throw error
     } finally {

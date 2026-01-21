@@ -84,8 +84,6 @@ const MyResultsPage = () => {
             }
 
             const data = await response.json();
-            console.log('API Response:', data);
-
             if (data.success) {
                 setExams(data.exams || []);
             } else {

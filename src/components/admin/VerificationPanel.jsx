@@ -21,12 +21,9 @@ const VerificationPanel = ({ attemptId, studentData }) => {
             const response = await fetch(`/api/exam-attempts/verification?attemptId=${attemptId}`)
             const data = await response.json()
 
-            console.log('Verification API Response:', data)
-
             if (data.success) {
                 setVerificationData(data.data)
-                console.log('Verification Data Set:', data.data)
-            }
+                }
         } catch (error) {
             console.error('Error fetching verification data:', error)
         } finally {
@@ -71,7 +68,6 @@ const VerificationPanel = ({ attemptId, studentData }) => {
     }
 
     if (!verificationData?.verification) {
-        console.log('No verification data found. Full data:', verificationData)
         return (
             <div className="verification-panel card">
                 <div className="card-body text-center py-4">

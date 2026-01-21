@@ -47,14 +47,12 @@ const IntegrationsSettings = () => {
             const response = await fetch('/api/settings')
             const data = await response.json()
             if (data.success && data.data.integrations) {
-                console.log('Loaded integrations settings:', data.data.integrations)
                 setFormData(prev => ({
                     ...prev,
                     ...data.data.integrations
                 }))
             } else {
-                console.log('No integrations settings found in database')
-            }
+                }
         } catch (error) {
             console.error('Failed to fetch settings:', error)
         }

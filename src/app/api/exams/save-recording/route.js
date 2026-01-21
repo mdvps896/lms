@@ -60,7 +60,6 @@ export async function POST(request) {
                     cameraFileName += ext;
                 }
 
-                console.log('Saving camera video locally...');
                 const cameraResult = await saveToLocalStorage(
                     cameraBase64,
                     'exam-recordings',
@@ -68,9 +67,7 @@ export async function POST(request) {
                 );
 
                 cameraPath = cameraResult.url;
-                console.log('✅ Camera video saved locally:', cameraPath);
-
-            } catch (error) {
+                } catch (error) {
                 console.error('❌ Camera video upload error:', error);
                 throw error; // Propagate error to fail the request
             }
@@ -95,7 +92,6 @@ export async function POST(request) {
                     screenFileName += ext;
                 }
 
-                console.log('Saving screen video locally...');
                 const screenResult = await saveToLocalStorage(
                     screenBase64,
                     'exam-recordings',
@@ -103,9 +99,7 @@ export async function POST(request) {
                 );
 
                 screenPath = screenResult.url;
-                console.log('✅ Screen video saved locally:', screenPath);
-
-            } catch (error) {
+                } catch (error) {
                 console.error('❌ Screen video upload error:', error);
                 throw error; // Propagate error to fail the request
             }
@@ -136,13 +130,7 @@ export async function POST(request) {
                 exam.markModified('attempts');
 
                 await exam.save();
-                console.log('✅ Recordings saved to Exam attempt:', {
-                    attemptId,
-                    cameraPath,
-                    screenPath,
-                    recordings: attempt.recordings
-                });
-            } else {
+                } else {
                 console.error('❌ Attempt not found in exam');
             }
         } else {

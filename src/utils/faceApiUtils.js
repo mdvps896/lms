@@ -17,7 +17,6 @@ export const loadFaceApiModels = async () => {
         ])
 
         modelsLoaded = true
-        console.log('Face API models loaded successfully')
         return true
     } catch (error) {
         console.error('Error loading face API models:', error)

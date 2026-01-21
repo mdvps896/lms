@@ -13,8 +13,7 @@ if (!admin.apps.length) {
                 privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
             }),
         });
-        console.log('✅ Firebase Admin initialized for test notifications');
-    } catch (error) {
+        } catch (error) {
         console.error('❌ Firebase Admin initialization error:', error);
     }
 }
@@ -64,8 +63,6 @@ export async function POST(request) {
         };
 
         const response = await admin.messaging().send(message);
-        console.log(`✅ Test notification sent to ${user.name}:`, response);
-
         return NextResponse.json({
             success: true,
             message: 'Test notification sent successfully!',

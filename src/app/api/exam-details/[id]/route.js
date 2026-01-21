@@ -11,10 +11,8 @@ import Subject from '../../../../models/Subject';
 export async function GET(request, { params }) {
     try {
         await connectDB();
-        
-        const { id } = params;
-        console.log('Fetching exam details for:', id);
 
+        const { id } = params;
         // Get exam details with populated references
         const exam = await Exam.findById(id)
             .populate('category', 'name')
@@ -22,51 +20,43 @@ export async function GET(request, { params }) {
             .lean();
 
         if (!exam) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Exam not found' 
+            return NextResponse.json({
+                success: false,
+                error: 'Exam not found'
             }, { status: 404 });
         }
 
         // Get question groups and questions count for this exam
         const questionGroups = await QuestionGroup.find({ examId: id }).lean();
         const questionGroupIds = questionGroups.map(qg => qg._id);
-        const totalQuestions = await Question.countDocuments({ 
-            questionGroupId: { $in: questionGroupIds } 
+        const totalQuestions = await Question.countDocuments({
+            questionGroupId: { $in: questionGroupIds }
         });
 
         // Fetch real student results from BOTH ExamAttempt collection AND embedded attempts
         // First try ExamAttempt collection
-        let attempts = await ExamAttempt.find({ 
+        let attempts = await ExamAttempt.find({
             exam: id
         })
-        .populate('user', 'name email')
-        .lean();
-
-        console.log(`Found ${attempts.length} attempts in ExamAttempt collection`);
+            .populate('user', 'name email')
+            .lean();
 
         // If no attempts in ExamAttempt collection, try embedded attempts in Exam document
         if (attempts.length === 0 && exam.attempts && exam.attempts.length > 0) {
-            console.log(`Found ${exam.attempts.length} embedded attempts in Exam document`);
-            
             try {
                 // Convert embedded attempts to same format
                 const userIds = exam.attempts
                     .map(a => a.userId ? a.userId.toString() : null)
                     .filter(Boolean);
-                
-                console.log(`Found ${userIds.length} unique user IDs in embedded attempts`);
-                
+
                 const users = await User.find({ _id: { $in: userIds } }).select('name email').lean();
-                console.log(`Fetched ${users.length} user records`);
-                
                 const userMap = {};
                 users.forEach(u => {
                     if (u && u._id) {
                         userMap[u._id.toString()] = u;
                     }
                 });
-                
+
                 attempts = exam.attempts.map(attempt => {
                     const userIdStr = attempt.userId ? attempt.userId.toString() : null;
                     return {
@@ -82,17 +72,11 @@ export async function GET(request, { params }) {
                         updatedAt: attempt.endTime || attempt.startTime
                     };
                 });
-                
-                console.log(`Converted ${attempts.length} embedded attempts to ExamAttempt format`);
+
             } catch (conversionError) {
                 console.error('Error converting embedded attempts:', conversionError);
                 attempts = [];
             }
-        }
-
-        console.log(`Total attempts to process: ${attempts.length}`);
-        if (attempts.length > 0) {
-            console.log('Attempt statuses:', attempts.map(a => a.status));
         }
 
         // Transform attempts to student results format
@@ -100,20 +84,20 @@ export async function GET(request, { params }) {
             // Convert answers Map to array and count correct/wrong answers
             let correctAnswers = 0;
             let totalAnswers = 0;
-            
+
             if (attempt.answers) {
                 const answersMap = attempt.answers instanceof Map ? attempt.answers : new Map(Object.entries(attempt.answers));
                 totalAnswers = answersMap.size;
-                
+
                 answersMap.forEach((answer) => {
                     if (answer && answer.isCorrect) {
                         correctAnswers++;
                     }
                 });
             }
-            
+
             const wrongAnswers = totalAnswers - correctAnswers;
-            
+
             // Calculate percentage from score/totalMarks or use direct percentage field
             let percentage = 0;
             if (attempt.percentage !== undefined && attempt.percentage !== null) {
@@ -121,7 +105,7 @@ export async function GET(request, { params }) {
             } else if (attempt.score !== undefined && attempt.totalMarks && attempt.totalMarks > 0) {
                 percentage = (attempt.score / attempt.totalMarks) * 100;
             }
-            
+
             const isPassed = percentage >= (exam.passingPercentage || 60);
 
             return {
@@ -144,13 +128,13 @@ export async function GET(request, { params }) {
         // Calculate statistics from real data
         const totalStudents = studentResults.length;
         const completedAttempts = studentResults.filter(r => r.status === 'submitted' || r.status === 'expired').length;
-        const averageScore = totalStudents > 0 ? 
+        const averageScore = totalStudents > 0 ?
             studentResults.reduce((sum, r) => sum + r.score, 0) / totalStudents : 0;
-        const highestScore = totalStudents > 0 ? 
+        const highestScore = totalStudents > 0 ?
             Math.max(...studentResults.map(r => r.score)) : 0;
-        const lowestScore = totalStudents > 0 ? 
+        const lowestScore = totalStudents > 0 ?
             Math.min(...studentResults.map(r => r.score)) : 0;
-        const passRate = totalStudents > 0 ? 
+        const passRate = totalStudents > 0 ?
             (studentResults.filter(r => r.isPassed).length / totalStudents) * 100 : 0;
 
         const examDetails = {
@@ -173,8 +157,6 @@ export async function GET(request, { params }) {
             passRate: Math.round(passRate * 10) / 10
         };
 
-        console.log(`Exam: ${examDetails.title} | Students: ${totalStudents} | Avg Score: ${examDetails.averageScore}%`);
-
         return NextResponse.json({
             success: true,
             exam: examDetails,
@@ -184,9 +166,9 @@ export async function GET(request, { params }) {
 
     } catch (error) {
         console.error('Error fetching exam details:', error);
-        return NextResponse.json({ 
-            success: false, 
-            error: error.message || 'Failed to fetch exam details' 
+        return NextResponse.json({
+            success: false,
+            error: error.message || 'Failed to fetch exam details'
         }, { status: 500 });
     }
 }

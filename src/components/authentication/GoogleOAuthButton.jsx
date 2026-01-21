@@ -29,7 +29,6 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     data.data.integrations.googleOAuth.clientId;
 
                 if (!googleOAuthEnabled) {
-                    console.log('Google OAuth is disabled or not properly configured in database')
                     setIsEnabled(false)
                     return;
                 }
@@ -39,13 +38,11 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     const registrationEnabled = data.data?.authPages?.enableRegistration !== false;
 
                     if (!registrationEnabled) {
-                        console.log('Google OAuth login disabled because registration is disabled')
                         setIsEnabled(false)
                         return;
                     }
                 }
 
-                console.log('Google OAuth is enabled with Client ID:', data.data.integrations.googleOAuth.clientId)
                 setIsEnabled(true)
 
             } catch (error) {
@@ -76,8 +73,6 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                 });
 
                 const data = await response.json();
-                console.log('Google OAuth response:', data);
-
                 if (data.success) {
                     // Login user (works for both new and existing users)
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -148,8 +143,6 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
             }
 
         } catch (error) {
-            console.log('Google OAuth Error:', error)
-
             // Show specific error message for registration disabled
             const errorMessage = error.message || `Google ${type} failed`;
 
@@ -165,8 +158,6 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
 
     const handleGoogleError = (error) => {
         setLoading(false)
-        console.log('Google OAuth Error:', error)
-
         // Don't show error for user-cancelled operations
         if (error && error.type === 'popup_closed') {
             return // User cancelled, no need to show error

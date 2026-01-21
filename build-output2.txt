@@ -1,0 +1,129 @@
+﻿
+> exam@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.32
+  - Environments: .env.local
+  - Experiments (use with caution):
+    ┬╖ instrumentationHook
+
+   Creating an optimized production build ...
+node.exe : Failed to compile.
+At C:\Users\RAJENDRA\AppData\Roaming\npm\npm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/npm/bin/npm-cli.js" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to compile.:String) [], RemoteExc 
+   eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./src/app/api/student/attempt-details/[attemptId]/route.js
+Error: 
+  [31mx[0m Expression expected
+    ,-[[36;1;4mC:\Users\RAJENDRA\Music\next 
+js\exam\exam\src\app\api\student\attempt-details\[attemptId]\route.js[0m:71:1]
+ [2m71[0m |         if (attempt.answers) {
+ [2m72[0m |             if (attempt.answers instanceof Map) {
+ [2m73[0m |                 } else if (typeof attempt.answers === 'object') {
+ [2m74[0m |                 .length);
+    : [31;1m                ^[0m
+ [2m75[0m |             }
+ [2m76[0m |         }
+ [2m76[0m | 
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/student/attempt-details/[attemptId]/route.js
+
+./src/app/api/student/dashboard/route.js
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4mC:\Users\RAJENDRA\Music\next 
+js\exam\exam\src\app\api\student\dashboard\route.js[0m:172:1]
+ [2m172[0m |                 };
+ [2m173[0m |             });
+ [2m174[0m | 
+ [2m175[0m |         : ${myExams.length}`);
+     : [31;1m        ^[0m
+ [2m176[0m |         : ${testExams.length}`);
+ [2m177[0m |         return NextResponse.json({
+ [2m177[0m |             success: true,
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/student/dashboard/route.js
+
+./src/app/api/student/exam-attempts/[examId]/route.js
+Error: 
+  [31mx[0m Expected ';', '}' or <eof>
+    ,-[[36;1;4mC:\Users\RAJENDRA\Music\next 
+js\exam\exam\src\app\api\student\exam-attempts\[examId]\route.js[0m:87:1]
+ [2m87[0m |                 }
+ [2m88[0m |             }
+ [2m89[0m |             
+ [2m90[0m |             + '%', 'Status:', attempt.status);
+    : [31;1m            ^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^[0m[33;1m^[0m
+    :                             [31;1m`-- [31;1mThis is the expression part of an 
+expression statement[0m[0m
+ [2m91[0m | 
+ [2m92[0m |             return {
+ [2m92[0m |                 _id: attempt._id,
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/student/exam-attempts/[examId]/route.js
+
+./src/app/api/student/my-courses/route.js
+Error: 
+  [31mx[0m Expected ',', got '`'
+    ,-[[36;1;4mC:\Users\RAJENDRA\Music\next 
+js\exam\exam\src\app\api\student\my-courses\route.js[0m:27:1]
+ [2m27[0m |         const completedLecturesMap = {}; // Track completed lectures 
+per course
+ [2m28[0m | 
+ [2m29[0m |         enrolled.forEach((entry, idx) => {
+ [2m30[0m |             }`);
+    : [31;1m             ^[0m
+ [2m31[0m |             if (entry && typeof entry === 'object') {
+ [2m32[0m |                 const cId = entry.courseId || entry.course;
+ [2m32[0m |                 const entryCompleted = entry.completedLectures || [];
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/student/my-courses/route.js
+
+./src/app/api/test-notifications/route.js
+Error: 
+  [31mx[0m Expression expected
+    ,-[[36;1;4mC:\Users\RAJENDRA\Music\next 
+js\exam\exam\src\app\api\test-notifications\route.js[0m:27:1]
+ [2m27[0m |             type: 'live'
+ [2m28[0m |         }).populate('assignedUsers', '_id name email')
+ [2m29[0m | 
+ [2m30[0m |         ))
+    : [31;1m        ^[0m
+ [2m31[0m | 
+ [2m32[0m |         const notifications = []
+ [2m32[0m | 
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/test-notifications/route.js
+
+
+> Build failed because of webpack errors

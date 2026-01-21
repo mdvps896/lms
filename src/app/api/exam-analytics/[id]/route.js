@@ -8,10 +8,8 @@ import ExamAttempt from '../../../../models/ExamAttempt';
 export async function GET(request, { params }) {
     try {
         await connectDB();
-        
-        const { id } = params;
-        console.log('Fetching analytics for exam:', id);
 
+        const { id } = params;
         // Get exam details with attempts
         const exam = await Exam.findById(id)
             .populate('category', 'name')
@@ -19,24 +17,22 @@ export async function GET(request, { params }) {
             .lean();
 
         if (!exam) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Exam not found' 
+            return NextResponse.json({
+                success: false,
+                error: 'Exam not found'
             }, { status: 404 });
         }
 
         // Get all completed attempts for this exam from ExamAttempt collection
-        const attempts = await ExamAttempt.find({ 
+        const attempts = await ExamAttempt.find({
             examId: id,
             status: { $in: ['submitted', 'expired'] }
         })
-        .populate('userId', 'name email')
-        .lean();
-
-        console.log(`Found ${attempts.length} completed attempts`);
+            .populate('userId', 'name email')
+            .lean();
 
         // Get all question groups for this exam
-        const questionGroups = await QuestionGroup.find({ 
+        const questionGroups = await QuestionGroup.find({
             examId: id
         }).lean();
 
@@ -51,17 +47,15 @@ export async function GET(request, { params }) {
         const questionGroupIds = questionGroups.map(qg => qg._id);
 
         // Get all questions for this exam
-        const questions = await Question.find({ 
-            questionGroupId: { $in: questionGroupIds } 
+        const questions = await Question.find({
+            questionGroupId: { $in: questionGroupIds }
         })
-        .populate('questionGroupId', 'name category')
-        .lean();
-
-        console.log(`Found ${questions.length} questions in ${questionGroups.length} groups`);
+            .populate('questionGroupId', 'name category')
+            .lean();
 
         // Calculate real performance per question group (topic)
         const topicPerformance = {};
-        
+
         questionGroups.forEach(group => {
             topicPerformance[group._id.toString()] = {
                 totalScore: 0,
@@ -73,12 +67,12 @@ export async function GET(request, { params }) {
         // Analyze each attempt to calculate topic performance
         attempts.forEach(attempt => {
             const answers = attempt.answers || [];
-            
+
             answers.forEach(answer => {
-                const question = questions.find(q => 
+                const question = questions.find(q =>
                     q._id.toString() === answer.questionId?.toString()
                 );
-                
+
                 if (question && question.questionGroupId) {
                     const groupId = question.questionGroupId._id.toString();
                     if (topicPerformance[groupId]) {
@@ -93,15 +87,15 @@ export async function GET(request, { params }) {
 
         // Create topic breakdown with real scores
         const topicBreakdown = questionGroups.map(group => {
-            const groupQuestions = questions.filter(q => 
+            const groupQuestions = questions.filter(q =>
                 q.questionGroupId._id.toString() === group._id.toString()
             );
-            
+
             const perf = topicPerformance[group._id.toString()];
-            const avgScore = perf.attemptCount > 0 
-                ? Math.round(perf.totalScore / perf.attemptCount) 
+            const avgScore = perf.attemptCount > 0
+                ? Math.round(perf.totalScore / perf.attemptCount)
                 : 0;
-            
+
             return {
                 topic: group.name || `${exam.subject?.name || 'General'} - ${group.category || 'Questions'}`,
                 questions: groupQuestions.length,
@@ -112,7 +106,7 @@ export async function GET(request, { params }) {
 
         // Calculate real performance per question
         const questionPerformance = {};
-        
+
         questions.forEach(q => {
             questionPerformance[q._id.toString()] = {
                 correctCount: 0,
@@ -124,7 +118,7 @@ export async function GET(request, { params }) {
         // Analyze answers from all attempts
         attempts.forEach(attempt => {
             const answers = attempt.answers || [];
-            
+
             answers.forEach(answer => {
                 const qId = answer.questionId?.toString();
                 if (qId && questionPerformance[qId]) {
@@ -144,12 +138,12 @@ export async function GET(request, { params }) {
             const questionText = question.questionText || question.question || '';
             const qId = question._id.toString();
             const perf = questionPerformance[qId];
-            
+
             // Extract topic from question group or use subject
-            const topic = question.questionGroupId?.name || 
-                         question.questionGroupId?.category || 
-                         exam.subject?.name || 
-                         'General';
+            const topic = question.questionGroupId?.name ||
+                question.questionGroupId?.category ||
+                exam.subject?.name ||
+                'General';
 
             // Determine difficulty based on question text length or use default
             let difficulty = 'Medium';
@@ -163,7 +157,7 @@ export async function GET(request, { params }) {
             const totalAttempts = perf.totalAttempts;
             const percentage = totalAttempts > 0 ? (correctAnswers / totalAttempts * 100) : 0;
             const avgTime = totalAttempts > 0 ? (perf.totalTime / totalAttempts / 60) : 0; // Convert to minutes
-            
+
             return {
                 questionNo: index + 1,
                 questionText: questionText.substring(0, 80) + (questionText.length > 80 ? '...' : ''),
@@ -176,9 +170,6 @@ export async function GET(request, { params }) {
             };
         });
 
-        console.log('Topic breakdown:', topicBreakdown);
-        console.log('Question analysis sample:', questionAnalysis.slice(0, 3));
-
         return NextResponse.json({
             success: true,
             topicBreakdown,
@@ -187,9 +178,9 @@ export async function GET(request, { params }) {
 
     } catch (error) {
         console.error('Error fetching exam analytics:', error);
-        return NextResponse.json({ 
-            success: false, 
-            error: 'Failed to fetch exam analytics' 
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to fetch exam analytics'
         }, { status: 500 });
     }
 }

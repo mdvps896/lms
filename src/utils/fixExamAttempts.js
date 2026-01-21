@@ -12,14 +12,10 @@ import Exam from '../models/Exam.js'
 
 async function fixExamAttempts() {
     try {
-        console.log('🔧 Starting fix for exam maxAttempts...')
-        
         await connectDB()
         
         // Get all exams
         const exams = await Exam.find({})
-        console.log(`📊 Found ${exams.length} exams`)
-        
         let fixedCount = 0
         
         for (const exam of exams) {
@@ -40,14 +36,11 @@ async function fixExamAttempts() {
             if (needsUpdate) {
                 await exam.save({ validateBeforeSave: false })
                 fixedCount++
-                console.log(`✅ Fixed exam: ${exam.name} - maxAttempts: ${exam.maxAttempts}`)
-            }
+                }
         }
         
-        console.log(`\n✨ Fixed ${fixedCount} exam(s)`)
-        console.log('✅ All exams are now compatible with new schema!')
-
-    } catch (error) {
+        `)
+        } catch (error) {
         console.error('❌ Fix failed:', error)
         throw error
     } finally {

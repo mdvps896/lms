@@ -28,8 +28,6 @@ export async function GET(request) {
             }, { status: 400 })
         }
 
-        console.log('Fetching exams for category:', category)
-
         // Build query for category-filtered exams
         let query = { category: category }
 
@@ -43,15 +41,10 @@ export async function GET(request) {
         }
 
         // Get exams first without populate
-        console.log('Query:', query)
-        
         const exams = await Exam.find(query)
             .sort({ startDate: 1 })
             .lean()
             
-        console.log('Found exams:', exams.length)
-        console.log('First exam maxAttempts:', exams[0]?.maxAttempts)
-        
         // Manually populate subjects and categories
         for (let exam of exams) {
             // Populate subjects
@@ -59,8 +52,7 @@ export async function GET(request) {
                 const subjectIds = exam.subjects
                 const subjects = await Subject.find({ _id: { $in: subjectIds } }, 'name').lean()
                 exam.subjects = subjects
-                console.log('Populated subjects for exam:', exam.name, subjects)
-            }
+                }
             
             // Populate category
             if (exam.category) {
@@ -88,10 +80,8 @@ export async function GET(request) {
                 totalQuestions = await Question.countDocuments({
                     questionGroup: { $in: exam.questionGroups }
                 })
-                console.log(`Exam "${exam.name}" - Question Groups: ${exam.questionGroups.length}, Total Questions: ${totalQuestions}`)
-            } else {
-                console.log(`Exam "${exam.name}" - No question groups assigned`)
-            }
+                } else {
+                }
 
             return {
                 ...exam,

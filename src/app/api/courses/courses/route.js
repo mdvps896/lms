@@ -13,8 +13,6 @@ export async function GET() {
             .limit(20)
             .lean();
 
-        console.log('Fetched courses count:', courses.length);
-
         // Format courses for mobile app
         const formattedCourses = courses.map(course => {
             // Format duration
@@ -46,8 +44,6 @@ export async function GET() {
                 rating: '4.5',
             };
         });
-
-        console.log('Returning formatted courses:', formattedCourses.length);
 
         return NextResponse.json({
             success: true,

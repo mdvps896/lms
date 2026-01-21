@@ -20,8 +20,6 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
         }
 
-        console.log(`👤 Profile fetched for ${user.email}. Enrollment count: ${user.enrolledCourses?.length || 0}`);
-
         return NextResponse.json({
             success: true,
             user: user

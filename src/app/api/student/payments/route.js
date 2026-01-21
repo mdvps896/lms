@@ -20,7 +20,6 @@ export async function GET(request) {
             .lean();
 
         const formatted = payments.map(p => {
-            console.log(`💰 Processing payment ${p._id}: orderId=${p.razorpayOrderId}, order_id=${p.razorpay_order_id}`);
             return {
                 id: p._id.toString(),
                 courseTitle: p.course?.title || 'Unknown Course',

@@ -26,14 +26,10 @@ export async function GET(request) {
         const expiryMap = {};
         const completedLecturesMap = {}; // Track completed lectures per course
 
-        console.log(`🔍 Checking ${enrolled.length} enrollments for user ${userId}`);
         enrolled.forEach((entry, idx) => {
-            console.log(`  [${idx}] Keys: ${Object.keys(entry || {})}`);
             if (entry && typeof entry === 'object') {
                 const cId = entry.courseId || entry.course;
                 const entryCompleted = entry.completedLectures || [];
-                console.log(`  [${idx}] CourseID resolved: ${cId}, Completed: ${entryCompleted.length}`);
-
                 if (cId) {
                     courseIds.push(cId);
                     if (entry.expiresAt) expiryMap[cId.toString()] = entry.expiresAt;

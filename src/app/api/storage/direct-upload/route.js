@@ -7,13 +7,9 @@ export const maxDuration = 300;
 
 export async function POST(request) {
     try {
-        console.log('🚀 Direct Local upload started...');
-
         // Get the raw body as buffer to avoid size limits
         const body = await request.arrayBuffer();
         const buffer = Buffer.from(body);
-
-        console.log(`📊 Received data: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 
         // Parse multipart form data manually for large files
         const boundary = request.headers.get('content-type')?.split('boundary=')[1];
@@ -71,18 +67,11 @@ export async function POST(request) {
             );
         }
 
-        console.log(`📁 File: ${fileName}`);
-        console.log(`📏 Size: ${(fileData.length / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`📂 Folder: ${folder}`);
-        console.log(`📋 Type: ${mimeType}`);
-
         // Convert to base64 for Local Storage
         const base64File = `data:${mimeType};base64,${fileData.toString('base64')}`;
 
-        console.log('⬆️ Saving to Local Storage...');
         const result = await saveToLocalStorage(base64File, folder, fileName);
 
-        console.log('🎉 Direct upload successful to Local Storage!');
         return NextResponse.json({
             success: true,
             url: result.url,

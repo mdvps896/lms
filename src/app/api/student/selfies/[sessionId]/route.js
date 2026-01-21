@@ -33,8 +33,6 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log(`🔍 Fetching selfies for session: ${sessionId}`);
-
         // Fetch all selfies for this session
         const selfies = await SelfieCapture.find({ sessionId })
             .sort({ createdAt: 1 }) // Chronological order

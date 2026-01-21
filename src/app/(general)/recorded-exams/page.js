@@ -22,13 +22,9 @@ export default function RecordedExamsPage() {
             const response = await fetch('/api/exams/completed');
             const data = await response.json();
 
-            console.log('Completed exams API response:', data);
-            console.log('Exams array:', data.exams);
-
             if (response.ok) {
                 setExams(data.exams || []);
-                console.log('Set exams state to:', data.exams?.length || 0, 'exams');
-            } else {
+                } else {
                 console.error('API error:', data);
             }
         } catch (error) {
@@ -80,12 +76,6 @@ export default function RecordedExamsPage() {
             </div>
         );
     }
-
-    console.log('=== RENDER DEBUG ===');
-    console.log('Loading:', loading);
-    console.log('Selected Exam:', selectedExam);
-    console.log('Exams length:', exams.length);
-    console.log('Exams data:', exams);
 
     return (
         <div className="container-fluid p-4">

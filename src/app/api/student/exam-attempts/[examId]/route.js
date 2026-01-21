@@ -10,8 +10,6 @@ export async function GET(request, { params }) {
 
         const { examId } = params;
 
-        console.log('Fetching attempts for exam:', examId);
-
         // Get user ID from cookies
         const cookies = request.headers.get('cookie');
         let userId = null;
@@ -26,7 +24,6 @@ export async function GET(request, { params }) {
                     const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
                     const userData = JSON.parse(userDataStr);
                     userId = userData._id;
-                    console.log('User ID:', userId);
                 } catch (parseError) {
                     console.error('Failed to parse user cookie:', parseError);
                 }
@@ -53,15 +50,11 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log('Exam found:', exam.name);
-
         // Fetch attempts from ExamAttempt collection
         const examAttempts = await ExamAttempt.find({
             exam: examId,
             user: userId
         }).lean();
-
-        console.log('ExamAttempt collection attempts:', examAttempts.length);
 
         let userAttempts = examAttempts;
 
@@ -93,8 +86,6 @@ export async function GET(request, { params }) {
                     console.error('Error calculating time:', e);
                 }
             }
-            
-            console.log('Attempt', attempt._id, '- Score:', attempt.score, '/', attempt.totalMarks, '=', score.toFixed(2) + '%', 'Status:', attempt.status);
 
             return {
                 _id: attempt._id,
@@ -120,8 +111,6 @@ export async function GET(request, { params }) {
             },
             attempts: formattedAttempts
         };
-
-        console.log('Returning response with', formattedAttempts.length, 'attempts');
 
         return NextResponse.json(response);
 

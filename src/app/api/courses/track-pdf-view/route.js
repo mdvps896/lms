@@ -16,8 +16,6 @@ export async function POST(request) {
         const body = await request.json();
         const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages } = body;
 
-        console.log('📊 PDF Tracking:', { action, userId, courseId, lectureId });
-
         if (!userId || !courseId || !lectureId) {
             return NextResponse.json({
                 success: false,
@@ -41,8 +39,6 @@ export async function POST(request) {
                     currentPage: currentPage || 1,
                     totalPages: totalPages || 0
                 });
-
-                console.log('✅ Started PDF session:', newSession._id);
 
                 return NextResponse.json({
                     success: true,
@@ -87,8 +83,6 @@ export async function POST(request) {
                 session.calculateDuration();
                 await session.save();
 
-                console.log('🔄 Updated PDF session:', sessionId, 'Duration:', session.duration);
-
                 return NextResponse.json({
                     success: true,
                     duration: session.duration,
@@ -116,8 +110,6 @@ export async function POST(request) {
                 endSession.isActive = false;
                 endSession.calculateDuration();
                 await endSession.save();
-
-                console.log('⏹️ Ended PDF session:', sessionId, 'Total duration:', endSession.duration);
 
                 return NextResponse.json({
                     success: true,

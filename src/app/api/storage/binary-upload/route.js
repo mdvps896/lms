@@ -6,8 +6,6 @@ export const maxDuration = 300;
 
 export async function POST(request) {
     try {
-        console.log('🎯 Binary upload API called...');
-
         // Get upload parameters from headers
         const fileName = request.headers.get('x-filename');
         const folder = request.headers.get('x-folder') || 'binary-uploads';
@@ -24,20 +22,12 @@ export async function POST(request) {
         const arrayBuffer = await request.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        console.log(`📁 File: ${fileName}`);
-        console.log(`📏 Size: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`📂 Folder: ${folder}`);
-        console.log(`📋 MIME Type: ${mimeType}`);
-
         // Convert to base64
         const base64File = `data:${mimeType};base64,${buffer.toString('base64')}`;
-
-        console.log('⬆️ Saving to Local Storage...');
 
         // Upload to Local Storage
         const result = await saveToLocalStorage(base64File, folder, fileName);
 
-        console.log('🎉 Binary upload successful to Local Storage!');
         return NextResponse.json({
             success: true,
             url: result.url,

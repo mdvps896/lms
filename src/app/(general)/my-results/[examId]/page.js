@@ -115,8 +115,6 @@ const ExamAttemptsPage = () => {
     const handleDownloadCertificate = async (attempt) => {
         setDownloadingCertificate(attempt._id);
         try {
-            console.log('Download certificate clicked for attempt:', attempt._id);
-            
             // Dynamic import
             const html2canvas = (await import('html2canvas')).default;
             const jsPDF = (await import('jspdf')).default;
@@ -316,8 +314,6 @@ const ExamAttemptsPage = () => {
             // Wait for rendering
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            console.log('Starting canvas generation...');
-
             // Generate canvas with better options
             const canvas = await html2canvas(certificateHTML, {
                 scale: 2,
@@ -330,8 +326,6 @@ const ExamAttemptsPage = () => {
                 windowWidth: 1122,
                 windowHeight: 794
             });
-
-            console.log('Canvas generated successfully');
 
             // Create PDF
             const imgData = canvas.toDataURL('image/png');
@@ -352,7 +346,6 @@ const ExamAttemptsPage = () => {
             // Cleanup
             document.body.removeChild(tempDiv);
             
-            console.log('Certificate downloaded successfully!');
             Swal.fire('Success', 'Certificate downloaded successfully!', 'success');
             
         } catch (error) {

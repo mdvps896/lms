@@ -23,7 +23,6 @@ export const sendAdminPurchaseNotification = async ({ user, course, amount, coup
         const siteName = settings?.general?.siteName || 'God of Graphics';
 
         if (!adminEmail) {
-            console.log('⚠️ Admin email not found in settings, skipping admin notification');
             return false;
         }
 
@@ -157,10 +156,8 @@ export const sendAdminPurchaseNotification = async ({ user, course, amount, coup
         });
 
         if (result) {
-            console.log(`✅ Admin notification email sent to ${adminEmail}`);
-        } else {
-            console.log('❌ Failed to send admin notification email');
-        }
+            } else {
+            }
 
         return result;
     } catch (error) {

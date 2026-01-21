@@ -11,16 +11,8 @@ export async function GET() {
 
         // Debug: Check all attempts first
         const allAttempts = await ExamAttempt.find({}).lean();
-        console.log('=== DEBUG: All ExamAttempts in DB:', allAttempts.length);
-        
         if (allAttempts.length > 0) {
-            console.log('Sample attempt:', {
-                id: allAttempts[0]._id,
-                status: allAttempts[0].status,
-                exam: allAttempts[0].exam,
-                hasRecordings: !!allAttempts[0].recordings
-            });
-        }
+            }
 
         // Find all submitted exam attempts
         const submittedAttempts = await ExamAttempt.find({
@@ -75,13 +67,9 @@ export async function GET() {
 
         // Fallback: If no ExamAttempts found, try old Exam.attempts structure
         if (exams.length === 0) {
-            console.log('No ExamAttempts found, checking old Exam.attempts structure...');
-            
             const oldExams = await Exam.find({
                 'attempts.status': 'submitted'
             }).lean();
-            
-            console.log('Found old exam structure with attempts:', oldExams.length);
             
             for (const exam of oldExams) {
                 const submittedAttempts = exam.attempts?.filter(a => a.status === 'submitted') || [];

@@ -19,8 +19,6 @@ export async function GET(request) {
             return NextResponse.json({ success: false, message: 'Invalid User ID format' }, { status: 400 });
         }
 
-        console.log(`🔍 [API] Fetching notifications for user: ${userId}`);
-
         // Find active notifications where the user is a recipient
         const notifications = await Notification.find({
             status: 'active',
@@ -29,8 +27,6 @@ export async function GET(request) {
             .sort({ createdAt: -1 })
             .limit(50)
             .lean();
-
-        console.log(`✅ Found ${notifications.length} notifications`);
 
         // Format for mobile
         const formatted = notifications.map(notif => {

@@ -10,8 +10,6 @@ export async function GET(request, { params }) {
 
         const { attemptId } = params;
 
-        console.log('=== Fetching attempt details for:', attemptId);
-
         // Get user ID and role from cookies
         const cookies = request.headers.get('cookie');
         let userId = null;
@@ -28,7 +26,6 @@ export async function GET(request, { params }) {
                     const userData = JSON.parse(userDataStr);
                     userId = userData._id;
                     userRole = userData.role;
-                    console.log('User ID:', userId, 'Role:', userRole);
                 } catch (parseError) {
                     console.error('Failed to parse user cookie:', parseError);
                 }
@@ -44,7 +41,6 @@ export async function GET(request, { params }) {
         }
 
         // Find ExamAttempt
-        console.log('Searching for exam attempt...');
         const attempt = await ExamAttempt.findById(attemptId)
             .populate('exam')
             .lean();
@@ -57,12 +53,10 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log('Attempt found for exam:', attempt.exam?.name);
-
         // Check if this attempt belongs to the current user OR user is admin/teacher
         const isOwner = attempt.user.toString() === userId;
         const isAdminOrTeacher = userRole === 'admin' || userRole === 'teacher';
-        
+
         if (!isOwner && !isAdminOrTeacher) {
             console.error('Attempt does not belong to current user and user is not admin/teacher');
             return NextResponse.json(
@@ -70,29 +64,13 @@ export async function GET(request, { params }) {
                 { status: 403 }
             );
         }
-        
-        console.log('Access granted:', isOwner ? 'Owner' : 'Admin/Teacher');
 
         // Get exam details
         const exam = attempt.exam;
 
-        console.log('Attempt found, status:', attempt.status);
-        console.log('Attempt has answers:', attempt.answers ? 'yes' : 'no');
-        if (attempt.answers) {
-            console.log('Attempt answers type:', typeof attempt.answers);
-            console.log('Attempt answers is Map:', attempt.answers instanceof Map);
-            if (attempt.answers instanceof Map) {
-                console.log('Answers Map size:', attempt.answers.size);
-            } else if (typeof attempt.answers === 'object') {
-                console.log('Answers object keys count:', Object.keys(attempt.answers).length);
-            }
-        }
-
         // Get questions from questionGroups
         let allQuestions = [];
         if (exam.questionGroups && exam.questionGroups.length > 0) {
-            console.log('Fetching questions for question groups...');
-
             try {
                 // Fetch Questions that belong to these question groups
                 const questions = await Question.find({
@@ -101,25 +79,20 @@ export async function GET(request, { params }) {
                 }).lean();
 
                 allQuestions = questions;
-                console.log('Total questions found:', allQuestions.length);
             } catch (qError) {
                 console.error('Error fetching questions:', qError);
                 // Continue without questions
             }
         } else {
-            console.log('No question groups in exam - trying fallback method');
-
             // FALLBACK: If no questionGroups, try to fetch questions by subject/category
             if (exam.subjects && exam.subjects.length > 0) {
                 try {
-                    console.log('Fetching questions by subject:', exam.subjects);
                     const questions = await Question.find({
                         subject: { $in: exam.subjects },
                         status: 'active'
                     }).lean();
 
                     allQuestions = questions;
-                    console.log('Total questions found (fallback):', allQuestions.length);
                 } catch (qError) {
                     console.error('Error fetching questions (fallback):', qError);
                 }
@@ -127,10 +100,9 @@ export async function GET(request, { params }) {
         }
 
         // Build answers array and calculate actual score
-        console.log('Building answers array for', allQuestions.length, 'questions');
         let calculatedScore = 0;
         let calculatedTotalMarks = 0;
-        
+
         const answersWithDetails = allQuestions.map((question, idx) => {
             let userAnswer = null;
 
@@ -142,11 +114,6 @@ export async function GET(request, { params }) {
                     userAnswer = attempt.answers.get(questionId);
                 } else if (typeof attempt.answers === 'object') {
                     userAnswer = attempt.answers[questionId];
-                }
-
-                if (idx === 0) {
-                    console.log('Sample - Question ID:', questionId);
-                    console.log('Sample - User Answer:', userAnswer);
                 }
             }
 
@@ -162,10 +129,10 @@ export async function GET(request, { params }) {
                         correctAnswers.push(opt.text);
                     }
                 });
-                
+
                 // If multiple correct answers, join with comma; otherwise use single answer
-                correctAnswer = correctAnswers.length > 1 
-                    ? correctAnswers.join(', ') 
+                correctAnswer = correctAnswers.length > 1
+                    ? correctAnswers.join(', ')
                     : correctAnswers[0] || null;
             }
 
@@ -183,14 +150,14 @@ export async function GET(request, { params }) {
             const questionMarks = question.marks || 1;
             let marksObtained = isCorrect ? questionMarks : 0;
             let finalIsCorrect = isCorrect;
-            
+
             // Check if admin has manually assigned marks for this question
             // Manual marks override calculated marks
             if (attempt.manualMarks) {
-                const manualMarksMap = attempt.manualMarks instanceof Map 
-                    ? attempt.manualMarks 
+                const manualMarksMap = attempt.manualMarks instanceof Map
+                    ? attempt.manualMarks
                     : new Map(Object.entries(attempt.manualMarks || {}));
-                
+
                 // Try to find manual marks by question ID
                 if (manualMarksMap.has(question._id.toString())) {
                     marksObtained = parseFloat(manualMarksMap.get(question._id.toString())) || marksObtained;
@@ -198,14 +165,14 @@ export async function GET(request, { params }) {
                     finalIsCorrect = marksObtained === questionMarks;
                 }
             }
-            
+
             // Accumulate score
             calculatedScore += marksObtained;
             calculatedTotalMarks += questionMarks;
 
             // Format selectedOption for display - if array, join with commas
-            const formattedAnswer = Array.isArray(userAnswer) 
-                ? userAnswer.join(', ') 
+            const formattedAnswer = Array.isArray(userAnswer)
+                ? userAnswer.join(', ')
                 : userAnswer;
 
             return {
@@ -222,9 +189,6 @@ export async function GET(request, { params }) {
                 marksObtained: marksObtained
             };
         });
-        
-        console.log('Calculated Score:', calculatedScore, '/', calculatedTotalMarks);
-        console.log('Stored Score:', attempt.score, '/', attempt.totalMarks);
 
         // Calculate time taken
         let timeTaken = null;
@@ -243,8 +207,6 @@ export async function GET(request, { params }) {
         const scorePercentage = actualTotalMarks > 0
             ? ((actualScore / actualTotalMarks) * 100)
             : 0;
-        
-        console.log('Final Score Percentage:', scorePercentage);
 
         const formattedAttempt = {
             _id: attempt._id,
@@ -284,9 +246,6 @@ export async function GET(request, { params }) {
                 passingPercentage: exam.passingPercentage || 50
             }
         };
-
-        console.log('=== Returning attempt details successfully ===');
-        console.log('Answers count:', answersWithDetails.length);
 
         return NextResponse.json(response);
 

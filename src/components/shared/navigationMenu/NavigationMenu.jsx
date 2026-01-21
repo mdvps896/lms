@@ -53,7 +53,6 @@ const NavigationManu = () => {
                 });
                 const data = await response.json();
                 if (data.success) {
-                    console.log('✅ Settings loaded for navigation:', data.data.general);
                     setLocalSettings(data.data);
                     if (data.data?.themeDesign?.uiCustomization) {
                         applyThemeColors(data.data.themeDesign.uiCustomization);
@@ -112,7 +111,6 @@ const NavigationManu = () => {
                                         objectFit: 'contain'
                                     }}
                                     onError={(e) => {
-                                        console.log('🚫 Logo failed to load, using fallback');
                                         e.currentTarget.src = '/images/logo-full.png';
                                     }}
                                     priority
@@ -129,7 +127,6 @@ const NavigationManu = () => {
                                         objectFit: 'contain'
                                     }}
                                     onError={(e) => {
-                                        console.log('🚫 Small logo failed to load, using fallback');
                                         e.currentTarget.src = '/images/logo-abbr.png';
                                     }}
                                     priority

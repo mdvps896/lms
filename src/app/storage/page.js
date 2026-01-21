@@ -134,8 +134,6 @@ const StoragePage = () => {
     const handleDelete = async (filePathOrPublicId, resourceType = null, source = null) => {
         try {
             setDeleting(true)
-            console.log('🗑️ Attempting to delete:', { filePathOrPublicId, resourceType, source })
-
             const isCloudinary = source === 'cloudinary'
 
             const response = await fetch('/api/storage/delete', {
@@ -151,14 +149,12 @@ const StoragePage = () => {
 
             const data = await response.json()
 
-            console.log('Delete response:', data)
-
             if (!data.success) {
                 throw new Error(data.message || 'Failed to delete file')
             }
 
             // Refresh file list on success
-            fetchFiles()
+            await fetchFiles()
             return data
         } catch (error) {
             console.error('Error deleting file:', error)

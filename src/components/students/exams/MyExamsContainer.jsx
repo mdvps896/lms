@@ -47,20 +47,11 @@ const MyExamsContainer = () => {
             const response = await fetch(`/api/exams/student?category=${categoryId}`)
             const data = await response.json()
 
-            console.log('MyExamsContainer - API Response:', data)
-            console.log('MyExamsContainer - Exams received:', data.data)
-
             if (data.success) {
                 setExams(data.data)
                 // Debug first exam
                 if (data.data && data.data.length > 0) {
-                    console.log('MyExamsContainer - First exam details:', {
-                        name: data.data[0].name,
-                        totalQuestions: data.data[0].totalQuestions,
-                        questionGroups: data.data[0].questionGroups,
-                        questions: data.data[0].questions
-                    })
-                }
+                    }
             } else {
                 console.error('Failed to fetch exams:', data.message)
             }

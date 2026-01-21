@@ -9,8 +9,6 @@ export async function POST(request, { params }) {
         const body = await request.json();
         const { userId } = body;
 
-        console.log(`👍 [Like API] Toggle like for Course: ${id}, User: ${userId}`);
-
         if (!userId) {
             return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
         }

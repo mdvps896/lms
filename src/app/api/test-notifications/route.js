@@ -8,12 +8,12 @@ import { cookies } from 'next/headers'
 export async function POST() {
     try {
         await dbConnect()
-        
+
         // Get current user from cookies
         const cookieStore = cookies()
         const userCookie = cookieStore.get('currentUser')
         let currentUser = null
-        
+
         if (userCookie) {
             try {
                 currentUser = JSON.parse(userCookie.value)
@@ -27,24 +27,17 @@ export async function POST() {
             type: 'live'
         }).populate('assignedUsers', '_id name email')
 
-        console.log(`Found ${liveExams.length} live type exams:`, liveExams.map(e => ({
-            name: e.name,
-            status: e.status,
-            assignedUsers: e.assignedUsers?.length || 0
-        })))
-
         const notifications = []
 
         for (const exam of liveExams) {
             try {
                 // For testing, create notifications for all users if no assigned users
                 let assignedUserIds = exam.assignedUsers?.map(user => user._id) || []
-                
+
                 if (assignedUserIds.length === 0) {
                     // If no assigned users, notify all users (for testing)
                     const allUsers = await User.find({}, '_id')
                     assignedUserIds = allUsers.map(user => user._id)
-                    console.log(`No assigned users for exam ${exam.name}, notifying all ${allUsers.length} users`)
                 }
 
                 // Create exam started notification
@@ -58,7 +51,6 @@ export async function POST() {
                 }, currentUser?.id)
 
                 notifications.push(notification)
-                console.log(`Created notification for exam: ${exam.name}`)
             } catch (error) {
                 console.error(`Error creating notification for exam ${exam.name}:`, error)
             }
@@ -77,10 +69,10 @@ export async function POST() {
     } catch (error) {
         console.error('Error creating test notifications:', error)
         return NextResponse.json(
-            { 
-                success: false, 
+            {
+                success: false,
                 message: 'Failed to create test notifications',
-                error: error.message 
+                error: error.message
             },
             { status: 500 }
         )

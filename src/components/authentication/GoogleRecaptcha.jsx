@@ -30,8 +30,7 @@ const GoogleRecaptcha = ({ onVerify, onError }) => {
         if (isLoaded && isEnabled && siteKey && window.grecaptcha) {
             // Initialize reCAPTCHA v3
             window.grecaptcha.ready(() => {
-                console.log('reCAPTCHA v3 ready')
-            })
+                })
         }
     }, [isLoaded, isEnabled, siteKey])
 

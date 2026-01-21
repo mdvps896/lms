@@ -12,8 +12,7 @@ function initFirebase() {
                     privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
                 }),
             });
-            console.log('✅ Firebase Admin initialized');
-        } catch (error) {
+            } catch (error) {
             console.error('❌ Firebase Admin initialization error:', error);
         }
     }
@@ -55,7 +54,6 @@ export async function sendPushNotification(token, title, body, data = {}) {
         };
 
         const response = await firebaseAdmin.messaging().send(message);
-        console.log('✅ Security Notification sent:', response);
         return { success: true, messageId: response };
     } catch (error) {
         console.error('❌ Error sending security notification:', error);

@@ -138,6 +138,14 @@ const settingsSchema = new mongoose.Schema({
         maintenanceMessage: { type: String, default: 'App is under maintenance. Please try again later.' }
     },
 
+    // WhatsApp Support Settings
+    whatsappSupport: {
+        phoneNumber: { type: String, default: '+919876543210' },
+        message: { type: String, default: 'Hello, I need support with MD Consultancy app.' },
+        enabled: { type: Boolean, default: true },
+        primaryMethod: { type: String, default: 'whatsapp', enum: ['chat', 'whatsapp'] }
+    },
+
     // PDF Selfie Settings
     pdfSelfieSettings: {
         enabled: { type: Boolean, default: true },

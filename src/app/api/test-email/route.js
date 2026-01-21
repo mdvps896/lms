@@ -24,8 +24,7 @@ export async function POST(request) {
                 siteName = settings.general.siteName;
             }
         } catch (settingsError) {
-            console.log('Could not fetch site settings, using default name');
-        }
+            }
 
         // Parse options ensuring correct types
         const port = parseInt(smtpPort) || 587;

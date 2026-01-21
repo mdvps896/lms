@@ -11,8 +11,6 @@ export async function POST(request, { params }) {
         const body = await request.json();
         const { userId, rating, review } = body;
 
-        console.log(`📝 [Rate API] Course: ${id}, User: ${userId}, Rating: ${rating}`);
-
         if (!userId || !rating) {
             return NextResponse.json({ success: false, error: 'User ID and Rating are required' }, { status: 400 });
         }
@@ -31,8 +29,6 @@ export async function POST(request, { params }) {
 
         // Check enrollment - EXTREMELY ROBUST CHECK
         const enrolledCourses = user.enrolledCourses || [];
-        console.log(`🔍 Checking enrollment for user ${user.email}. Course count: ${enrolledCourses.length}`);
-
         let isEnrolled = false;
         for (const e of enrolledCourses) {
             if (!e) continue;
@@ -54,11 +50,6 @@ export async function POST(request, { params }) {
         }
 
         if (!isEnrolled) {
-            console.log(`🚫 User ${userId} blocked. Enrollments found:`, enrolledCourses.map(e => {
-                if (!e) return 'null';
-                if (typeof e === 'string') return e;
-                return (e.courseId || e.course || e).toString();
-            }));
             return NextResponse.json({ success: false, error: 'You must purchase the course to rate it.' }, { status: 403 });
         }
 
@@ -77,7 +68,6 @@ export async function POST(request, { params }) {
 
         if (!ratingUpdateResult) {
             // If not updated, it means user hasn't rated yet, so push new rating
-            console.log(`✨ Adding new rating via update`);
             await Course.findByIdAndUpdate(
                 id,
                 {
@@ -93,8 +83,6 @@ export async function POST(request, { params }) {
                 { runValidators: false }
             );
         }
-
-        console.log(`✅ Rating saved for course ${id}`);
 
         return NextResponse.json({
             success: true,

@@ -5,6 +5,7 @@ import axios from 'axios'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 import { FiImage, FiSend, FiMessageSquare, FiSearch } from 'react-icons/fi'
+import { FaWhatsapp } from 'react-icons/fa'
 
 const AdminSupportChat = () => {
     const { user } = useAuth()
@@ -15,10 +16,17 @@ const AdminSupportChat = () => {
     const [uploading, setUploading] = useState(false)
     const [loadingConversations, setLoadingConversations] = useState(true)
     const [loadingMessages, setLoadingMessages] = useState(false)
+    const [whatsappNumber, setWhatsappNumber] = useState('+919876543210')
+    const [whatsappMessage, setWhatsappMessage] = useState('Hello, I need support with MD Consultancy app.')
+    const [primaryMethod, setPrimaryMethod] = useState('chat')
+    const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+    const [tempNumber, setTempNumber] = useState('')
+    const [tempMessage, setTempMessage] = useState('')
     const chatEndRef = useRef(null)
 
     useEffect(() => {
         fetchConversations()
+        fetchSettings()
         // Poll for new messages every 30 seconds
         const interval = setInterval(fetchConversations, 30000)
         return () => clearInterval(interval)
@@ -123,6 +131,65 @@ const AdminSupportChat = () => {
         }
     }
 
+    const fetchSettings = async () => {
+        try {
+            const res = await axios.get('/api/settings')
+            if (res.data.success && res.data.data) {
+                const settings = res.data.data
+                if (settings.whatsappSupport) {
+                    setWhatsappNumber(settings.whatsappSupport.phoneNumber || '+919876543210')
+                    setWhatsappMessage(settings.whatsappSupport.message || 'Hello, I need support with MD Consultancy app.')
+                    setPrimaryMethod(settings.whatsappSupport.primaryMethod || 'chat')
+                }
+            }
+        } catch (error) {
+            console.error('Fetch settings error:', error)
+        }
+    }
+
+    const handleSaveSettings = async (updates) => {
+        try {
+            await axios.put('/api/settings', {
+                tab: 'whatsapp-support',
+                data: {
+                    phoneNumber: updates.phoneNumber || whatsappNumber,
+                    message: updates.message || whatsappMessage,
+                    primaryMethod: updates.primaryMethod || primaryMethod,
+                    enabled: true
+                }
+            })
+
+            // Update local state
+            if (updates.phoneNumber) setWhatsappNumber(updates.phoneNumber)
+            if (updates.message) setWhatsappMessage(updates.message)
+            if (updates.primaryMethod) setPrimaryMethod(updates.primaryMethod)
+
+        } catch (error) {
+            console.error('Save settings error:', error)
+        }
+    }
+
+    const handleOpenWhatsApp = () => {
+        setTempNumber(whatsappNumber)
+        setTempMessage(whatsappMessage)
+        setShowWhatsAppModal(true)
+    }
+
+    const handleSendWhatsApp = () => {
+        const message = encodeURIComponent(tempMessage)
+        const number = tempNumber.replace(/[^0-9]/g, '')
+        const whatsappUrl = `https://wa.me/${number}?text=${message}`
+
+        // Save to DB and State
+        handleSaveSettings({
+            phoneNumber: tempNumber,
+            message: tempMessage
+        })
+
+        window.open(whatsappUrl, '_blank')
+        setShowWhatsAppModal(false)
+    }
+
     // Group messages by date
     const groupedMessages = messages.reduce((groups, message) => {
         const date = format(new Date(message.createdAt), 'yyyy-MM-dd')
@@ -139,7 +206,29 @@ const AdminSupportChat = () => {
                 {/* Conversations List */}
                 <div className="col-md-4 border-end h-100 overflow-auto">
                     <div className="p-3 border-bottom sticky-top bg-white">
-                        <h6 className="mb-0">Support Conversations</h6>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="mb-0">Support Conversations</h6>
+                        </div>
+
+                        {/* Support Type Selector */}
+                        <div className="mb-3">
+                            <label className="form-label small text-muted">Primary Support Method</label>
+                            <select
+                                className="form-select"
+                                value={primaryMethod}
+                                onChange={(e) => {
+                                    const newVal = e.target.value
+                                    if (newVal === 'whatsapp') {
+                                        handleOpenWhatsApp()
+                                    }
+                                    setPrimaryMethod(newVal)
+                                    handleSaveSettings({ primaryMethod: newVal })
+                                }}
+                            >
+                                <option value="chat">💬 Default Chat</option>
+                                <option value="whatsapp">📱 WhatsApp Support</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="list-group list-group-flush">
                         {conversations.map((conv) => {
@@ -265,6 +354,71 @@ const AdminSupportChat = () => {
                     )}
                 </div>
             </div>
+
+            {/* WhatsApp Modal */}
+            {showWhatsAppModal && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title d-flex align-items-center gap-2">
+                                    <FaWhatsapp size={24} className="text-success" />
+                                    WhatsApp Support
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowWhatsAppModal(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="mb-3">
+                                    <label className="form-label">WhatsApp Number</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="+91 9876543210"
+                                        value={tempNumber}
+                                        onChange={(e) => setTempNumber(e.target.value)}
+                                    />
+                                    <small className="text-muted">Include country code (e.g., +91 for India)</small>
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Message</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows="4"
+                                        placeholder="Enter your message..."
+                                        value={tempMessage}
+                                        onChange={(e) => setTempMessage(e.target.value)}
+                                    ></textarea>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => {
+                                        setShowWhatsAppModal(false)
+                                        // User wants to use default chat instead
+                                    }}
+                                >
+                                    Use Default Chat
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-success d-flex align-items-center gap-2"
+                                    onClick={handleSendWhatsApp}
+                                    disabled={!tempNumber || !tempMessage}
+                                >
+                                    <FaWhatsapp size={18} />
+                                    Open WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

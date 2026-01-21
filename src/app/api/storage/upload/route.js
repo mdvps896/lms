@@ -43,10 +43,6 @@ export async function POST(request) {
             )
         }
         try {
-            console.log('Uploading to Local Storage...')
-            console.log('File name:', fileName)
-            console.log('Folder:', folder)
-
             const result = await saveToLocalStorage(fileData, folder, fileName)
 
             if (!result.success) {
@@ -55,8 +51,6 @@ export async function POST(request) {
                     { status: 500 }
                 )
             }
-
-            console.log('Local upload successful:', result.publicId)
 
             return NextResponse.json({
                 success: true,

@@ -21,15 +21,12 @@ class ServerSideLiveStream {
         this.screenStream = screenStream;
         this.isStreaming = true;
 
-        console.log('Starting server-side live streaming...');
-
         // Capture and send frames every 500ms (2 FPS for smooth streaming)
         this.intervalId = setInterval(() => {
             this.captureAndSendFrames();
         }, 500);
 
-        console.log('✅ Server-side streaming started');
-    }
+        }
 
     /**
      * Capture current frame from streams and send to server
@@ -175,8 +172,7 @@ class ServerSideLiveStream {
             clearInterval(this.intervalId);
             this.intervalId = null;
         }
-        console.log('Server-side streaming stopped');
-    }
+        }
 }
 
 export default ServerSideLiveStream;

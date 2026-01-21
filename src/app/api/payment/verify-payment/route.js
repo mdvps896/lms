@@ -24,12 +24,8 @@ export async function POST(request) {
             couponCode
         } = body;
 
-        console.log(`💳 [Verify Payment] Start - OrderID: ${razorpay_order_id}, UserID: ${userId}, CourseID: ${courseId}, isFree: ${isFree}`);
-
         // Handle Free Enrollment (100% discount coupon)
         if (isFree === true && amount === 0) {
-            console.log('🎉 Free Enrollment - Skipping Razorpay verification');
-
             if (!userId || !courseId) {
                 return NextResponse.json({ success: false, message: 'Missing user or course ID' }, { status: 400 });
             }
@@ -54,8 +50,6 @@ export async function POST(request) {
             } else {
                 expiryDate.setFullYear(expiryDate.getFullYear() + 1);
             }
-
-            console.log(`👤 Free Enrollment - User: ${user.name}, Course: ${course.title}. Expiry: ${expiryDate}`);
 
             // Remove existing enrollment
             await User.updateOne(
@@ -108,13 +102,9 @@ export async function POST(request) {
                         }
                     }
                 );
-                console.log(`✅ Coupon ${couponCode} usage updated`);
-            }
+                }
 
             const updatedUser = await User.findById(userId);
-            console.log(`🎉 Free Enrollment Complete. User now has ${updatedUser.enrolledCourses?.length || 0} courses.`);
-            console.log(`🔔 User FCM Token: ${updatedUser.fcmToken || 'NOT SET'}`);
-
             // Save Notification to DB for history
             try {
                 await Notification.create({
@@ -130,8 +120,7 @@ export async function POST(request) {
                         thumbnail: course.thumbnail || ''
                     }
                 });
-                console.log('✅ Notification saved to DB');
-            } catch (dbError) {
+                } catch (dbError) {
                 console.error('❌ DB Notification save error:', dbError.message);
             }
 
@@ -150,8 +139,7 @@ export async function POST(request) {
                                 privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
                             }),
                         });
-                        console.log('✅ Firebase Admin initialized for notifications');
-                    }
+                        }
 
                     // Send notification directly
                     const message = {
@@ -179,10 +167,8 @@ export async function POST(request) {
                     };
 
                     await admin.messaging().send(message);
-                    console.log('📬 Notification sent successfully');
-                } else {
-                    console.log('⚠️ User has no FCM token, skipping notification');
-                }
+                    } else {
+                    }
             } catch (notifError) {
                 console.error('❌ Notification error:', notifError.message);
             }
@@ -235,8 +221,6 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'Invalid payment signature' }, { status: 400 });
         }
 
-        console.log('✅ Signature Verified. Proceeding to Enrollment...');
-
         if (!userId || !courseId) {
             return NextResponse.json({ success: true, message: 'Payment verified, but missing IDs to enroll' });
         }
@@ -259,8 +243,6 @@ export async function POST(request) {
         } else {
             expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Default 1 year
         }
-
-        console.log(`👤 User: ${user.name}, Course: ${course.title}. New Expiry: ${expiryDate}`);
 
         // Update Enrollment Atomically to be safer
         // 1. Remove any existing enrollment (both formats)
@@ -291,8 +273,6 @@ export async function POST(request) {
             { $push: { enrolledCourses: newEnrollment } }
         );
 
-        console.log(`📝 Update Result: matched=${updateResult.matchedCount}, modified=${updateResult.modifiedCount}`);
-
         // 3. Create Payment Record
         await Payment.create({
             user: userId,
@@ -306,8 +286,6 @@ export async function POST(request) {
 
         // Fetch user again to verify
         const updatedUser = await User.findById(userId);
-        console.log(`🎉 Enrollment done. User now has ${updatedUser.enrolledCourses?.length || 0} courses.`);
-
         // Save Notification to DB for history
         try {
             await Notification.create({
@@ -323,8 +301,7 @@ export async function POST(request) {
                     thumbnail: course.thumbnail || ''
                 }
             });
-            console.log('✅ Notification saved to DB');
-        } catch (dbError) {
+            } catch (dbError) {
             console.error('❌ DB Notification save error:', dbError.message);
         }
 
@@ -371,8 +348,7 @@ export async function POST(request) {
                 };
 
                 await admin.messaging().send(message);
-                console.log('📬 Notification sent to user');
-            }
+                }
         } catch (notifError) {
             console.error('❌ Notification error:', notifError);
         }

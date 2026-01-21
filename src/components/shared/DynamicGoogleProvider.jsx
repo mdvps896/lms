@@ -16,7 +16,6 @@ const DynamicGoogleProvider = ({ children }) => {
 
                     setGoogleClientId(data.data.integrations.googleOAuth.clientId)
                 } else {
-                    console.log('No Google OAuth settings found in database')
                     // Don't fallback to env - only use database settings
                 }
             } catch (error) {

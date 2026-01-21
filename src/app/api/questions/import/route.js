@@ -25,8 +25,6 @@ export async function POST(request) {
             const questionData = questions[i];
             
             try {
-                console.log(`Processing question ${i + 1}:`, questionData);
-                
                 // More lenient validation - check if any required field exists
                 const hasQuestionText = questionData.questionText || questionData.question || questionData['Question Text'];
                 const hasOptions = questionData.options || 
@@ -38,7 +36,6 @@ export async function POST(request) {
                     if (!hasQuestionText) missing.push('Question Text');
                     if (!hasCorrectAnswer) missing.push('Correct Answer');
                     errors.push(`Row ${i + 1}: Missing required fields: ${missing.join(', ')}`);
-                    console.log(`Row ${i + 1}: Missing fields:`, missing);
                     continue;
                 }
 
@@ -143,21 +140,14 @@ export async function POST(request) {
                     questionGroup: questionGroupId
                 };
 
-                console.log(`Creating question ${i + 1}:`, newQuestion);
-
                 // Create question
                 await Question.create(newQuestion);
                 imported++;
-                console.log(`Successfully imported question ${i + 1}`);
-
-            } catch (error) {
+                } catch (error) {
                 console.error(`Error importing question ${i + 1}:`, error);
                 errors.push(`Row ${i + 1}: ${error.message}`);
             }
         }
-
-        console.log(`Import completed: ${imported} imported out of ${questions.length} total`);
-        console.log('Errors:', errors);
 
         return Response.json({ 
             success: true, 

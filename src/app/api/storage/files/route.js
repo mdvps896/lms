@@ -269,7 +269,6 @@ async function getExamRecordings() {
             }
         }
 
-        console.log(`Found ${recordings.length} exam recordings`)
         return recordings
 
     } catch (error) {

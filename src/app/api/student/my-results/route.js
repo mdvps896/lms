@@ -36,8 +36,6 @@ export async function GET(request) {
             );
         }
 
-        console.log('Fetching results for user:', userId);
-
         // Get all submitted exam attempts for this user
         const examAttempts = await ExamAttempt.find({
             user: userId,
@@ -52,8 +50,6 @@ export async function GET(request) {
             })
             .sort({ submittedAt: -1 })
             .lean();
-
-        console.log('Found exam attempts:', examAttempts.length);
 
         // Group attempts by exam
         const examMap = new Map();
@@ -96,8 +92,6 @@ export async function GET(request) {
                 }
             };
         });
-
-        console.log('Returning exam results:', examResults.length);
 
         return NextResponse.json({
             success: true,

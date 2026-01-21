@@ -122,8 +122,6 @@ const SettingsPage = () => {
     const updateSettings = async (tabSettings) => {
         setSaving(true);
         try {
-            console.log('Sending settings update for tab:', activeTab, 'with data:', tabSettings);
-
             const res = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: {
@@ -135,8 +133,6 @@ const SettingsPage = () => {
                 }),
             });
             const data = await res.json();
-
-            console.log('Settings update response:', data);
 
             if (data.success) {
                 setSettings(data.data);

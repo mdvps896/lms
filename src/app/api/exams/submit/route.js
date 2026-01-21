@@ -10,8 +10,6 @@ export async function POST(request) {
 
         const { attemptId, sessionToken, answers, examId } = await request.json()
 
-
-
         if (!attemptId || !sessionToken || !examId) {
             return NextResponse.json(
                 { message: 'Missing required fields' },
@@ -21,8 +19,6 @@ export async function POST(request) {
 
         // Find the ExamAttempt
         const attempt = await ExamAttempt.findById(attemptId);
-
-
 
         if (!attempt) {
             return NextResponse.json(
@@ -47,7 +43,6 @@ export async function POST(request) {
         }
 
         if (attempt.sessionToken !== sessionToken) {
-
             return NextResponse.json(
                 { message: 'Invalid session token' },
                 { status: 403 }
@@ -89,9 +84,6 @@ export async function POST(request) {
         let totalScore = 0
         let maxPossibleScore = 0
 
-        console.log('=== SCORE CALCULATION ===');
-        console.log('Total questions:', questions.length);
-
         for (const question of questions) {
             maxPossibleScore += question.marks || 1
 
@@ -105,13 +97,6 @@ export async function POST(request) {
                     .map(opt => opt.text);
             }
 
-            console.log(`Question ${question._id} (${question.type}):`, {
-                userAnswer,
-                correctAnswers,
-                isMultipleChoice: question.type === 'multiple_choice',
-                optionsCount: question.options?.length
-            });
-
             if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
                 let isCorrect = false;
 
@@ -120,7 +105,7 @@ export async function POST(request) {
                     if (Array.isArray(userAnswer)) {
                         // If user selected multiple options, check if all are correct
                         isCorrect = userAnswer.length === correctAnswers.length &&
-                                  userAnswer.every(ans => correctAnswers.includes(ans));
+                            userAnswer.every(ans => correctAnswers.includes(ans));
                     } else {
                         // Single selection
                         isCorrect = correctAnswers.includes(userAnswer);
@@ -128,51 +113,31 @@ export async function POST(request) {
                 }
                 // Handle true/false
                 else if (question.type === 'true_false') {
-                    isCorrect = correctAnswers.includes(userAnswer) || 
-                               correctAnswers.includes(String(userAnswer));
+                    isCorrect = correctAnswers.includes(userAnswer) ||
+                        correctAnswers.includes(String(userAnswer));
                 }
                 // Handle short answer (case-insensitive match)
                 else if (question.type === 'short_answer') {
                     const userAnswerLower = String(userAnswer).toLowerCase().trim();
-                    isCorrect = correctAnswers.some(ans => 
+                    isCorrect = correctAnswers.some(ans =>
                         String(ans).toLowerCase().trim() === userAnswerLower
                     );
                 }
 
                 if (isCorrect) {
                     totalScore += question.marks || 1
-                    console.log('  ✓ Correct!');
-                } else {
-                    console.log('  ✗ Incorrect');
-                    console.log('    User:', userAnswer);
-                    console.log('    Correct:', correctAnswers);
                 }
-            } else {
-                console.log('  - Not answered');
             }
         }
 
-        console.log('Final Score:', totalScore, '/', maxPossibleScore);
-
         // Check if exam has subjective questions
-        console.log('All question types:', questions.map(q => ({ id: q._id, type: q.type })));
-        
-        const hasSubjectiveQuestions = questions.some(q => 
-            q.type === 'short_answer' || 
-            q.type === 'long_answer' || 
-            q.type === 'subjective' || 
+        const hasSubjectiveQuestions = questions.some(q =>
+            q.type === 'short_answer' ||
+            q.type === 'long_answer' ||
+            q.type === 'subjective' ||
             q.type === 'essay' ||
             q.type === 'descriptive'
         );
-
-        console.log('Has subjective questions:', hasSubjectiveQuestions);
-        console.log('Subjective question types found:', questions.filter(q => 
-            q.type === 'short_answer' || 
-            q.type === 'long_answer' || 
-            q.type === 'subjective' || 
-            q.type === 'essay' ||
-            q.type === 'descriptive'
-        ).map(q => ({ id: q._id, type: q.type })));
 
         // Calculate percentage
         const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0
@@ -190,12 +155,6 @@ export async function POST(request) {
         attempt.resultStatus = hasSubjectiveQuestions ? 'draft' : 'published'
 
         await attempt.save()
-
-        console.log('Exam submitted successfully. Status:', attempt.status);
-        console.log('Recordings preserved:', {
-            hasRecordings: !!attempt.recordings,
-            recordings: attempt.recordings
-        });
 
         return NextResponse.json({
             message: 'Exam submitted successfully',

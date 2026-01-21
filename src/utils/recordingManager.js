@@ -69,8 +69,6 @@ class RecordingManager {
 
             this.selectedMimeType = mimeType;
 
-            console.log('Using MIME type:', mimeType);
-
             // Start camera recording only if camera stream exists
             if (this.cameraStream) {
                 this.cameraRecorder = new MediaRecorder(this.cameraStream, {
@@ -80,7 +78,6 @@ class RecordingManager {
 
                 this.cameraRecorder.ondataavailable = (event) => {
                     if (event.data && event.data.size > 0) {
-                        console.log('📹 Camera chunk received:', event.data.size, 'bytes');
                         this.cameraChunks.push(event.data);
                     }
                 };
@@ -99,7 +96,6 @@ class RecordingManager {
 
                 this.screenRecorder.ondataavailable = (event) => {
                     if (event.data && event.data.size > 0) {
-                        console.log('Screen chunk received:', event.data.size, 'bytes');
                         this.screenChunks.push(event.data);
                     }
                 };
@@ -117,8 +113,6 @@ class RecordingManager {
                 this.screenRecorder.start();
             }
             this.isRecording = true;
-
-            console.log('Recording started successfully');
 
             // Handle stream end (user stops sharing) - only if screen recording is enabled
             if (this.screenStream && this.screenStream.getVideoTracks().length > 0) {
@@ -157,11 +151,8 @@ class RecordingManager {
      */
     async stopRecording() {
         if (!this.isRecording) {
-            console.log('Recording already stopped');
             return null;
         }
-
-        console.log('Stopping recordings...');
 
         return new Promise((resolve) => {
             let stoppedCount = 0;
@@ -169,7 +160,6 @@ class RecordingManager {
 
             const checkComplete = () => {
                 stoppedCount++;
-                console.log(`Recorder stopped (${stoppedCount}/${totalRecorders})`);
                 if (stoppedCount === totalRecorders || totalRecorders === 0) {
                     // Wait a bit for all chunks to be collected
                     setTimeout(() => {
@@ -211,20 +201,14 @@ class RecordingManager {
      */
     async saveRecordings() {
         try {
-            console.log('💾 Saving exam recordings with unique IDs...');
-            console.log('📹 Camera chunks:', this.cameraChunks.length);
-            console.log('🖥️ Screen chunks:', this.screenChunks.length);
-
             // Create blobs only for enabled recordings
             const blobType = this.selectedMimeType || 'video/webm';
             const cameraBlob = this.cameraChunks.length > 0 ? new Blob(this.cameraChunks, { type: blobType }) : null;
             const screenBlob = this.screenChunks.length > 0 ? new Blob(this.screenChunks, { type: blobType }) : null;
 
             if (cameraBlob) {
-                console.log('Camera blob size:', cameraBlob.size, 'bytes');
             }
             if (screenBlob) {
-                console.log('Screen blob size:', screenBlob.size, 'bytes');
             }
 
             if (!cameraBlob && !screenBlob) {
@@ -238,18 +222,13 @@ class RecordingManager {
 
             if (cameraBlob && cameraBlob.size > 0) {
                 cameraRecordingId = await generateRecordingId('vd', this.attemptId, this.examId);
-                console.log('🆔 Generated Camera ID:', cameraRecordingId);
             }
             if (screenBlob && screenBlob.size > 0) {
                 screenRecordingId = await generateRecordingId('sc', this.attemptId, this.examId);
-                console.log('🆔 Generated Screen ID:', screenRecordingId);
             }
 
             // Local Storage Upload
             const totalSize = (cameraBlob?.size || 0) + (screenBlob?.size || 0);
-            console.log(`📊 Total recording size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-            console.log('📁 Using Local Storage upload system!');
-
             // Create form data with all recordings and unique IDs
             const formData = new FormData();
             formData.append('attemptId', this.attemptId);
@@ -262,27 +241,17 @@ class RecordingManager {
                 const cameraFilename = generateRecordingFilename(cameraRecordingId, 'vd', extension);
                 formData.append('cameraVideo', cameraBlob, cameraFilename);
                 formData.append('cameraRecordingId', cameraRecordingId);
-                console.log(`📹 Camera video: ${(cameraBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${cameraRecordingId}`);
             }
             if (screenBlob && screenBlob.size > 0) {
                 const screenFilename = generateRecordingFilename(screenRecordingId, 'sc', extension);
                 formData.append('screenVideo', screenBlob, screenFilename);
                 formData.append('screenRecordingId', screenRecordingId);
-                console.log(`🖥️ Screen video: ${(screenBlob.size / 1024 / 1024).toFixed(2)} MB - ID: ${screenRecordingId}`);
             }
-
-            console.log('⬆️ Uploading to backend...');
 
             // Upload to server with local storage system
             const response = await fetch('/api/exams/save-recording', {
                 method: 'POST',
                 body: formData
-            });
-
-            console.log('📡 Response status:', response.status, response.statusText);
-            console.log('📡 Response headers:', {
-                contentType: response.headers.get('content-type'),
-                contentLength: response.headers.get('content-length')
             });
 
             // Check if response is JSON
@@ -297,20 +266,17 @@ class RecordingManager {
                 console.error('❌ Non-JSON response received:', textResponse.substring(0, 500));
 
                 return {
-                    error: `Server error: ${response.statusText}`,
+                    error: `Server error: ${response.statusText} `,
                     status: response.status,
                     details: textResponse.substring(0, 200)
                 };
             }
 
             if (response.ok) {
-                console.log('🎉 Exam recordings saved successfully!');
-                console.log('📈 Upload stats:', result.recordingStats);
                 return result;
             } else {
                 console.error('❌ Failed to save recordings:', response.status, result);
                 // With local storage, files are saved directly to disk
-                console.log('🔄 Enhanced upload system handles large files automatically');
                 return { error: result.message || 'Upload failed', status: response.status };
             }
         } catch (error) {

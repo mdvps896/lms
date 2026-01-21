@@ -37,8 +37,6 @@ const ExamAnalyticsModal = ({ show, onHide, examId, examTitle }) => {
         try {
             setLoading(true);
             setError(null);
-            console.log('Fetching analytics for exam:', examId);
-            
             // Fetch exam details
             const examResponse = await fetch(`/api/exams/${examId}`);
             if (!examResponse.ok) {
@@ -52,8 +50,6 @@ const ExamAnalyticsModal = ({ show, onHide, examId, examTitle }) => {
                 throw new Error('Failed to fetch students results');
             }
             const studentsResult = await studentsResponse.json();
-            
-            console.log('Loaded students:', studentsResult.students);
             
             if (examResult.success && studentsResult.success) {
                 // Calculate analytics
@@ -100,14 +96,10 @@ const ExamAnalyticsModal = ({ show, onHide, examId, examTitle }) => {
     };
 
     const handleUserClick = (user) => {
-        console.log('User clicked in modal:', user);
-        
         // Open result page in new tab
         if (user.attemptId || user._id) {
             const attemptId = user.attemptId || user._id;
             const url = `/my-results/${examId}/${attemptId}`;
-            console.log('Opening in new tab:', url);
-            
             // Open in new tab
             window.open(url, '_blank');
             

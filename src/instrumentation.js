@@ -5,6 +5,5 @@ export async function register() {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
         // Import all models to ensure they're registered
         await import('./models/init.js');
-        console.log('✅ Models registered via instrumentation');
-    }
+        }
 }

@@ -9,8 +9,7 @@ export const seedDefaultUsers = async () => {
     const data = await response.json();
     
     if (data.success) {
-      console.log('Default users seeded in MongoDB:', data.count);
-    }
+      }
   } catch (error) {
     console.error('Error seeding users:', error);
   }

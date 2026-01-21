@@ -5,11 +5,7 @@ export async function POST(request) {
     try {
         const { filePath, publicId } = await request.json()
 
-        /* console.log('🗑️ Delete API called:', {
-            filePath,
-            publicId,
-            env: process.env.NODE_ENV
-        }) */
+        /* */
 
         if (!filePath && !publicId) {
             return NextResponse.json(
@@ -19,7 +15,6 @@ export async function POST(request) {
         }
 
         const pathToDelete = filePath || publicId;
-        // console.log(`🗑️ Deleting from local storage: ${pathToDelete}`);
         const result = await deleteFromLocalStorage(pathToDelete);
 
         if (!result.success) {

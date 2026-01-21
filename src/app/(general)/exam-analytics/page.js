@@ -93,8 +93,6 @@ export default function ExamAnalytics() {
     const fetchExams = async () => {
         try {
             setLoading(true);
-            console.log('Fetching exams from API...');
-            
             // Fetch real exam data from API
             const response = await fetch('/api/exams?analytics=true');
             
@@ -103,19 +101,14 @@ export default function ExamAnalytics() {
             }
             
             const result = await response.json();
-            console.log('API Response:', result);
-            
             if (result.success && result.data && result.data.length > 0) {
                 setExams(result.data);
-                console.log('Loaded real exams:', result.data.length);
-            } else {
-                console.log('No real exams found, using fallback data');
+                } else {
                 // Use fallback data
                 setExams(getFallbackExams());
             }
         } catch (error) {
             console.error('Error fetching exams:', error);
-            console.log('API failed, using fallback data');
             // Always provide fallback data on error
             setExams(getFallbackExams());
         } finally {
@@ -189,8 +182,6 @@ export default function ExamAnalytics() {
 
     const fetchRealExamData = async (examId) => {
         try {
-            console.log('Fetching real exam analytics data for:', examId);
-            
             // Fetch real topic and question data
             const response = await fetch(`/api/exam-analytics/${examId}`);
             if (response.ok) {
@@ -207,8 +198,6 @@ export default function ExamAnalytics() {
 
     const fetchExamDetailData = async (examId) => {
         try {
-            console.log('Fetching detail data for exam:', examId);
-            
             // Fetch real exam data from database
             const examResponse = await fetch(`/api/exams/${examId}`);
             if (!examResponse.ok) {
@@ -216,8 +205,6 @@ export default function ExamAnalytics() {
             }
             
             const examResult = await examResponse.json();
-            console.log('Exam API response:', examResult);
-            
             if (!examResult.success || !examResult.data) {
                 throw new Error('Invalid exam data');
             }
@@ -330,7 +317,6 @@ export default function ExamAnalytics() {
                 recentSubmissions: recentSubmissions
             };
             
-            console.log('Generated detail data:', detailData);
             setExamDetailData(detailData);
         } catch (error) {
             console.error('Error fetching exam detail data:', error);

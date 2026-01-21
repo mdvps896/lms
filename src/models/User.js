@@ -185,11 +185,9 @@ userSchema.pre('findOneAndDelete', async function () {
         const SupportMessage = mongoose.models.SupportMessage;
         if (SupportMessage) {
           await SupportMessage.deleteMany({ user: userId });
-          console.log(`Deleted support messages for user: ${userId}`);
-        }
+          }
       } catch (modelError) {
-        console.log('SupportMessage model not available, skipping cascade delete');
-      }
+        }
     }
   } catch (error) {
     console.error('Error in cascade delete:', error);
@@ -205,11 +203,9 @@ userSchema.pre('deleteOne', async function () {
         const SupportMessage = mongoose.models.SupportMessage;
         if (SupportMessage) {
           await SupportMessage.deleteMany({ user: userId });
-          console.log(`Deleted support messages for user: ${userId}`);
-        }
+          }
       } catch (modelError) {
-        console.log('SupportMessage model not available, skipping cascade delete');
-      }
+        }
     }
   } catch (error) {
     console.error('Error in cascade delete:', error);

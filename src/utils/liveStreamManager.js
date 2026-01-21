@@ -28,7 +28,6 @@ class LiveStreamManager {
                              window.location.hostname.includes('exam-two-rouge.vercel.app'));
 
         if (isProduction) {
-            console.log('Production mode: Using HTTP polling for live monitoring');
             // In production, use periodic API polling instead of WebSocket
             this.startPollingMode();
             return;
@@ -41,20 +40,17 @@ class LiveStreamManager {
         });
 
         this.socket.on('connect', () => {
-            console.log('Socket connected:', this.socket.id);
             this.socket.emit('join-attempt', attemptId);
         });
 
         if (!isStudent) {
             // Admin: Listen for stream offers
             this.socket.on('stream-offer', async ({ offer, streamType, socketId }) => {
-                console.log('Received stream offer for:', streamType);
                 await this.handleStreamOffer(offer, streamType, socketId);
             });
         } else {
             // Student: Listen for stream answers
             this.socket.on('stream-answer', async ({ answer }) => {
-                console.log('Received stream answer');
                 if (this.peerConnection) {
                     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
                 }
@@ -83,7 +79,6 @@ class LiveStreamManager {
 
         if (isProduction) {
             // Production: Start polling mode
-            console.log('Starting production polling mode');
             this.startPollingMode();
             return { success: true, mode: 'polling' };
         }
@@ -144,7 +139,6 @@ class LiveStreamManager {
 
         // Handle incoming tracks
         this.peerConnection.ontrack = (event) => {
-            console.log('Received track:', event.track.kind);
             if (this.onTrackReceived) {
                 this.onTrackReceived(event.streams[0], streamType);
             }

@@ -52,8 +52,7 @@ const PermissionChecker = ({ exam, onPermissionsGranted, onCancel }) => {
                 }))
             }
         } catch (error) {
-            console.log('Permission check not available in this browser')
-        }
+            }
     }
 
     const requestCameraPermission = async () => {

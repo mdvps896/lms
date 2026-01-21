@@ -43,8 +43,6 @@ export async function PUT(req, { params }) {
         const { attemptId} = params;
         const { updatedMarks } = await req.json();
 
-        console.log('Received updatedMarks:', updatedMarks);
-
         if (!updatedMarks || typeof updatedMarks !== 'object' || Object.keys(updatedMarks).length === 0) {
             return NextResponse.json({ success: false, message: 'Invalid marks data' }, { status: 400 });
         }
@@ -65,16 +63,12 @@ export async function PUT(req, { params }) {
         // Fetch all questions for this exam to calculate total
         let allQuestions = [];
         
-        console.log('Exam questionGroups:', exam.questionGroups);
-        console.log('Exam subjects:', exam.subjects);
-        
         if (exam.questionGroups && exam.questionGroups.length > 0) {
             allQuestions = await Question.find({
                 questionGroup: { $in: exam.questionGroups },
                 status: 'active'
             });
-            console.log('Questions found by questionGroups:', allQuestions.length);
-        }
+            }
         
         // Fallback: Try to find by subjects if no questionGroups
         if (allQuestions.length === 0 && exam.subjects && exam.subjects.length > 0) {
@@ -82,8 +76,7 @@ export async function PUT(req, { params }) {
                 subject: { $in: exam.subjects },
                 status: 'active'
             });
-            console.log('Questions found by subjects:', allQuestions.length);
-        }
+            }
         
         // Fallback: Get questions from the attempt's answers
         if (allQuestions.length === 0 && attempt.answers) {
@@ -100,8 +93,7 @@ export async function PUT(req, { params }) {
                 allQuestions = await Question.find({
                     _id: { $in: questionIds }
                 });
-                console.log('Questions found from answers:', allQuestions.length);
-            }
+                }
         }
 
         if (allQuestions.length === 0) {
@@ -163,13 +155,6 @@ export async function PUT(req, { params }) {
         const scorePercentage = totalMaxMarks > 0 ? (totalMarksObtained / totalMaxMarks) * 100 : 0;
         const passingPercentage = exam.settings?.passingPercentage || 40;
 
-        console.log('Updating attempt with:', {
-            scorePercentage,
-            totalMaxMarks,
-            totalMarksObtained,
-            passed: scorePercentage >= passingPercentage
-        });
-
         // Update fields directly
         attempt.score = scorePercentage;
         attempt.totalMarks = totalMaxMarks;
@@ -185,9 +170,6 @@ export async function PUT(req, { params }) {
 
         // Save to database
         const savedAttempt = await attempt.save();
-        console.log('Attempt saved successfully:', savedAttempt._id);
-        console.log('Result status changed to:', savedAttempt.resultStatus);
-
         return NextResponse.json({ 
             success: true, 
             message: 'Marks updated and result published successfully',

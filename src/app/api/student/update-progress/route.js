@@ -55,8 +55,7 @@ export async function POST(request) {
             user.markModified('enrolledCourses');
             await user.save();
 
-            console.log(`✅ Progress updated: User ${userId}, Course ${courseId}, Lecture ${lectureId}`);
-        }
+            }
 
         return NextResponse.json({
             success: true,

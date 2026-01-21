@@ -3,8 +3,6 @@ import { getStorageStatus } from '@/utils/localStorage';
 
 export async function GET() {
     try {
-        console.log('🔍 Checking local storage status...');
-        
         const status = await getStorageStatus();
         
         return NextResponse.json({

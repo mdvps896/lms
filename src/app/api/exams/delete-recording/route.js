@@ -57,8 +57,6 @@ export async function POST(request) {
 
         try {
             // Delete from local storage
-            console.log(`🗑️ Deleting exam recording from local storage: ${recordingUrl}`)
-
             const deleteResult = await deleteFromLocalStorage(recordingUrl)
             deletionSuccess = deleteResult.success
             isReadOnlyFS = deleteResult.readOnlyFS || false
@@ -66,8 +64,7 @@ export async function POST(request) {
             if (!deletionSuccess && !isReadOnlyFS) {
                 console.warn('Failed to delete from local storage, but continuing with database cleanup')
             } else if (isReadOnlyFS) {
-                console.log('⚠️ Running on read-only filesystem - database will be updated but file persists in deployment')
-            }
+                }
         } catch (error) {
             console.error('Deletion error:', error)
             // Continue with database cleanup even if file deletion fails
@@ -84,10 +81,8 @@ export async function POST(request) {
                 { _id: attemptId },
                 { $unset: { [updateField]: "" } }
             )
-            console.log(`📝 Updated ExamAttempt model: ${examAttemptUpdate.modifiedCount} records`)
-        } catch (error) {
-            console.log('ExamAttempt not found or error updating:', error.message)
-        }
+            } catch (error) {
+            }
 
         // Update Exam.attempts if found there
         if (examWithAttempt) {
@@ -100,13 +95,10 @@ export async function POST(request) {
 
                 examWithAttempt.markModified('attempts')
                 await examWithAttempt.save()
-                console.log(`📝 Updated Exam.attempts model`)
-            } catch (error) {
+                } catch (error) {
                 console.error('Error updating Exam.attempts:', error)
             }
         }
-
-        console.log(`✅ Exam recording deleted: ${recordingType} for attempt ${attemptId}`)
 
         return NextResponse.json({
             success: true,

@@ -88,8 +88,6 @@ export async function GET(request, { params }) {
         let questions = []
 
         if (exam.questionGroups && exam.questionGroups.length > 0) {
-            console.log('Fetching questions for question groups:', exam.questionGroups.map(g => g._id));
-
             // Get all questions that belong to these question groups
             questions = await Question.find({
                 questionGroup: { $in: exam.questionGroups.map(g => g._id) },
@@ -97,8 +95,6 @@ export async function GET(request, { params }) {
             })
                 .populate('subject', 'name _id')
                 .lean();
-
-            console.log(`Found ${questions.length} questions from ${exam.questionGroups.length} question groups`);
 
             // Attach group info to each question
             questions = questions.map(q => {

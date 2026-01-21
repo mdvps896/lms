@@ -11,14 +11,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
     try {
         await connectDB();
-        
+
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
         if (!userId) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'User ID is required' 
+            return NextResponse.json({
+                success: false,
+                error: 'User ID is required'
             }, { status: 400 });
         }
 
@@ -26,20 +26,20 @@ export async function GET(request) {
 
         // Get user details
         const user = await User.findById(userId).select('name email role category').lean();
-        
+
         if (!user) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'User not found' 
+            return NextResponse.json({
+                success: false,
+                error: 'User not found'
             }, { status: 404 });
         }
 
 
 
         if (!user.category) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'User has no category assigned' 
+            return NextResponse.json({
+                success: false,
+                error: 'User has no category assigned'
             }, { status: 400 });
         }
 
@@ -55,11 +55,11 @@ export async function GET(request) {
         // Separate upcoming and available test exams
         const myExams = [];
         const testExams = [];
-        
+
         for (const exam of allExams) {
             const startDate = new Date(exam.startDate);
             const endDate = new Date(exam.endDate);
-            
+
             let status = 'upcoming';
             if (now >= startDate && now <= endDate) {
                 status = 'active';
@@ -67,17 +67,15 @@ export async function GET(request) {
                 status = 'completed';
             }
 
-            console.log(`Exam: ${exam.name}, Type: ${exam.type}, Status: ${status}`);
-
             const examData = {
                 id: exam._id.toString(),
                 title: exam.name,
                 subject: exam.subjects?.[0]?.name || 'General',
                 category: exam.category?.name || 'General',
                 date: exam.startDate,
-                time: new Date(exam.startDate).toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                time: new Date(exam.startDate).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                 }),
                 duration: `${exam.duration} minutes`,
                 status: status,
@@ -89,16 +87,14 @@ export async function GET(request) {
             // All scheduled and live exams that are upcoming or active
             if (status === 'upcoming' || status === 'active') {
                 myExams.push(examData);
-                console.log(`Added to myExams: ${exam.name}`);
             }
-            
+
             // Test/practice exams that are active go to testExams section
             if ((exam.type === 'test' || exam.type === 'practice') && status === 'active') {
                 testExams.push({
                     ...examData,
                     questions: examData.totalQuestions
                 });
-                console.log(`Added to testExams: ${exam.name}`);
             }
         }
 
@@ -109,21 +105,19 @@ export async function GET(request) {
             .limit(10)
             .lean();
 
-        console.log(`Found ${attempts.length} attempts for user ${userId}`);
-
         // If no attempts in ExamAttempt collection, check embedded attempts
         let allAttempts = [...attempts];
-        
+
         if (attempts.length === 0) {
             const examsWithAttempts = await Exam.find({
                 'attempts.userId': userId
             }).select('name subjects category passingPercentage attempts').lean();
-            
+
             for (const exam of examsWithAttempts) {
                 const userAttempts = exam.attempts.filter(
                     a => a.userId.toString() === userId
                 );
-                
+
                 for (const attempt of userAttempts) {
                     allAttempts.push({
                         _id: attempt._id,
@@ -141,8 +135,7 @@ export async function GET(request) {
                     });
                 }
             }
-            
-            console.log(`Found ${allAttempts.length} embedded attempts`);
+
         }
 
         // Transform attempts to results format
@@ -153,7 +146,7 @@ export async function GET(request) {
                 const score = Math.round(rawScore * 100) / 100; // Round to 2 decimal places
                 const passingScore = attempt.exam?.passingPercentage || 60;
                 const isPassed = score >= passingScore;
-                
+
                 // Calculate grade
                 let grade = 'F';
                 if (score >= 90) grade = 'A+';
@@ -172,21 +165,12 @@ export async function GET(request) {
                     totalMarks: 100,
                     percentage: Math.round(score * 100) / 100, // Round to 2 decimal places
                     grade: grade,
-                    date: attempt.submittedAt ? 
-                        new Date(attempt.submittedAt).toLocaleDateString('en-US') : 
+                    date: attempt.submittedAt ?
+                        new Date(attempt.submittedAt).toLocaleDateString('en-US') :
                         'N/A',
                     status: isPassed ? 'passed' : 'failed'
                 };
             });
-
-        console.log(`Processed ${results.length} results`);
-
-        console.log('=== Dashboard Summary ===');
-        console.log(`Total exams found: ${allExams.length}`);
-        console.log(`My Exams (upcoming/active): ${myExams.length}`);
-        console.log(`Test Exams (practice): ${testExams.length}`);
-        console.log(`Results: ${results.length}`);
-        console.log('========================');
 
         return NextResponse.json({
             success: true,
@@ -200,9 +184,9 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching student dashboard data:', error);
-        return NextResponse.json({ 
-            success: false, 
-            error: error.message || 'Failed to fetch dashboard data' 
+        return NextResponse.json({
+            success: false,
+            error: error.message || 'Failed to fetch dashboard data'
         }, { status: 500 });
     }
 }

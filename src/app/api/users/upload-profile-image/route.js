@@ -54,8 +54,7 @@ export const POST = async (req) => {
     if (existingUser?.profileImage) {
       try {
         await deleteFromLocalStorage(existingUser.profileImage);
-        console.log('Old profile image deleted:', existingUser.profileImage);
-      } catch (cleanupError) {
+        } catch (cleanupError) {
         console.error('Error cleaning up old profile image:', cleanupError);
         // Continue even if cleanup fails
       }

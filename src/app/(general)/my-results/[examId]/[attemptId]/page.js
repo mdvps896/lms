@@ -47,8 +47,6 @@ const AttemptDetailPage = () => {
                 }
             });
 
-            console.log('Response status:', response.status);
-
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('API Error Response:', errorText);
@@ -57,11 +55,7 @@ const AttemptDetailPage = () => {
             }
 
             const data = await response.json();
-            console.log('Attempt Details Response:', data);
-
             if (data.success) {
-                console.log('Setting attempt data:', data.attempt);
-                console.log('Number of answers:', data.attempt?.answers?.length);
                 setAttempt(data.attempt);
                 setExam(data.exam);
             } else {
@@ -213,11 +207,6 @@ const AttemptDetailPage = () => {
         const format = getResultDisplayFormat();
         const showCorrectAnswers = shouldShowCorrectAnswers();
         const showScores = shouldShowQuestionwiseScores();
-
-        console.log('Rendering questions...');
-        console.log('Attempt object:', attempt);
-        console.log('Attempt.answers:', attempt?.answers);
-        console.log('Answers length:', attempt?.answers?.length);
 
         if (!attempt?.answers || attempt.answers.length === 0) {
             return (

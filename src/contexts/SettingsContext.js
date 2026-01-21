@@ -44,7 +44,6 @@ export const SettingsProvider = ({ children }) => {
             });
             const data = await response.json();
             if (data.success) {
-                console.log('✅ Settings updated, refreshing context...');
                 setSettings(data.data);
                 
                 // Force re-fetch to ensure latest data

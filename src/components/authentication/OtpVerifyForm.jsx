@@ -52,7 +52,6 @@ const OtpVerifyForm = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         const otpValue = otp.join('');
-        console.log('OTP Submitted:', otpValue);
         // Add your verification logic here
     };
 

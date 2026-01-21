@@ -76,8 +76,6 @@ export async function PATCH(request, { params }) {
     await connectDB();
     const body = await request.json();
     
-    console.log('Updating user:', params.id, 'with data:', body);
-    
     // Validate category if provided
     if (body.category) {
       const categoryExists = await Category.findById(body.category);
@@ -104,8 +102,6 @@ export async function PATCH(request, { params }) {
         { status: 404 }
       );
     }
-    
-    console.log('User updated successfully:', user._id);
     
     return NextResponse.json({ 
       success: true, 

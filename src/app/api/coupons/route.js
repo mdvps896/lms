@@ -131,8 +131,6 @@ export async function POST(request) {
             isActive: true
         };
 
-        console.log('Creating coupon with data:', couponData);
-
         // Create coupon
         const coupon = await Coupon.create(couponData);
 

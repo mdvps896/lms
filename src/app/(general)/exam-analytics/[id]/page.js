@@ -32,8 +32,6 @@ export default function ExamDetailsPage() {
 
     const fetchExamDetails = async () => {
         try {
-            console.log('Fetching exam details for ID:', params.id);
-            
             const response = await fetch(`/api/exam-details/${params.id}`);
             
             if (!response.ok) {
@@ -41,13 +39,10 @@ export default function ExamDetailsPage() {
             }
             
             const result = await response.json();
-            console.log('API Response:', result);
-            
             if (result.success) {
                 setExamData(result.exam);
                 setUserResults(result.studentResults || []);
-                console.log(`Loaded exam: ${result.exam.title} with ${result.studentResults?.length || 0} students`);
-            } else {
+                } else {
                 console.error('API Error:', result.error);
                 // Fallback to mock data if API fails
                 const mockExam = {
@@ -82,18 +77,12 @@ export default function ExamDetailsPage() {
     };
 
     const handleUserClick = (user) => {
-        console.log('User clicked:', user);
-        console.log('Attempt ID:', user.attemptId || user._id);
-        console.log('Exam ID:', params.id);
-        
         // Redirect to result page instead of modal
         if (user.attemptId || user._id) {
             const attemptId = user.attemptId || user._id;
             const url = `/my-results/${params.id}/${attemptId}`;
-            console.log('Redirecting to:', url);
             router.push(url);
         } else {
-            console.log('No attemptId found, showing modal');
             // Fallback to modal if no attemptId
             setSelectedUser(user);
             setShowModal(true);

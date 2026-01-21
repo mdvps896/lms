@@ -11,18 +11,16 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                 resolve('');
                 return;
             }
-            
+
             // Convert relative URLs to absolute
             let absoluteUrl = url;
             if (url.startsWith('/')) {
                 absoluteUrl = window.location.origin + url;
             }
-            
-            console.log('Loading image for base64 conversion:', absoluteUrl);
-            
+
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            
+
             img.onload = () => {
                 try {
                     const canvas = document.createElement('canvas');
@@ -31,105 +29,79 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
                     const dataURL = canvas.toDataURL('image/png');
-                    console.log('Successfully converted to base64:', absoluteUrl);
                     resolve(dataURL);
                 } catch (error) {
                     console.error('Failed to convert image to base64:', absoluteUrl, error);
                     resolve(''); // Return empty string on failure
                 }
             };
-            
+
             img.onerror = (e) => {
                 console.error('Failed to load image for conversion:', absoluteUrl, e);
                 resolve(''); // Return empty string on failure
             };
-            
+
             img.src = absoluteUrl;
         });
     };
 
     const handleDownload = async () => {
         try {
-            console.log('Starting certificate download...');
-            console.log('Attempt:', attempt);
-            console.log('Exam:', exam);
-            console.log('Exam Name:', exam?.name);
-            console.log('User:', user);
-            console.log('Settings:', settings);
-            console.log('Certificate Config:', settings?.certificateSettings);
-            console.log('Signature Image 1:', settings?.certificateSettings?.signatureImage1);
-            console.log('Signature Image 2:', settings?.certificateSettings?.signatureImage2);
-            
             // Get certificate config
             const certConfig = settings?.certificateSettings || {};
             const signatureImage2 = certConfig.signatureImage2 || '';
             const siteLogo = settings?.siteSettings?.logo || certConfig.logo || '';
-            
-            console.log('Site Logo URL:', siteLogo || 'No logo set');
-            console.log('Signature Image URL:', signatureImage2 || 'No signature set');
-            
-            console.log('Converting images to base64...');
+
             const convertPromises = [];
-            
+
             if (siteLogo) {
                 convertPromises.push(convertImageToBase64(siteLogo));
             } else {
                 convertPromises.push(Promise.resolve(''));
             }
-            
+
             if (signatureImage2) {
                 convertPromises.push(convertImageToBase64(signatureImage2));
             } else {
                 convertPromises.push(Promise.resolve(''));
             }
-            
+
             const [logoBase64, signatureBase64] = await Promise.all(convertPromises);
-            console.log('Logo Base64:', logoBase64 ? 'Converted successfully' : 'Failed');
-            console.log('Signature Base64:', signatureBase64 ? 'Converted successfully' : 'Failed');
-            
             // Dynamic import for client-side only
             const html2canvas = (await import('html2canvas')).default;
             const jsPDF = (await import('jspdf')).default;
 
             const element = certificateRef.current;
-            
+
             if (!element) {
                 console.error('Certificate element not found!');
                 alert('Certificate element not ready. Please try again.');
                 return;
             }
-            
+
             // Replace image sources with base64
             const images = element.querySelectorAll('img');
             const originalSrcs = [];
-            console.log('Found', images.length, 'images in certificate');
-            
             images.forEach((img, index) => {
                 originalSrcs.push(img.src);
-                console.log(`Image ${index}: alt="${img.alt}", src="${img.src}"`);
-                
                 if (img.alt === 'Logo') {
                     if (logoBase64) {
-                        console.log('Replacing logo with base64');
                         img.src = logoBase64;
                     } else {
                         console.warn('Logo base64 is empty, keeping original');
                     }
                 } else if (img.alt === 'Signature') {
                     if (signatureBase64) {
-                        console.log('Replacing signature with base64');
                         img.src = signatureBase64;
                     } else {
                         console.warn('Signature base64 is empty, keeping original');
                     }
                 }
             });
-            
+
             // Wait for images to update
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            console.log('Generating canvas from HTML...');
-            
+
             // Generate canvas from HTML
             const canvas = await html2canvas(element, {
                 scale: 2,
@@ -138,13 +110,11 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                 logging: true,
                 backgroundColor: '#ffffff'
             });
-            
+
             // Restore original image sources
             images.forEach((img, index) => {
                 img.src = originalSrcs[index];
             });
-
-            console.log('Canvas generated, creating PDF...');
 
             // Convert to PDF
             const imgData = canvas.toDataURL('image/png');
@@ -156,15 +126,12 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
 
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            
+
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            
+
             const fileName = `certificate-${exam?.name || 'exam'}-${user?.name || 'student'}.pdf`;
-            console.log('Saving PDF:', fileName);
-            
             pdf.save(fileName);
-            
-            console.log('Certificate downloaded successfully!');
+
         } catch (error) {
             console.error('Error generating certificate:', error);
             console.error('Error stack:', error.stack);
@@ -182,17 +149,17 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
     const siteName = certConfig.siteName || settings?.siteSettings?.siteName || 'Exam Portal';
     const tagline = certConfig.tagline || 'Excellence in Education';
     const siteLogo = settings?.siteSettings?.logo || certConfig.logo || '/images/logo/logo.png';
-    
+
     // Font settings
     const fontFamily = certConfig.fontFamily || 'Arial, sans-serif';
     const titleFontSize = certConfig.titleFontSize || 28;
     const nameFontSize = certConfig.nameFontSize || 48;
     const bodyFontSize = certConfig.bodyFontSize || 16;
-    
+
     // Watermark settings
     const watermarkEnabled = false; // Disabled like the reference image
     const watermarkOpacity = certConfig.watermarkOpacity || 0.03;
-    
+
     // Signature settings
     const signatureTitle1 = certConfig.signatureTitle1 || 'Administrator';
     const signatureSubtitle1 = certConfig.signatureSubtitle1 || siteName;
@@ -200,13 +167,13 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
     const signatureSubtitle2 = certConfig.signatureSubtitle2 || 'Authorized Signatory';
     const signatureImage1 = certConfig.signatureImage1 || '';
     const signatureImage2 = certConfig.signatureImage2 || '';
-    
+
     // Display settings
     const showSeal = certConfig.showSeal !== false;
     const sealText = certConfig.sealText || 'OFFICIAL SEAL';
     const showCertificateId = certConfig.showCertificateId !== false;
     const showDate = certConfig.showDate !== false;
-    
+
     // Calculate exam metrics
     const totalMarks = attempt?.totalQuestions || exam?.questions?.length || 0;
     const correctAnswers = attempt?.correctAnswers || 0;
@@ -216,16 +183,16 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
     const status = (attempt?.score || 0) >= passingGrade ? 'PASSED' : 'FAILED';
     const statusColor = status === 'PASSED' ? '#22c55e' : '#ef4444';
 
-    const certificateDate = attempt?.submittedAt 
-        ? new Date(attempt.submittedAt).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+    const certificateDate = attempt?.submittedAt
+        ? new Date(attempt.submittedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         })
-        : new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+        : new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
 
     const certificateId = `CERT-${attempt?._id?.slice(-8).toUpperCase() || 'XXXXXXXX'}`;
@@ -452,7 +419,7 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                                             justifyContent: 'center'
                                         }}>
                                             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style={{ color: 'white' }}>
-                                                <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
                                         </div>
                                         <div style={{
@@ -483,17 +450,16 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                                     {/* Left - Signature */}
                                     <div style={{ textAlign: 'left', flex: 1 }}>
                                         {signatureImage2 && (
-                                            <img 
-                                                src={signatureImage2} 
-                                                alt="Signature" 
+                                            <img
+                                                src={signatureImage2}
+                                                alt="Signature"
                                                 crossOrigin="anonymous"
                                                 onError={(e) => console.error('Failed to load signature2:', signatureImage2)}
-                                                onLoad={() => console.log('Signature2 loaded:', signatureImage2)}
-                                                style={{ 
-                                                    height: '40px', 
+                                                style={{
+                                                    height: '40px',
                                                     width: 'auto',
                                                     marginBottom: '5px'
-                                                }} 
+                                                }}
                                             />
                                         )}
                                         <div style={{
@@ -501,8 +467,8 @@ const CertificateGenerator = ({ attempt, exam, user, settings }) => {
                                             width: '150px',
                                             marginBottom: '5px'
                                         }} />
-                                        <p style={{ 
-                                            margin: '0', 
+                                        <p style={{
+                                            margin: '0',
                                             fontSize: '12px',
                                             color: '#1f2937',
                                             fontWeight: '600'

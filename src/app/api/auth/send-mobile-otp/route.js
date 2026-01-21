@@ -66,18 +66,12 @@ export async function POST(request) {
             const otpResponse = await fetch(twoFactorUrl);
             const otpData = await otpResponse.json();
 
-            console.log('------- 2FACTOR RESPONSE -------');
-            console.log(JSON.stringify(otpData, null, 2));
-            console.log('-------------------------------');
-
             if (otpData.Status !== 'Success') {
                 return NextResponse.json(
                     { success: false, message: 'Failed to send OTP via SMS Gateway' },
                     { status: 500 }
                 );
             }
-
-            console.log(`📱 OTP sent to ${mobile} via 2Factor. Session: ${otpData.Details}`);
 
             return NextResponse.json({
                 success: true,

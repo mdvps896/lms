@@ -61,8 +61,6 @@ export async function POST(req) {
             }
         }
 
-        console.log(`🔑 Extracted User ID: ${currentUserId} (type: ${typeof currentUserId})`);
-
         if (!currentUserId) {
             return NextResponse.json({
                 success: false,
@@ -126,22 +124,7 @@ export async function POST(req) {
         const percentage = totalExamMarks > 0 ? (calculatedScore / totalExamMarks * 100) : 0;
         const passed = percentage >= passCriteria;
 
-        console.log(`🔒 Secure Scoring - User: ${currentUserId}, Exam: ${examId}, Score: ${calculatedScore}/${totalExamMarks}, Passed: ${passed}`);
-
         // Create exam attempt
-        console.log(`📝 Creating exam attempt with data:`, {
-            user: currentUserId,
-            exam: examId,
-            sessionToken,
-            answersCount: Object.keys(answers || {}).length,
-            score: calculatedScore,
-            totalMarks: totalExamMarks,
-            percentage,
-            timeTaken: Number(timeTaken) || 0,
-            passed,
-            status: 'submitted'
-        });
-
         try {
             const examAttempt = await ExamAttempt.create({
                 user: currentUserId,
@@ -155,13 +138,6 @@ export async function POST(req) {
                 passed: passed,
                 status: 'submitted',
                 submittedAt: new Date(),
-            });
-
-            console.log(`✅ Exam attempt created successfully:`, {
-                id: examAttempt._id,
-                user: examAttempt.user,
-                exam: examAttempt.exam,
-                score: examAttempt.score
             });
 
             return NextResponse.json({
@@ -230,8 +206,6 @@ export async function GET(req) {
                 currentUserId = currentUserId.toString();
             }
         }
-
-        console.log(`🔍 GET Exam Attempts - User ID: ${currentUserId} (type: ${typeof currentUserId})`);
 
         if (!currentUserId) {
             // For Admin? Admins might list all attempts.

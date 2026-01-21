@@ -39,8 +39,6 @@ export function usePDFTimeTracker({ userId, courseId, lectureId, lectureName, pd
             if (data.success) {
                 setSessionId(data.sessionId);
                 setIsTracking(true);
-                console.log('📊 Started tracking PDF:', data.sessionId);
-
                 // Start heartbeat to update session every 10 seconds
                 intervalRef.current = setInterval(() => {
                     updateSession(currentPageRef.current);
@@ -112,8 +110,7 @@ export function usePDFTimeTracker({ userId, courseId, lectureId, lectureName, pd
             if (data.success) {
                 setDuration(data.duration);
                 setIsTracking(false);
-                console.log('⏹️ Stopped tracking PDF. Total time:', data.formattedDuration);
-            }
+                }
 
             setSessionId(null);
         } catch (error) {

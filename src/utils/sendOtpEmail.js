@@ -17,8 +17,6 @@ const getSiteName = async () => {
         const settingsCollection = mongoose.connection.db.collection('settings');
         const settings = await settingsCollection.findOne({});
         
-        console.log('Fetched settings for email:', settings?.general?.siteName);
-        
         if (settings?.general?.siteName) {
             return settings.general.siteName;
         }

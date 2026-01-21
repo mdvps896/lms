@@ -36,8 +36,6 @@ const FileUpload = ({ onUploadComplete }) => {
             const fileSize = file.size
             const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2)
 
-            console.log(`📁 Uploading ${file.name} (${fileSizeMB} MB)`)
-
             // Show progress bar
             setUploadProgress({
                 show: true,
@@ -52,44 +50,35 @@ const FileUpload = ({ onUploadComplete }) => {
                 // Use different upload strategies based on file size
                 if (fileSize > 100 * 1024 * 1024) {
                     // For very large files (>100MB), try direct upload first
-                    console.log('🎯 Using direct upload for very large file...')
                     const result = await uploadDirectly(file, selectedFolder)
                     if (result.success) {
-                        successCount++
-                        console.log('✅ Direct upload successful!')
+                        successCount++;
                     } else {
                         // Fallback to chunked upload if direct fails
-                        console.log('🔄 Direct upload failed, trying chunked upload...')
                         const chunkResult = await uploadLargeFile(file, selectedFolder)
                         if (chunkResult.success) {
-                            successCount++
-                            console.log('✅ Chunked upload successful!')
+                            successCount++;
                         } else {
-                            errorCount++
-                            errors.push(`${file.name}: ${chunkResult.message}`)
+                            errorCount++;
+                            errors.push(`${file.name}: ${chunkResult.message}`);
                         }
                     }
                 } else if (fileSize > 50 * 1024 * 1024) {
-                    console.log('🔄 Using chunked upload for large file...')
                     let result = await uploadLargeFile(file, selectedFolder)
 
                     // If chunked upload fails, try simple upload as fallback
                     if (!result.success && !result.message?.includes('413')) {
-                        console.log('⚡ Chunked upload failed, trying simple upload fallback...')
                         result = await uploadSimple(file, selectedFolder)
                     }
 
                     if (result.success) {
-                        successCount++
-                        console.log('✅ Large file upload successful!')
+                        successCount++;
                     } else {
-                        errorCount++
-                        errors.push(`${file.name}: ${result.message}`)
+                        errorCount++;
+                        errors.push(`${file.name}: ${result.message}`);
                     }
                 } else {
                     // Regular upload for smaller files
-                    console.log('📤 Using regular upload...')
-
                     // Show progress for regular upload
                     setUploadProgress(prev => ({ ...prev, progress: 50 }))
 
@@ -104,18 +93,17 @@ const FileUpload = ({ onUploadComplete }) => {
 
                     const data = await response.json()
                     if (data.success) {
-                        successCount++
-                        setUploadProgress(prev => ({ ...prev, progress: 100 }))
-                        console.log('✅ Regular upload successful!')
+                        successCount++;
+                        setUploadProgress(prev => ({ ...prev, progress: 100 }));
                     } else {
-                        errorCount++
-                        errors.push(`${file.name}: ${data.message}`)
+                        errorCount++;
+                        errors.push(`${file.name}: ${data.message}`);
                     }
                 }
             } catch (error) {
-                errorCount++
-                errors.push(`${file.name}: ${error.message || 'Upload failed'}`)
-                console.error('❌ Upload error:', error)
+                errorCount++;
+                errors.push(`${file.name}: ${error.message || 'Upload failed'}`);
+                console.error('❌ Upload error:', error);
             }
         }
 
@@ -175,8 +163,6 @@ const FileUpload = ({ onUploadComplete }) => {
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
         const fileId = `${Date.now()}_${Math.random().toString(36).substring(2)}`
 
-        console.log(`🔧 Splitting ${file.name} into ${totalChunks} chunks of ~2MB each`)
-
         // Update progress bar for chunked upload
         setUploadProgress(prev => ({ ...prev, totalChunks }))
 
@@ -192,8 +178,6 @@ const FileUpload = ({ onUploadComplete }) => {
             formData.append('totalChunks', totalChunks.toString())
             formData.append('fileName', file.name)
             formData.append('fileId', fileId)
-
-            console.log(`📦 Uploading chunk ${chunkIndex + 1}/${totalChunks}...`)
 
             try {
                 const response = await fetch('/api/storage/chunked-upload', {
@@ -221,7 +205,6 @@ const FileUpload = ({ onUploadComplete }) => {
 
                 // If this was the last chunk, return the final result
                 if (chunkIndex === totalChunks - 1) {
-                    console.log('🎉 All chunks uploaded successfully!')
                     return result
                 }
 
@@ -236,8 +219,6 @@ const FileUpload = ({ onUploadComplete }) => {
 
     // Simple upload method for fallback
     const uploadSimple = async (file, folder) => {
-        console.log(`⚡ Simple uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
-
         // Set progress to indeterminate for simple upload
         setUploadProgress(prev => ({ ...prev, progress: 75 }))
 
@@ -259,7 +240,6 @@ const FileUpload = ({ onUploadComplete }) => {
             const result = await response.json()
 
             if (result.success) {
-                console.log('🎉 Simple upload completed successfully!')
                 setUploadProgress(prev => ({ ...prev, progress: 100 }))
                 return result
             } else {
@@ -275,8 +255,6 @@ const FileUpload = ({ onUploadComplete }) => {
 
     // Binary upload method that sends raw file data with headers
     const uploadDirectly = async (file, folder) => {
-        console.log(`🎯 Binary uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
-
         // Set progress to indeterminate for direct upload
         setUploadProgress(prev => ({ ...prev, progress: 50 }))
 
@@ -298,7 +276,6 @@ const FileUpload = ({ onUploadComplete }) => {
             const result = await response.json()
 
             if (result.success) {
-                console.log('🎉 Binary upload completed successfully!')
                 setUploadProgress(prev => ({ ...prev, progress: 100 }))
                 return result
             } else {

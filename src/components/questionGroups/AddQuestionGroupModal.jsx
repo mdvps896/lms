@@ -36,7 +36,6 @@ const AddQuestionGroupModal = ({ show, onClose, onAdd }) => {
         try {
             const res = await fetch('/api/categories');
             const data = await res.json();
-            console.log('Categories fetched:', data);
             if (data.success) {
                 setCategories(data.data.filter(c => c.status === 'active'));
             } else {
@@ -60,7 +59,6 @@ const AddQuestionGroupModal = ({ show, onClose, onAdd }) => {
         try {
             const res = await fetch('/api/subjects');
             const data = await res.json();
-            console.log('Subjects fetched:', data);
             if (data.success) {
                 setSubjects(data.data.filter(s => s.status === 'active'));
             } else {

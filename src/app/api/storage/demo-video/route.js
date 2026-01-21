@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-    console.log('GET /api/storage/demo-video - Request received at:', new Date().toISOString());
     try {
         // Get the file path from the URL
         const url = new URL(request.url);
@@ -36,10 +35,7 @@ export async function GET(request) {
         const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
         const fullPath = path.normalize(path.join(process.cwd(), 'public', cleanPath));
 
-        console.log('Serving File:', { filePath, cleanPath, fullPath, exists: fs.existsSync(fullPath) });
-
         if (!fs.existsSync(fullPath)) {
-            console.log('File NOT found at:', fullPath);
             return NextResponse.json(
                 { success: false, message: 'File not found' },
                 { status: 404 }

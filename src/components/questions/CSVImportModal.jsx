@@ -157,8 +157,6 @@ const CSVImportModal = ({ show, onHide, onImportSuccess }) => {
                 };
             });
 
-            console.log('Parsed questions data:', questions);
-
             // Send to API
             const response = await fetch('/api/questions/import', {
                 method: 'POST',
@@ -181,7 +179,6 @@ const CSVImportModal = ({ show, onHide, onImportSuccess }) => {
 
             if (result.success) {
                 if (result.errors && result.errors.length > 0) {
-                    console.log('Import errors:', result.errors);
                     toast.success(`Successfully imported ${result.imported} questions! ${result.errors.length} had errors - check console for details.`);
                 } else {
                     toast.success(`Successfully imported ${result.imported} questions!`);

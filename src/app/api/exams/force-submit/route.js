@@ -8,8 +8,6 @@ export async function POST(request) {
 
         const { attemptId } = await request.json();
 
-        console.log('Force submit - Attempt ID:', attemptId);
-
         if (!attemptId) {
             return NextResponse.json(
                 { message: 'Missing attempt ID' },
@@ -40,8 +38,6 @@ export async function POST(request) {
         attempt.submittedAt = new Date();
 
         await attempt.save();
-
-        console.log('Force submitted successfully');
 
         return NextResponse.json({
             message: 'Exam force submitted successfully'

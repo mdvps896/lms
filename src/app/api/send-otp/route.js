@@ -28,8 +28,7 @@ export async function POST(request) {
                 }
             }
         } catch (settingsError) {
-            console.log('Could not fetch site settings, using defaults');
-        }
+            }
 
         // Validate email provider
         const validProviders = [

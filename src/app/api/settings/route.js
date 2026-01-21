@@ -209,8 +209,6 @@ export async function PUT(request) {
         // Support both 'settings' and 'data' parameter names for flexibility
         const settingsData = settings || data;
 
-        console.log('Updating settings for tab:', tab, 'with data:', settingsData);
-
         await connectDB();
         const db = require('mongoose').connection.db;
 
@@ -225,7 +223,8 @@ export async function PUT(request) {
             'integrations': 'integrations',
             'certificate': 'certificateSettings',
             'roll-number': 'rollNumberSettings',
-            'pdf-selfie': 'pdfSelfieSettings'
+            'pdf-selfie': 'pdfSelfieSettings',
+            'whatsapp-support': 'whatsappSupport'
         };
 
         let result;
@@ -254,8 +253,6 @@ export async function PUT(request) {
                 { upsert: true }
             );
         }
-
-        console.log('Update result:', result);
 
         // Also update the updatedAt timestamp
         await db.collection('settings').updateOne(

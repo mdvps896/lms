@@ -28,12 +28,8 @@ export async function POST(request) {
         const fileExtension = file.name.split('.').pop();
         const fileName = `${type}-${timestamp}.${fileExtension}`;
 
-        console.log('Saving sound locally:', fileName);
-
         // Upload to Local Storage
         const result = await saveToLocalStorage(fileData, 'sounds', fileName);
-
-        console.log('Sound saved:', result.url);
 
         // Return the public URL
         // Cloudinary returns full URL, which is good.

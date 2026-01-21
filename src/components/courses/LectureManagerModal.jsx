@@ -57,13 +57,29 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
         data.append('folder', folder);
         data.append('field', 'lectureContent');
 
-        const res = await fetch('/api/storage/upload', {
-            method: 'POST',
-            body: data,
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.message || 'Upload failed');
-        return result.path || result.url;
+        try {
+            const res = await fetch('/api/storage/upload', {
+                method: 'POST',
+                body: data,
+            });
+
+            // Check if response is JSON
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await res.text();
+                throw new Error(`Server returned non-JSON response. Status: ${res.status}. Response: ${text.substring(0, 200)}`);
+            }
+
+            const result = await res.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Upload failed');
+            }
+
+            return result.path || result.url;
+        } catch (error) {
+            throw error;
+        }
     };
 
     const handleSaveLecture = async (e) => {

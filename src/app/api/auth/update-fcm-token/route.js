@@ -30,8 +30,6 @@ export async function POST(request) {
             }, { status: 404 });
         }
 
-        console.log(`✅ FCM token updated for user: ${user.name}`);
-
         return NextResponse.json({
             success: true,
             message: 'FCM token updated successfully',

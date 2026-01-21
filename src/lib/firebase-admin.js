@@ -18,8 +18,7 @@ export function initializeFirebaseAdmin() {
             credential: admin.credential.cert(serviceAccount)
         });
 
-        console.log('✅ Firebase Admin initialized with service account');
-    } catch (error) {
+        } catch (error) {
         console.warn('⚠️ Service account file not found/loaded:', error.message);
         console.warn('⚠️ Attempting to use environment variables...');
 
@@ -32,8 +31,7 @@ export function initializeFirebaseAdmin() {
                     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
                 })
             });
-            console.log('✅ Firebase Admin initialized with environment variables');
-        } else {
+            } else {
             console.error('❌ Firebase Admin initialization failed: No credentials found');
             throw new Error('Firebase Admin initialization failed');
         }

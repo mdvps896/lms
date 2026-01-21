@@ -12,8 +12,6 @@ export async function GET() {
             .sort({ name: 1 })
             .lean();
 
-        console.log('Fetched categories:', categories.length);
-
         // Format categories for mobile app
         const formattedCategories = categories.map(category => ({
             id: category._id.toString(),

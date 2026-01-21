@@ -9,12 +9,12 @@ export async function POST(request) {
         await connectDB()
 
         const body = await request.json()
-        const { 
-            examId, 
-            userId, 
-            verification, 
-            isAuthorized, 
-            unauthorizedReason 
+        const {
+            examId,
+            userId,
+            verification,
+            isAuthorized,
+            unauthorizedReason
         } = body
 
         // Validate required fields
@@ -75,8 +75,6 @@ export async function POST(request) {
             }
         }
 
-        console.log('Processed verification data:', JSON.stringify(processedVerification, null, 2))
-
         // Find or create exam attempt
         let examAttempt = await ExamAttempt.findOne({
             exam: examId,
@@ -87,7 +85,7 @@ export async function POST(request) {
         if (!examAttempt) {
             // Create new exam attempt with verification data
             const sessionToken = `${userId}-${examId}-${Date.now()}`
-            
+
             examAttempt = new ExamAttempt({
                 exam: examId,
                 user: userId,
@@ -109,7 +107,7 @@ export async function POST(request) {
         } else {
             // Update existing attempt with verification data
             examAttempt.verification = processedVerification
-            
+
             if (!isAuthorized) {
                 examAttempt.status = 'terminated'
                 examAttempt.warnings.push({
@@ -153,8 +151,6 @@ export async function GET(request) {
         const examId = searchParams.get('examId')
         const userId = searchParams.get('userId')
 
-        console.log('GET Verification - Params:', { attemptId, examId, userId })
-
         let query = {}
 
         if (attemptId) {
@@ -169,17 +165,11 @@ export async function GET(request) {
             }, { status: 400 })
         }
 
-        console.log('GET Verification - Query:', query)
-
         const examAttempt = await ExamAttempt.findOne(query)
             .populate('user', 'name email profileImage')
             .populate('exam', 'name')
 
-        console.log('GET Verification - Found attempt:', examAttempt ? 'Yes' : 'No')
-        
         if (examAttempt) {
-            console.log('GET Verification - Attempt ID:', examAttempt._id)
-            console.log('GET Verification - Has verification data:', !!examAttempt.verification)
         }
 
         if (!examAttempt) {
@@ -236,7 +226,7 @@ export async function PUT(request) {
 
         // Save periodic face check image to file system
         let processedFaceCheck = { ...periodicFaceCheck }
-        
+
         if (periodicFaceCheck.selfieImage) {
             try {
                 const facePath = saveVerificationImage(

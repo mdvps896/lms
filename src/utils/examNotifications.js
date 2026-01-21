@@ -77,8 +77,6 @@ export const createExamNotification = async (type, examData, createdBy) => {
         });
 
         await notification.save();
-        console.log(`Notification created: ${title} for ${recipients.length} recipients`);
-        
         return notification;
     } catch (error) {
         console.error('Error creating exam notification:', error);
