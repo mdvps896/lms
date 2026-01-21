@@ -56,15 +56,7 @@ export async function PUT(request, { params }) {
                     const uploadResult = await saveFileLocally(file.fileData, 'uploads/materials', file.title);
                     finalFiles.push({
                         title: file.title || uploadResult.originalName,
-                        url: uploadResult.url,
-                        // publicId not strictly needed but can be used as identifier if migrated logic relies on it?
-                        // Actually let's keep url as primary identifier now.
-                        // But oldFilesMap uses publicId if present.
-                        // For local files, we won't have publicId in the same sense.
-                        // Let's use the filename as publicId equivalent if needed or just skip.
-                        // But wait, the loop below iterates oldFilesMap key = publicId.
-                        // If we don't store it, we can't map it. 
-                        // Let's assume URL is unique enough or we store fileName in publicId field for consistency.
+                        url: `/api/storage/file${uploadResult.url}`,
                         publicId: uploadResult.fileName, // Using filename as ID for deletion
                         type: file.type || 'file',
                         size: uploadResult.size

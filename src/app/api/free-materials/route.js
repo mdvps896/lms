@@ -108,7 +108,7 @@ export async function POST(request) {
 
                         processedFiles.push({
                             title: file.title || uploadResult.originalName,
-                            url: uploadResult.url,
+                            url: `/api/storage/file${uploadResult.url}`,
                             type: fileType,
                             size: uploadResult.size
                         });
