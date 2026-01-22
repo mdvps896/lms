@@ -7,6 +7,8 @@ import Question from '@/models/Question';
 import { createExamNotification } from '@/utils/examNotifications';
 import { requireAdmin, getAuthenticatedUser } from '@/utils/apiAuth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req, { params }) {
     try {
         await dbConnect();

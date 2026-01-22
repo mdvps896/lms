@@ -2,12 +2,16 @@
 
 import React from 'react'
 import StudentList from '@/components/students/StudentList'
+import DeletedStudentsModal from '@/components/students/DeletedStudentsModal'
 import Header from '@/components/shared/header/Header'
 import NavigationManu from '@/components/shared/navigationMenu/NavigationMenu'
 import SupportDetails from '@/components/supportDetails'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 
 const StudentsPage = () => {
+    const [showDeletedModal, setShowDeletedModal] = React.useState(false);
+    const [refreshKey, setRefreshKey] = React.useState(0); // To trigger list refresh
+
     return (
         <ProtectedRoute>
             <Header />
@@ -26,12 +30,13 @@ const StudentsPage = () => {
                         </div>
                         <div className="page-header-right ms-auto">
                             <div className="page-header-right-items">
-                                <div className="d-flex d-md-none">
-                                    <a href="#" className="page-header-right-close-toggle">
-                                        <i className="feather-arrow-left me-2"></i>
-                                        <span>Back</span>
-                                    </a>
-                                </div>
+                                <button
+                                    className="btn btn-danger d-flex align-items-center gap-2"
+                                    onClick={() => setShowDeletedModal(true)}
+                                >
+                                    <i className="feather-trash-2"></i>
+                                    <span>Recycle Bin</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -39,13 +44,18 @@ const StudentsPage = () => {
                     <div className="main-content">
                         <div className="row">
                             <div className="col-lg-12">
-                                <StudentList />
+                                <StudentList key={refreshKey} />
                             </div>
                         </div>
                     </div>
                 </div>
             </main>
             <SupportDetails />
+            <DeletedStudentsModal
+                isOpen={showDeletedModal}
+                onClose={() => setShowDeletedModal(false)}
+                onRestoreSuccess={() => setRefreshKey(prev => prev + 1)}
+            />
         </ProtectedRoute>
     )
 }

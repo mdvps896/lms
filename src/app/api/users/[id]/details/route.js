@@ -8,6 +8,8 @@ import Exam from '@/models/Exam';
 import PDFViewSession from '@/models/PDFViewSession';
 import StudentActivity from '@/models/StudentActivity';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request, { params }) {
     try {
         await connectDB();

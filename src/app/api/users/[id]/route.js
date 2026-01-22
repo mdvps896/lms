@@ -117,11 +117,27 @@ export async function PATCH(request, { params }) {
   }
 }
 
-// DELETE user
+// DELETE user (Soft delete by default, permanent if ?permanent=true)
 export async function DELETE(request, { params }) {
   try {
     await connectDB();
-    const user = await User.findByIdAndDelete(params.id);
+    const { searchParams } = new URL(request.url);
+    const permanent = searchParams.get('permanent') === 'true';
+
+    let user;
+
+    if (permanent) {
+      user = await User.findByIdAndDelete(params.id);
+    } else {
+      user = await User.findByIdAndUpdate(
+        params.id,
+        { 
+          isDeleted: true,
+          deletedAt: new Date()
+        },
+        { new: true }
+      );
+    }
     
     if (!user) {
       return NextResponse.json(
@@ -130,7 +146,10 @@ export async function DELETE(request, { params }) {
       );
     }
     
-    return NextResponse.json({ success: true, message: 'User deleted successfully' });
+    return NextResponse.json({ 
+      success: true, 
+      message: permanent ? 'User permanently deleted' : 'User moved to recycle bin' 
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message },
