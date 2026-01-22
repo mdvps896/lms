@@ -105,7 +105,7 @@ export default function StudentReportModal({ isOpen, onClose, studentId, student
                                 {selectedSections.pdfViews ? <FaCheckSquare className="text-primary fs-5" /> : <FaSquare className="text-muted fs-5" />}
                                 <div>
                                     <div className="fw-semibold text-dark">PDF Reading History</div>
-                                    <small className="text-muted">Includes reading time, pages, and <span className="text-danger fw-bold">Selfie Proofs</span></small>
+                                    <small className="text-muted">Includes reading time, pages</small>
                                 </div>
                             </div>
 

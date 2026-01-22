@@ -6,9 +6,7 @@ import PDFViewSession from '@/models/PDFViewSession';
 import SelfieCapture from '@/models/SelfieCapture';
 import Course from '@/models/Course';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import fs from 'fs';
-import path from 'path';
+import autoTable from 'jspdf-autotable';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,11 +44,11 @@ export async function GET(request) {
         }
 
         if (includePdfViews) {
-            pdfSessions = await PDFViewSession.find({ userId: studentId })
+            pdfSessions = await PDFViewSession.find({ user: studentId })
                 .sort({ startTime: -1 })
                 .lean();
 
-            // Enrich with Selfie Data
+            // Enrich with Selfie Data (Optional now, but keeping for potential metadata use)
             for (let session of pdfSessions) {
                 const selfies = await SelfieCapture.find({ sessionId: session.sessionId })
                     .sort({ capturedAt: 1 })
@@ -85,262 +83,177 @@ export async function GET(request) {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
         const pageHeight = doc.internal.pageSize.height;
-        const margin = 15;
+        const primaryColor = [52, 84, 209]; // #3454d1
 
-        // --- Helper: Section Header ---
-        const addSectionHeader = (text, y) => {
-            doc.setFillColor(240, 240, 240); // Light Gray Background
-            doc.rect(margin, y, pageWidth - (margin * 2), 10, 'F');
-            doc.setTextColor(33, 37, 41); // Dark Gray Text
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text(text, margin + 5, y + 7);
-            doc.setFont('helvetica', 'normal');
-            return y + 15;
-        };
-
-        // --- 1. Report Header ---
-        doc.setFillColor(52, 84, 209); // Brand Blue
+        // 1. Header & Logo
+        doc.setFillColor(...primaryColor);
         doc.rect(0, 0, pageWidth, 40, 'F');
 
-        doc.setTextColor(255, 255, 255);
+        // Logo Logic
+        try {
+            const logoPath = path.join(process.cwd(), 'public', 'images', 'logo-abbr.png');
+            if (fs.existsSync(logoPath)) {
+                const logoBuffer = fs.readFileSync(logoPath);
+                const logoBase64 = logoBuffer.toString('base64');
+                // Logo at x:14, y:7, w:25, h:25
+                doc.addImage(logoBase64, 'PNG', 14, 7, 25, 25);
+            }
+        } catch (e) {
+            console.error('Logo embed error:', e);
+        }
+
+        // Title
         doc.setFontSize(24);
+        doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
-        doc.text('MD Consultancy', margin, 20); // Brand Name
+        doc.text('Performance Report', 50, 20); // Shifted right for logo
+
+        // Date
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const dateStr = `Generated: ${new Date().toLocaleDateString()}`;
+        doc.text(dateStr, pageWidth - 14, 28, { align: 'right' });
+
+        let yPos = 55;
+
+        // 2. Student Info (Rounded Box)
+        doc.setDrawColor(200, 200, 200);
+        doc.setFillColor(250, 250, 250);
+        doc.roundedRect(14, yPos - 5, pageWidth - 28, 25, 3, 3, 'FD');
 
         doc.setFontSize(14);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Student Comprehensive Report', margin, 30);
-
-        doc.setFontSize(10);
-        const dateStr = `Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
-        doc.text(dateStr, pageWidth - margin - doc.getTextWidth(dateStr), 30);
-
-        // --- 2. Student Profile ---
-        let finalY = 55;
-        finalY = addSectionHeader('Student Profile', finalY);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont('helvetica', 'bold');
+        doc.text(student.name, 20, yPos + 6);
 
         doc.setFontSize(11);
-        doc.setTextColor(50, 50, 50);
-
-        // Left Column
-        doc.text(`Name:`, margin, finalY);
-        doc.setFont('helvetica', 'bold');
-        doc.text(student.name, margin + 25, finalY);
+        doc.setTextColor(108, 117, 125); // Secondary color
         doc.setFont('helvetica', 'normal');
+        doc.text(student.email, 20, yPos + 14);
 
-        doc.text(`Email:`, margin, finalY + 7);
-        doc.text(student.email, margin + 25, finalY + 7);
+        yPos += 35;
 
-        // Right Column
-        doc.text(`Phone:`, pageWidth / 2, finalY);
-        doc.text(student.phone || 'N/A', (pageWidth / 2) + 25, finalY);
+        // --- Helper for Section Titles & Tables ---
+        // We use autoTable for everything now to maintain consistency
 
-        doc.text(`Status:`, pageWidth / 2, finalY + 7);
-        doc.setTextColor(student.status === 'active' ? 40 : 200, student.status === 'active' ? 167 : 0, student.status === 'active' ? 69 : 0);
-        doc.text(student.status.toUpperCase(), (pageWidth / 2) + 25, finalY + 7);
-        doc.setTextColor(50, 50, 50);
+        // 3. PDF Learning Activity (Red)
+        if (includePdfViews && pdfSessions.length > 0) {
+            if (yPos > pageHeight - 60) { doc.addPage(); yPos = 20; }
 
-        finalY += 20;
+            doc.setFontSize(16);
+            doc.setTextColor(220, 53, 69); // Red
+            doc.setFont('helvetica', 'normal');
+            doc.text('PDF Learning Activity (Summary)', 14, yPos);
+            yPos += 5;
 
-        // --- 3. Course Progress ---
+            // Grouping Logic (Backend equivalent of the frontend grouping)
+            const pdfGroups = {};
+            pdfSessions.forEach(session => {
+                const title = session.pdfName || 'Unknown PDF';
+                if (!pdfGroups[title]) {
+                    pdfGroups[title] = { title, sessions: 0, duration: 0, lastViewed: session.startTime };
+                }
+                pdfGroups[title].sessions++;
+                pdfGroups[title].duration += (session.duration || 0);
+                if (new Date(session.startTime) > new Date(pdfGroups[title].lastViewed)) {
+                    pdfGroups[title].lastViewed = session.startTime;
+                }
+            });
+
+            // Format Duration Helper
+            const fmtDur = (s) => {
+                if (!s) return '0 min';
+                const m = Math.floor(s / 60);
+                return `${Math.max(1, m)} min`;
+            };
+
+            const tableBody = Object.values(pdfGroups).map(g => [
+                g.title,
+                g.sessions,
+                new Date(g.lastViewed).toLocaleString(),
+                fmtDur(g.duration)
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['PDF Name', 'Total Sessions', 'Last Viewed', 'Total Duration']],
+                body: tableBody,
+                headStyles: { fillColor: [220, 53, 69], textColor: 255 }, // Red Header
+                theme: 'grid',
+                styles: { fontSize: 10, cellPadding: 3 },
+                margin: { left: 14, right: 14 }
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+
+        // 4. Course Activity (Green)
         if (includeCourses && courseProgress.length > 0) {
-            finalY = addSectionHeader('Enrolled Courses & Progress', finalY);
+            if (yPos > pageHeight - 60) { doc.addPage(); yPos = 20; }
 
-            doc.autoTable({
-                startY: finalY,
-                head: [['Course Title', 'Enrolled Date', 'Completed Lectures']],
+            doc.setFontSize(16);
+            doc.setTextColor(25, 135, 84); // Green
+            doc.setFont('helvetica', 'normal');
+            doc.text('Course Learning Activity (Summary)', 14, yPos);
+            yPos += 5;
+
+            // Convert course progress to the format seen in the image (Summary)
+            // The image shows 'Total Sessions', 'Last Viewed', 'Total Duration'.
+            // Our current data model for 'enrolledCourses' might be limited (just 'completedLectures').
+            // We will map available data: Title, Completed Lectures, Enrolled Date.
+            // If we want it to look EXACTLY like the image, we'd need session data for courses, which might be in UserCourseActivity or similar.
+            // For now, we stick to the available 'courseProgress' but style it broadly similar. 
+            // The image implies aggregation. If we don't have activity logs for courses, we show Progress.
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Course Name', 'Joined', 'Progress (Lectures)']],
                 body: courseProgress.map(c => [
                     c.title,
                     new Date(c.enrolledAt).toLocaleDateString(),
-                    c.completedLectures
+                    `${c.completedLectures} Completed`
                 ]),
+                headStyles: { fillColor: [25, 135, 84], textColor: 255 }, // Green Header
                 theme: 'grid',
-                headStyles: { fillColor: [52, 84, 209], textColor: 255 },
                 styles: { fontSize: 10, cellPadding: 3 },
-                margin: { left: margin, right: margin }
+                margin: { left: 14, right: 14 }
             });
-            finalY = doc.lastAutoTable.finalY + 15;
+            yPos = doc.lastAutoTable.finalY + 15;
         }
 
-        // --- 4. Exam History ---
+        // 5. Exam History (Blue to match Header)
         if (includeExams && examAttempts.length > 0) {
-            // Check page break
-            if (finalY > pageHeight - 60) {
-                doc.addPage();
-                finalY = 20;
-            }
-            finalY = addSectionHeader('Exam Attempts History', finalY);
+            if (yPos > pageHeight - 60) { doc.addPage(); yPos = 20; }
 
-            doc.autoTable({
-                startY: finalY,
+            doc.setFontSize(16);
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Blue
+            doc.setFont('helvetica', 'normal');
+            doc.text('Exam Attempts History', 14, yPos);
+            yPos += 5;
+
+            autoTable(doc, {
+                startY: yPos,
                 head: [['Exam Title', 'Date', 'Score', 'Status']],
                 body: examAttempts.map(att => [
                     att.exam?.title || 'Unknown Exam',
-                    new Date(att.startTime).toLocaleDateString(),
+                    new Date(att.startedAt).toLocaleDateString(),
                     `${att.score} / ${att.totalMarks}`,
                     att.status
                 ]),
+                headStyles: { fillColor: primaryColor, textColor: 255 }, // Blue Header
                 theme: 'grid',
-                headStyles: { fillColor: [52, 84, 209], textColor: 255 },
                 styles: { fontSize: 10, cellPadding: 3 },
-                margin: { left: margin, right: margin }
+                margin: { left: 14, right: 14 }
             });
-            finalY = doc.lastAutoTable.finalY + 15;
+            yPos = doc.lastAutoTable.finalY + 15;
         }
 
-        // --- 5. PDF Reading & Selfies ---
-        if (includePdfViews && pdfSessions.length > 0) {
-            doc.addPage();
-            finalY = 20;
-            finalY = addSectionHeader('PDF Reading Activity & Verification', finalY);
-
-            for (const session of pdfSessions) {
-                // Determine duration
-                const durationMins = Math.floor((session.activeDuration || 0) / 60);
-
-                // Session Card Background
-                doc.setFillColor(248, 249, 250); // Very light gray
-                const boxHeight = (session.selfies?.length > 0) ? 60 : 30; // Estimate height (dynamic later if needed)
-
-                // Check space
-                if (finalY + boxHeight > pageHeight - 20) {
-                    doc.addPage();
-                    finalY = 20;
-                }
-
-                // Render Session Info
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text(session.pdfName || 'Unknown Document', margin, finalY + 5);
-
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'normal');
-                const infoLine = `${new Date(session.startTime).toLocaleString()}  |  Duration: ${durationMins} mins  |  Pages: ${session.totalPages || 'N/A'}  |  Loc: ${session.locationName || 'N/A'}`;
-                doc.text(infoLine, margin, finalY + 11);
-
-                finalY += 16;
-
-                // Selfies Grid
-                if (session.selfies && session.selfies.length > 0) {
-                    const imgWidth = 25;
-                    const imgHeight = 35;
-                    const spacing = 5;
-                    let currentX = margin;
-
-                    // Max height tracking for this row
-                    let maxRowH = 0;
-
-                    for (const selfie of session.selfies) {
-                        // Check row overflow
-                        if (currentX + imgWidth > pageWidth - margin) {
-                            currentX = margin;
-                            finalY += imgHeight + spacing + 10; // New row
-
-                            // Check page overflow
-                            if (finalY + imgHeight > pageHeight - 20) {
-                                doc.addPage();
-                                finalY = 20;
-                            }
-                        }
-
-                        // Fetch & Embed
-                        try {
-                            let imgBase64 = null;
-                            let format = 'JPEG';
-                            let finalImageUrl = selfie.imageUrl;
-
-                            // Helper to determine format
-                            const getFormat = (url) => (url || '').toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG';
-
-                            // STRATEGY 1: Read from Filesystem (Public Folder)
-                            if (finalImageUrl && finalImageUrl.startsWith('/')) {
-                                try {
-                                    const publicPath = path.join(process.cwd(), 'public', finalImageUrl);
-                                    if (fs.existsSync(publicPath)) {
-                                        const imgBuffer = fs.readFileSync(publicPath);
-                                        imgBase64 = imgBuffer.toString('base64');
-                                        format = getFormat(finalImageUrl);
-                                    }
-                                } catch (fsErr) {
-                                    console.warn('FS Read Public failed:', fsErr);
-                                }
-                            }
-
-                            // STRATEGY 2: Read from Filesystem (Absolute Path from DB)
-                            if (!imgBase64 && selfie.imagePath) {
-                                try {
-                                    if (fs.existsSync(selfie.imagePath)) {
-                                        const imgBuffer = fs.readFileSync(selfie.imagePath);
-                                        imgBase64 = imgBuffer.toString('base64');
-                                        format = getFormat(selfie.imagePath);
-                                    }
-                                } catch (fsErr) {
-                                    console.warn('FS Read Absolute failed:', fsErr);
-                                }
-                            }
-
-                            // STRATEGY 3: HTTP Fetch (Fallback)
-                            if (!imgBase64) {
-                                try {
-                                    // Normalize URL
-                                    if (finalImageUrl.startsWith('/')) {
-                                        finalImageUrl = `${baseUrl}${finalImageUrl}`;
-                                    } else if (!finalImageUrl.startsWith('http')) {
-                                        finalImageUrl = `${baseUrl}/${finalImageUrl}`;
-                                    }
-
-                                    const imgResp = await fetch(finalImageUrl);
-                                    if (imgResp.ok) {
-                                        const imgBuffer = await imgResp.arrayBuffer();
-                                        imgBase64 = Buffer.from(imgBuffer).toString('base64');
-                                        format = getFormat(finalImageUrl);
-                                    } else {
-                                        console.warn(`Failed to fetch image: ${finalImageUrl}, status: ${imgResp.status}`);
-                                    }
-                                } catch (fetchErr) {
-                                    console.warn('Fetch failed:', fetchErr);
-                                }
-                            }
-
-                            // Render Image if we have data
-                            if (imgBase64) {
-                                doc.addImage(imgBase64, format, currentX, finalY, imgWidth, imgHeight);
-
-                                // Frame
-                                doc.setDrawColor(200);
-                                doc.rect(currentX, finalY, imgWidth, imgHeight);
-
-                                // Timestamp Label
-                                doc.setFontSize(7);
-                                doc.setTextColor(100);
-                                const timeStr = new Date(selfie.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                doc.text(timeStr, currentX + (imgWidth / 2) - (doc.getTextWidth(timeStr) / 2), finalY + imgHeight + 4);
-                            } else {
-                                // Placeholder
-                                doc.setFillColor(240);
-                                doc.rect(currentX, finalY, imgWidth, imgHeight, 'F');
-                                doc.setFontSize(6);
-                                doc.setTextColor(150);
-                                doc.text('Img ?', currentX + 2, finalY + (imgHeight / 2));
-                            }
-                        } catch (e) {
-                            console.error('Critical Image Embed Error:', e);
-                            doc.setDrawColor(200);
-                            doc.rect(currentX, finalY, imgWidth, imgHeight);
-                        }
-
-                        currentX += imgWidth + spacing;
-                        maxRowH = imgHeight + 10;
-                    }
-                    finalY += maxRowH + 5; // Finish grid
-                }
-
-                // Separator line
-                doc.setDrawColor(230);
-                doc.line(margin, finalY, pageWidth - margin, finalY);
-                finalY += 10;
-            }
+        // Footer (Page Numbers)
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text('Page ' + i + ' of ' + pageCount, pageWidth / 2, pageHeight - 10, { align: 'center' });
         }
 
         // Return PDF
@@ -349,7 +262,7 @@ export async function GET(request) {
         return new NextResponse(pdfOutput, {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${student.name.replace(/\s+/g, '_')}_Report.pdf"`,
+                'Content-Disposition': `attachment; filename="${student.name.replace(/\s+/g, '_')}_Performance_Report.pdf"`,
             },
         });
 
