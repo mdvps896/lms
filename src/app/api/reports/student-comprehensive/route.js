@@ -245,23 +245,65 @@ export async function GET(request) {
 
                         // Fetch & Embed
                         try {
+                            let imgBase64 = null;
+                            let format = 'JPEG';
                             let finalImageUrl = selfie.imageUrl;
 
-                            // Normalize Path
-                            if (finalImageUrl.startsWith('/')) {
-                                finalImageUrl = `${baseUrl}${finalImageUrl}`;
-                            } else if (!finalImageUrl.startsWith('http')) {
-                                finalImageUrl = `${baseUrl}/${finalImageUrl}`;
+                            // Helper to determine format
+                            const getFormat = (url) => (url || '').toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG';
+
+                            // STRATEGY 1: Read from Filesystem (Public Folder)
+                            if (finalImageUrl && finalImageUrl.startsWith('/')) {
+                                try {
+                                    const publicPath = path.join(process.cwd(), 'public', finalImageUrl);
+                                    if (fs.existsSync(publicPath)) {
+                                        const imgBuffer = fs.readFileSync(publicPath);
+                                        imgBase64 = imgBuffer.toString('base64');
+                                        format = getFormat(finalImageUrl);
+                                    }
+                                } catch (fsErr) {
+                                    console.warn('FS Read Public failed:', fsErr);
+                                }
                             }
 
-                            const imgResp = await fetch(finalImageUrl);
-                            if (imgResp.ok) {
-                                const imgBuffer = await imgResp.arrayBuffer();
-                                const imgBase64 = Buffer.from(imgBuffer).toString('base64');
+                            // STRATEGY 2: Read from Filesystem (Absolute Path from DB)
+                            if (!imgBase64 && selfie.imagePath) {
+                                try {
+                                    if (fs.existsSync(selfie.imagePath)) {
+                                        const imgBuffer = fs.readFileSync(selfie.imagePath);
+                                        imgBase64 = imgBuffer.toString('base64');
+                                        format = getFormat(selfie.imagePath);
+                                    }
+                                } catch (fsErr) {
+                                    console.warn('FS Read Absolute failed:', fsErr);
+                                }
+                            }
 
-                                let format = 'JPEG';
-                                if (finalImageUrl.toLowerCase().endsWith('.png')) format = 'PNG';
+                            // STRATEGY 3: HTTP Fetch (Fallback)
+                            if (!imgBase64) {
+                                try {
+                                    // Normalize URL
+                                    if (finalImageUrl.startsWith('/')) {
+                                        finalImageUrl = `${baseUrl}${finalImageUrl}`;
+                                    } else if (!finalImageUrl.startsWith('http')) {
+                                        finalImageUrl = `${baseUrl}/${finalImageUrl}`;
+                                    }
 
+                                    const imgResp = await fetch(finalImageUrl);
+                                    if (imgResp.ok) {
+                                        const imgBuffer = await imgResp.arrayBuffer();
+                                        imgBase64 = Buffer.from(imgBuffer).toString('base64');
+                                        format = getFormat(finalImageUrl);
+                                    } else {
+                                        console.warn(`Failed to fetch image: ${finalImageUrl}, status: ${imgResp.status}`);
+                                    }
+                                } catch (fetchErr) {
+                                    console.warn('Fetch failed:', fetchErr);
+                                }
+                            }
+
+                            // Render Image if we have data
+                            if (imgBase64) {
                                 doc.addImage(imgBase64, format, currentX, finalY, imgWidth, imgHeight);
 
                                 // Frame
@@ -273,13 +315,18 @@ export async function GET(request) {
                                 doc.setTextColor(100);
                                 const timeStr = new Date(selfie.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                 doc.text(timeStr, currentX + (imgWidth / 2) - (doc.getTextWidth(timeStr) / 2), finalY + imgHeight + 4);
+                            } else {
+                                // Placeholder
+                                doc.setFillColor(240);
+                                doc.rect(currentX, finalY, imgWidth, imgHeight, 'F');
+                                doc.setFontSize(6);
+                                doc.setTextColor(150);
+                                doc.text('Img ?', currentX + 2, finalY + (imgHeight / 2));
                             }
                         } catch (e) {
-                            // Silent match fail
+                            console.error('Critical Image Embed Error:', e);
                             doc.setDrawColor(200);
                             doc.rect(currentX, finalY, imgWidth, imgHeight);
-                            doc.setFontSize(7);
-                            doc.text('Error', currentX + 2, finalY + 15);
                         }
 
                         currentX += imgWidth + spacing;
