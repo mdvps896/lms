@@ -66,86 +66,87 @@ export default function StudentReportModal({ isOpen, onClose, studentId, student
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-                {/* Header */}
-                <div className="flex justify-between items-center p-6 border-b">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <FaFilePdf className="text-red-600" />
-                        Download Report
-                    </h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-                        <FaTimes />
-                    </button>
-                </div>
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-dialog-centered" role="document">
+                <div className="modal-content shadow-lg border-0">
+                    {/* Header */}
+                    <div className="modal-header bg-white border-bottom">
+                        <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                            <FaFilePdf className="text-danger" />
+                            Download Report
+                        </h5>
+                        <button type="button" className="btn-close" aria-label="Close" onClick={onClose}></button>
+                    </div>
 
-                {/* Content */}
-                <div className="p-6 space-y-4">
-                    <p className="text-gray-600 mb-4">
-                        Select the sections to include in the report for <strong>{studentName}</strong>:
-                    </p>
+                    {/* Content */}
+                    <div className="modal-body p-4">
+                        <p className="text-muted mb-4">
+                            Select the sections to include in the report for <strong>{studentName}</strong>:
+                        </p>
 
-                    <div className="space-y-3">
-                        <div
-                            className="flex items-center gap-3 p-3 rounded border hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => toggleSection('exams')}
-                        >
-                            {selectedSections.exams ? <FaCheckSquare className="text-blue-600 text-xl" /> : <FaSquare className="text-gray-300 text-xl" />}
-                            <div className="flex-1">
-                                <p className="font-semibold text-gray-800">Exam History</p>
-                                <p className="text-xs text-gray-500">Includes attempts, scores, and status</p>
+                        <div className="d-flex flex-column gap-3">
+                            <div
+                                className="d-flex align-items-center gap-3 p-3 border rounded bg-light cursor-pointer"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => toggleSection('exams')}
+                            >
+                                {selectedSections.exams ? <FaCheckSquare className="text-primary fs-5" /> : <FaSquare className="text-muted fs-5" />}
+                                <div>
+                                    <div className="fw-semibold text-dark">Exam History</div>
+                                    <small className="text-muted">Includes attempts, scores, and status</small>
+                                </div>
                             </div>
-                        </div>
 
-                        <div
-                            className="flex items-center gap-3 p-3 rounded border hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => toggleSection('pdfViews')}
-                        >
-                            {selectedSections.pdfViews ? <FaCheckSquare className="text-blue-600 text-xl" /> : <FaSquare className="text-gray-300 text-xl" />}
-                            <div className="flex-1">
-                                <p className="font-semibold text-gray-800">PDF Reading History</p>
-                                <p className="text-xs text-gray-500">Includes reading time, pages, and <span className="text-red-500 font-bold">Selfie Proofs</span></p>
+                            <div
+                                className="d-flex align-items-center gap-3 p-3 border rounded bg-light cursor-pointer"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => toggleSection('pdfViews')}
+                            >
+                                {selectedSections.pdfViews ? <FaCheckSquare className="text-primary fs-5" /> : <FaSquare className="text-muted fs-5" />}
+                                <div>
+                                    <div className="fw-semibold text-dark">PDF Reading History</div>
+                                    <small className="text-muted">Includes reading time, pages, and <span className="text-danger fw-bold">Selfie Proofs</span></small>
+                                </div>
                             </div>
-                        </div>
 
-                        <div
-                            className="flex items-center gap-3 p-3 rounded border hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => toggleSection('courses')}
-                        >
-                            {selectedSections.courses ? <FaCheckSquare className="text-blue-600 text-xl" /> : <FaSquare className="text-gray-300 text-xl" />}
-                            <div className="flex-1">
-                                <p className="font-semibold text-gray-800">Course Progress</p>
-                                <p className="text-xs text-gray-500">Includes enrolled courses and completion status</p>
+                            <div
+                                className="d-flex align-items-center gap-3 p-3 border rounded bg-light cursor-pointer"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => toggleSection('courses')}
+                            >
+                                {selectedSections.courses ? <FaCheckSquare className="text-primary fs-5" /> : <FaSquare className="text-muted fs-5" />}
+                                <div>
+                                    <div className="fw-semibold text-dark">Course Progress</div>
+                                    <small className="text-muted">Includes enrolled courses and completion status</small>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Footer */}
-                <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleDownload}
-                        disabled={loading}
-                        className={`px-4 py-2 bg-blue-600 text-white font-medium rounded flex items-center gap-2 transition-colors ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-                    >
-                        {loading ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <FaDownload />
-                                Download PDF
-                            </>
-                        )}
-                    </button>
+                    {/* Footer */}
+                    <div className="modal-footer bg-light border-top-0">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-primary d-flex align-items-center gap-2"
+                            onClick={handleDownload}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <>
+                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <FaDownload />
+                                    Download PDF
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
