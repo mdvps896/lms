@@ -7,6 +7,7 @@ import SelfieCapture from '@/models/SelfieCapture';
 import Course from '@/models/Course';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { Buffer } from 'buffer';
 
 export const dynamic = 'force-dynamic';
 
