@@ -18,9 +18,7 @@ export async function POST(request) {
                 const response = await fetch(fileUrl)
                 const blob = await response.blob()
                 const buffer = Buffer.from(await blob.arrayBuffer())
-                const base64 = buffer.toString('base64')
-                const mimeType = blob.type || 'image/jpeg'
-                fileData = `data:${mimeType};base64,${base64}`
+                fileData = buffer
                 fileName = path.basename(new URL(fileUrl).pathname) || `file_${Date.now()}`
             } catch (error) {
                 return NextResponse.json(
@@ -32,9 +30,7 @@ export async function POST(request) {
             // Handle file upload
             const bytes = await file.arrayBuffer()
             const buffer = Buffer.from(bytes)
-            const base64 = buffer.toString('base64')
-            const mimeType = file.type || 'application/octet-stream'
-            fileData = `data:${mimeType};base64,${base64}`
+            fileData = buffer
             fileName = file.name
         } else {
             return NextResponse.json(

@@ -9,6 +9,7 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
     const [openTopicIndex, setOpenTopicIndex] = useState(null); // Accordion state
     const [isLectureFormOpen, setIsLectureFormOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     // New Lecture Form State
     const [lectureForm, setLectureForm] = useState({
@@ -51,35 +52,51 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
         setOpenTopicIndex(openTopicIndex === index ? null : index);
     };
 
-    const uploadFile = async (file, folder) => {
-        const data = new FormData();
-        data.append('file', file);
-        data.append('folder', folder);
-        data.append('field', 'lectureContent');
+    const uploadFile = (file, folder, onProgress) => {
+        return new Promise((resolve, reject) => {
+            const data = new FormData();
+            data.append('file', file);
+            data.append('folder', folder);
+            data.append('field', 'lectureContent');
 
-        try {
-            const res = await fetch('/api/storage/upload', {
-                method: 'POST',
-                body: data,
-            });
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/storage/upload');
 
-            // Check if response is JSON
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await res.text();
-                throw new Error(`Server returned non-JSON response. Status: ${res.status}. Response: ${text.substring(0, 200)}`);
-            }
+            xhr.upload.onprogress = (event) => {
+                if (!event.lengthComputable) return;
+                const percent = Math.round((event.loaded / event.total) * 100);
+                if (typeof onProgress === 'function') onProgress(percent);
+            };
 
-            const result = await res.json();
+            xhr.onload = () => {
+                if (xhr.status === 413) {
+                    reject(new Error('File too large. Please upload a smaller file or increase the server upload limit.'));
+                    return;
+                }
 
-            if (!result.success) {
-                throw new Error(result.message || 'Upload failed');
-            }
+                let result;
+                try {
+                    result = JSON.parse(xhr.responseText || '{}');
+                } catch (e) {
+                    const text = (xhr.responseText || '').substring(0, 200);
+                    reject(new Error(`Upload failed. Status: ${xhr.status}. Response: ${text}`));
+                    return;
+                }
 
-            return result.path || result.url;
-        } catch (error) {
-            throw error;
-        }
+                if (xhr.status < 200 || xhr.status >= 300 || !result.success) {
+                    reject(new Error(result.message || result.error || `Upload failed (Status: ${xhr.status})`));
+                    return;
+                }
+
+                resolve(result.path || result.url);
+            };
+
+            xhr.onerror = () => {
+                reject(new Error('Network error during upload'));
+            };
+
+            xhr.send(data);
+        });
     };
 
     const handleSaveLecture = async (e) => {
@@ -91,6 +108,7 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
         }
 
         setUploading(true);
+        setUploadProgress(0);
         try {
             let finalContentUrl = lectureForm.content;
 
@@ -100,7 +118,7 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                 if (lectureForm.type === 'image') folder = 'courses/lectures/images';
                 if (lectureForm.type === 'pdf') folder = 'courses/lectures/pdfs';
 
-                finalContentUrl = await uploadFile(lectureFile, folder);
+                finalContentUrl = await uploadFile(lectureFile, folder, setUploadProgress);
             }
 
             const newLecture = {
@@ -118,6 +136,7 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
             alert(`Failed to add lecture: ${error.message}`);
         } finally {
             setUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -137,15 +156,24 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ curriculum })
             });
-            const data = await res.json();
-            if (data.success) {
+            const contentType = res.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                throw new Error(`Failed to save (Status: ${res.status}). ${text.substring(0, 200)}`);
+            }
+
+            if (res.ok && data.success) {
                 onUpdate();
                 onClose();
             } else {
-                alert(data.error);
+                alert(data.error || data.message || 'Failed to save');
             }
         } catch (err) {
-            alert('Failed to save');
+            alert(err?.message || 'Failed to save');
         } finally {
             setSaving(false);
         }
@@ -280,6 +308,7 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                                             className="form-control"
                                             accept={lectureForm.type === 'image' ? 'image/*' : lectureForm.type === 'video' ? 'video/*' : '.pdf'}
                                             onChange={(e) => setLectureFile(e.target.files[0])}
+                                            disabled={uploading}
                                         />
 
                                         <div className="text-center text-muted small">- OR -</div>
@@ -295,6 +324,21 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                                         />
                                     </div>
                                     {lectureFile && <small className="text-success mt-1 d-block">Selected: {lectureFile.name}</small>}
+                                    {uploading && lectureFile && (
+                                        <div className="mt-2">
+                                            <div className="progress" style={{ height: '8px' }}>
+                                                <div
+                                                    className="progress-bar"
+                                                    role="progressbar"
+                                                    style={{ width: `${uploadProgress}%` }}
+                                                    aria-valuenow={uploadProgress}
+                                                    aria-valuemin="0"
+                                                    aria-valuemax="100"
+                                                />
+                                            </div>
+                                            <small className="text-muted d-block mt-1">{uploadProgress}%</small>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="mb-3">
                                     <div className="form-check form-switch">
