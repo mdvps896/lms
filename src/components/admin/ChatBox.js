@@ -3,6 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import notificationSound from '@/utils/notificationSound';
 
+
+// fygshdjiwref
+
+
 export default function ChatBox({ attemptId, examId, onClose }) {
     const [chatMessages, setChatMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
