@@ -8,6 +8,8 @@ import Course from '@/models/Course';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { Buffer } from 'buffer';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
