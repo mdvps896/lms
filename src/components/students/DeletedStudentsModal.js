@@ -78,76 +78,77 @@ export default function DeletedStudentsModal({ isOpen, onClose, onRestoreSuccess
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                {/* Header */}
-                <div className="flex justify-between items-center p-6 border-b">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <FaTrash className="text-red-500" />
-                        Recycle Bin (Deleted Students)
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                        <FaTimes size={24} />
-                    </button>
-                </div>
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1055 }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
+                <div className="modal-content shadow-lg border-0">
+                    {/* Header */}
+                    <div className="modal-header bg-white border-bottom">
+                        <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                            <FaTrash className="text-danger" />
+                            Recycle Bin (Deleted Students)
+                        </h5>
+                        <button type="button" className="btn-close" aria-label="Close" onClick={onClose}></button>
+                    </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-auto p-6">
-                    {loading ? (
-                        <div className="flex justify-center items-center h-40">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500"></div>
-                        </div>
-                    ) : deletedStudents.length === 0 ? (
-                        <div className="text-center text-gray-500 py-10">
-                            <FaTrash size={48} className="mx-auto mb-4 text-gray-300" />
-                            <p>No deleted students found</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b">
-                                        <th className="p-3 font-semibold text-gray-600">Name</th>
-                                        <th className="p-3 font-semibold text-gray-600">Email</th>
-                                        <th className="p-3 font-semibold text-gray-600">Phone</th>
-                                        <th className="p-3 font-semibold text-gray-600">Deleted At</th>
-                                        <th className="p-3 font-semibold text-gray-600 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {deletedStudents.map((student) => (
-                                        <tr key={student._id} className="border-b hover:bg-gray-50">
-                                            <td className="p-3 font-medium text-gray-800">{student.name}</td>
-                                            <td className="p-3 text-gray-600">{student.email}</td>
-                                            <td className="p-3 text-gray-600">{student.phone || '-'}</td>
-                                            <td className="p-3 text-gray-500 text-sm">
-                                                {new Date(student.deletedAt || student.updatedAt).toLocaleDateString()}
-                                            </td>
-                                            <td className="p-3 text-right space-x-2">
-                                                <button
-                                                    onClick={() => handleRestore(student._id)}
-                                                    className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm font-medium transition-colors"
-                                                    title="Restore"
-                                                >
-                                                    <FaUndo className="inline mr-1" /> Restore
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeletePermanent(student._id)}
-                                                    className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium transition-colors"
-                                                    title="Delete Permanently"
-                                                >
-                                                    <FaTrash className="inline mr-1" /> Diggest
-                                                </button>
-                                            </td>
+                    {/* Content */}
+                    <div className="modal-body p-0">
+                        {loading ? (
+                            <div className="d-flex justify-content-center align-items-center py-5">
+                                <div className="spinner-border text-danger" role="status">
+                                    <span className="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        ) : deletedStudents.length === 0 ? (
+                            <div className="text-center py-5 text-muted">
+                                <FaTrash size={48} className="mb-3 opacity-50" />
+                                <p className="mb-0">No deleted students found</p>
+                            </div>
+                        ) : (
+                            <div className="table-responsive">
+                                <table className="table table-hover mb-0 align-middle">
+                                    <thead className="table-light">
+                                        <tr>
+                                            <th className="ps-4">Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Deleted At</th>
+                                            <th className="text-end pe-4">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody>
+                                        {deletedStudents.map((student) => (
+                                            <tr key={student._id}>
+                                                <td className="ps-4 fw-medium text-dark">{student.name}</td>
+                                                <td className="text-muted">{student.email}</td>
+                                                <td className="text-muted">{student.phone || '-'}</td>
+                                                <td className="text-muted small">
+                                                    {new Date(student.deletedAt || student.updatedAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="text-end pe-4">
+                                                    <div className="d-flex justify-content-end gap-2">
+                                                        <button
+                                                            onClick={() => handleRestore(student._id)}
+                                                            className="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
+                                                            title="Restore"
+                                                        >
+                                                            <FaUndo size={12} /> Restore
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeletePermanent(student._id)}
+                                                            className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
+                                                            title="Delete Permanently"
+                                                        >
+                                                            <FaTrash size={12} /> Diggest
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

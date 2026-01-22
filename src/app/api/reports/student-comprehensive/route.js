@@ -72,58 +72,104 @@ export async function GET(request) {
             }
         }
 
+        // Determine Base URL for images
+        const host = request.headers.get('host');
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const baseUrl = `${protocol}://${host}`;
+
         // --- PDF GENERATION ---
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 15;
 
-        // Header
-        doc.setFillColor(52, 84, 209); // Primary Blue
+        // --- Helper: Section Header ---
+        const addSectionHeader = (text, y) => {
+            doc.setFillColor(240, 240, 240); // Light Gray Background
+            doc.rect(margin, y, pageWidth - (margin * 2), 10, 'F');
+            doc.setTextColor(33, 37, 41); // Dark Gray Text
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(text, margin + 5, y + 7);
+            doc.setFont('helvetica', 'normal');
+            return y + 15;
+        };
+
+        // --- 1. Report Header ---
+        doc.setFillColor(52, 84, 209); // Brand Blue
         doc.rect(0, 0, pageWidth, 40, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text('Student Comprehensive Report', 14, 20);
-        doc.setFontSize(12);
-        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
 
-        // Student Details
-        doc.setTextColor(0, 0, 0);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('MD Consultancy', margin, 20); // Brand Name
+
         doc.setFontSize(14);
-        doc.text('Student Profile', 14, 50);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Student Comprehensive Report', margin, 30);
 
         doc.setFontSize(10);
-        doc.text(`Name: ${student.name}`, 14, 60);
-        doc.text(`Email: ${student.email}`, 14, 66);
-        doc.text(`Phone: ${student.phone || 'N/A'}`, 14, 72);
-        doc.text(`Status: ${student.status}`, 14, 78);
+        const dateStr = `Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+        doc.text(dateStr, pageWidth - margin - doc.getTextWidth(dateStr), 30);
 
-        let finalY = 85;
+        // --- 2. Student Profile ---
+        let finalY = 55;
+        finalY = addSectionHeader('Student Profile', finalY);
 
-        // 1. Course Progress Table
+        doc.setFontSize(11);
+        doc.setTextColor(50, 50, 50);
+
+        // Left Column
+        doc.text(`Name:`, margin, finalY);
+        doc.setFont('helvetica', 'bold');
+        doc.text(student.name, margin + 25, finalY);
+        doc.setFont('helvetica', 'normal');
+
+        doc.text(`Email:`, margin, finalY + 7);
+        doc.text(student.email, margin + 25, finalY + 7);
+
+        // Right Column
+        doc.text(`Phone:`, pageWidth / 2, finalY);
+        doc.text(student.phone || 'N/A', (pageWidth / 2) + 25, finalY);
+
+        doc.text(`Status:`, pageWidth / 2, finalY + 7);
+        doc.setTextColor(student.status === 'active' ? 40 : 200, student.status === 'active' ? 167 : 0, student.status === 'active' ? 69 : 0);
+        doc.text(student.status.toUpperCase(), (pageWidth / 2) + 25, finalY + 7);
+        doc.setTextColor(50, 50, 50);
+
+        finalY += 20;
+
+        // --- 3. Course Progress ---
         if (includeCourses && courseProgress.length > 0) {
-            doc.setFontSize(14);
-            doc.text('Course Progress', 14, finalY + 10);
+            finalY = addSectionHeader('Enrolled Courses & Progress', finalY);
 
             doc.autoTable({
-                startY: finalY + 15,
+                startY: finalY,
                 head: [['Course Title', 'Enrolled Date', 'Completed Lectures']],
                 body: courseProgress.map(c => [
                     c.title,
                     new Date(c.enrolledAt).toLocaleDateString(),
                     c.completedLectures
                 ]),
-                theme: 'striped',
-                headStyles: { fillColor: [52, 84, 209] }
+                theme: 'grid',
+                headStyles: { fillColor: [52, 84, 209], textColor: 255 },
+                styles: { fontSize: 10, cellPadding: 3 },
+                margin: { left: margin, right: margin }
             });
-            finalY = doc.lastAutoTable.finalY;
+            finalY = doc.lastAutoTable.finalY + 15;
         }
 
-        // 2. Exam History Table
+        // --- 4. Exam History ---
         if (includeExams && examAttempts.length > 0) {
-            doc.setFontSize(14);
-            doc.text('Exam History', 14, finalY + 15);
+            // Check page break
+            if (finalY > pageHeight - 60) {
+                doc.addPage();
+                finalY = 20;
+            }
+            finalY = addSectionHeader('Exam Attempts History', finalY);
 
             doc.autoTable({
-                startY: finalY + 20,
+                startY: finalY,
                 head: [['Exam Title', 'Date', 'Score', 'Status']],
                 body: examAttempts.map(att => [
                     att.exam?.title || 'Unknown Exam',
@@ -131,95 +177,117 @@ export async function GET(request) {
                     `${att.score} / ${att.totalMarks}`,
                     att.status
                 ]),
-                theme: 'striped',
-                headStyles: { fillColor: [52, 84, 209] } // Purple/Blue
+                theme: 'grid',
+                headStyles: { fillColor: [52, 84, 209], textColor: 255 },
+                styles: { fontSize: 10, cellPadding: 3 },
+                margin: { left: margin, right: margin }
             });
-            finalY = doc.lastAutoTable.finalY;
+            finalY = doc.lastAutoTable.finalY + 15;
         }
 
-        // 3. PDF Usage & Selfies
+        // --- 5. PDF Reading & Selfies ---
         if (includePdfViews && pdfSessions.length > 0) {
             doc.addPage();
-            doc.setFontSize(14);
-            doc.text('PDF Reading Sessions & Privacy Proofs', 14, 20);
-            finalY = 30;
+            finalY = 20;
+            finalY = addSectionHeader('PDF Reading Activity & Verification', finalY);
 
             for (const session of pdfSessions) {
-                // Session Info
+                // Determine duration
                 const durationMins = Math.floor((session.activeDuration || 0) / 60);
-                const sessionInfo = [
-                    `PDF: ${session.pdfName || 'Unknown'}`,
-                    `Date: ${new Date(session.startTime).toLocaleString()}`,
-                    `Duration: ${durationMins} mins`,
-                    `Pages: ${session.totalPages || 'N/A'}`,
-                    `Location: ${session.locationName || 'N/A'}`
-                ];
 
-                // Check if we need a new page for text
-                if (finalY > 250) {
+                // Session Card Background
+                doc.setFillColor(248, 249, 250); // Very light gray
+                const boxHeight = (session.selfies?.length > 0) ? 60 : 30; // Estimate height (dynamic later if needed)
+
+                // Check space
+                if (finalY + boxHeight > pageHeight - 20) {
                     doc.addPage();
                     finalY = 20;
                 }
 
-                doc.setFontSize(11);
-                doc.setTextColor(0, 0, 0);
-                doc.text(sessionInfo.join(' | '), 14, finalY);
-                finalY += 8;
+                // Render Session Info
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text(session.pdfName || 'Unknown Document', margin, finalY + 5);
+
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                const infoLine = `${new Date(session.startTime).toLocaleString()}  |  Duration: ${durationMins} mins  |  Pages: ${session.totalPages || 'N/A'}  |  Loc: ${session.locationName || 'N/A'}`;
+                doc.text(infoLine, margin, finalY + 11);
+
+                finalY += 16;
 
                 // Selfies Grid
                 if (session.selfies && session.selfies.length > 0) {
-                    let imageX = 14;
-                    // doc.text('Selfie Proofs:', 14, finalY + 5);
-                    finalY += 2;
+                    const imgWidth = 25;
+                    const imgHeight = 35;
+                    const spacing = 5;
+                    let currentX = margin;
 
-                    const imageWidth = 30;
-                    const imageHeight = 40;
+                    // Max height tracking for this row
+                    let maxRowH = 0;
 
                     for (const selfie of session.selfies) {
-                        if (finalY + imageHeight > 280) {
-                            doc.addPage();
-                            finalY = 20;
-                            imageX = 14;
+                        // Check row overflow
+                        if (currentX + imgWidth > pageWidth - margin) {
+                            currentX = margin;
+                            finalY += imgHeight + spacing + 10; // New row
+
+                            // Check page overflow
+                            if (finalY + imgHeight > pageHeight - 20) {
+                                doc.addPage();
+                                finalY = 20;
+                            }
                         }
 
+                        // Fetch & Embed
                         try {
-                            // Embed Image (Assuming URL is accessible or base64)
-                            // Note: External URLs might need fetching and converting to base64 buffer
-                            // For simplicity in this step, we'll try to add it. If it fails (CORS), we skip.
-                            // Ideally, we server-side fetch the image buffer.
+                            let finalImageUrl = selfie.imageUrl;
 
-                            // To make this robust, let's fetch the image buffer:
-                            const imgResp = await fetch(selfie.imageUrl);
+                            // Normalize Path
+                            if (finalImageUrl.startsWith('/')) {
+                                finalImageUrl = `${baseUrl}${finalImageUrl}`;
+                            } else if (!finalImageUrl.startsWith('http')) {
+                                finalImageUrl = `${baseUrl}/${finalImageUrl}`;
+                            }
+
+                            const imgResp = await fetch(finalImageUrl);
                             if (imgResp.ok) {
                                 const imgBuffer = await imgResp.arrayBuffer();
                                 const imgBase64 = Buffer.from(imgBuffer).toString('base64');
-                                const format = selfie.imageUrl.split('.').pop().toUpperCase();
-                                // Handle standard formats
-                                const safeFormat = (format === 'JPG' ? 'JPEG' : format) || 'JPEG';
 
-                                doc.addImage(imgBase64, safeFormat, imageX, finalY, imageWidth, imageHeight);
+                                let format = 'JPEG';
+                                if (finalImageUrl.toLowerCase().endsWith('.png')) format = 'PNG';
 
-                                doc.setFontSize(8);
-                                doc.text(new Date(selfie.capturedAt).toLocaleTimeString(), imageX, finalY + imageHeight + 4);
+                                doc.addImage(imgBase64, format, currentX, finalY, imgWidth, imgHeight);
 
-                                imageX += imageWidth + 5;
-                                if (imageX > pageWidth - 40) {
-                                    imageX = 14;
-                                    finalY += imageHeight + 10;
-                                }
+                                // Frame
+                                doc.setDrawColor(200);
+                                doc.rect(currentX, finalY, imgWidth, imgHeight);
+
+                                // Timestamp Label
+                                doc.setFontSize(7);
+                                doc.setTextColor(100);
+                                const timeStr = new Date(selfie.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                doc.text(timeStr, currentX + (imgWidth / 2) - (doc.getTextWidth(timeStr) / 2), finalY + imgHeight + 4);
                             }
-                        } catch (imgErr) {
-                            console.error('Error embedding image:', imgErr);
+                        } catch (e) {
+                            // Silent match fail
+                            doc.setDrawColor(200);
+                            doc.rect(currentX, finalY, imgWidth, imgHeight);
+                            doc.setFontSize(7);
+                            doc.text('Error', currentX + 2, finalY + 15);
                         }
+
+                        currentX += imgWidth + spacing;
+                        maxRowH = imgHeight + 10;
                     }
-                    finalY += imageHeight + 15;
-                } else {
-                    finalY += 5;
+                    finalY += maxRowH + 5; // Finish grid
                 }
 
-                // Separator
-                doc.setDrawColor(200, 200, 200);
-                doc.line(14, finalY, pageWidth - 14, finalY);
+                // Separator line
+                doc.setDrawColor(230);
+                doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 10;
             }
         }
