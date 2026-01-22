@@ -355,6 +355,7 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error generating report:', error);
+        console.error(error.stack); // Log full stack trace
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 }
