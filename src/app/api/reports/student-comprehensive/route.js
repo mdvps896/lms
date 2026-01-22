@@ -7,7 +7,6 @@ import SelfieCapture from '@/models/SelfieCapture';
 import Course from '@/models/Course';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { Buffer } from 'buffer';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,6 +15,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
     try {
         await dbConnect();
+
+        console.log('Generating Student Report...'); // Debug log
 
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get('studentId');
