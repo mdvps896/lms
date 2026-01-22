@@ -105,7 +105,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
     // Security check
-    const authError = requireAdmin(req);
+    const authError = await requireAdmin(req);
     if (authError) return authError;
 
     try {
@@ -145,7 +145,7 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
     // Security check
-    const authError = requireAdmin(req);
+    const authError = await requireAdmin(req);
     if (authError) return authError;
 
     try {

@@ -26,11 +26,14 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
     };
 
     const formatDuration = (seconds) => {
-        if (!seconds) return '0 min';
+        if (!seconds) return '0 sec';
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
-        if (h > 0) return `${h} hr ${m > 0 ? `${m} min` : ''}`;
-        return `${m || 1} min`;
+        const s = Math.floor(seconds % 60);
+
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s} sec`;
     };
 
     const globalTotalDuration = data ? data.reduce((sum, item) => sum + (item.duration || 0), 0) : 0;
@@ -100,7 +103,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                             <tr>
                                                                 <th className="ps-5 text-muted small text-uppercase">Date</th>
                                                                 <th className="text-muted small text-uppercase">Duration</th>
-                                                                <th className="text-muted small text-uppercase">Time</th>
+                                                                <th className="text-muted small text-uppercase">Time (Start - End)</th>
                                                                 <th className="text-muted small text-uppercase">Location</th>
                                                                 {isPdf && <th className="text-end pe-5 text-muted small text-uppercase">Actions</th>}
                                                             </tr>
@@ -112,15 +115,15 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                         <span className="fs-13">{formatDate(view.startTime)}</span>
                                                                     </td>
                                                                     <td>
-                                                                        <span className="badge bg-white text-dark border shadow-sm">
-                                                                            {view.duration ? `${Math.round(view.duration / 60)} mins` : '< 1 min'}
+                                                                        <span className="badge bg-white text-dark border shadow-sm font-monospace">
+                                                                            {formatDuration(view.duration)}
                                                                         </span>
                                                                     </td>
                                                                     <td>
                                                                         <span className="text-muted fs-12 font-monospace">
-                                                                            {new Date(view.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                            {new Date(view.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                                             {' - '}
-                                                                            {new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                            {new Date(view.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                                         </span>
                                                                     </td>
                                                                     <td>

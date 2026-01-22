@@ -129,7 +129,7 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     // Security check
-    const authError = requireAdmin(request);
+    const authError = await requireAdmin(request);
     if (authError) return authError;
 
     try {
@@ -144,7 +144,15 @@ export async function PUT(request, { params }) {
             }, { status: 400 });
         }
 
-        const body = await request.json();
+        let body;
+        try {
+            body = await request.json();
+        } catch (jsonError) {
+            return NextResponse.json({
+                success: false,
+                error: 'Invalid JSON body: ' + jsonError.message
+            }, { status: 400 });
+        }
 
         const course = await Course.findByIdAndUpdate(id, body, {
             new: true,
@@ -157,13 +165,14 @@ export async function PUT(request, { params }) {
 
         return NextResponse.json({ success: true, data: course });
     } catch (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        console.error('❌ Course Update Error:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 }); // Consider 500 if it's a server crash, but keeping 400 as requested for validation errors
     }
 }
 
 export async function DELETE(request, { params }) {
     // Security check
-    const authError = requireAdmin(request);
+    const authError = await requireAdmin(request);
     if (authError) return authError;
 
     try {

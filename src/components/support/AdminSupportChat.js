@@ -34,6 +34,9 @@ const AdminSupportChat = () => {
     const [selectedBulkUsers, setSelectedBulkUsers] = useState([])
     const [bulkMessageText, setBulkMessageText] = useState('')
     const [showOptionsDropdown, setShowOptionsDropdown] = useState(false)
+    const [allStudents, setAllStudents] = useState([])
+    const [loadingStudents, setLoadingStudents] = useState(false)
+    const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false)
 
     const chatEndRef = useRef(null)
 
@@ -57,9 +60,49 @@ const AdminSupportChat = () => {
     }, [messages])
 
     // --- Search Users for New Chat & Bulk (Reusable) ---
+    const fetchAllStudents = async () => {
+        if (allStudents.length > 0) return;
+        setLoadingStudents(true);
+        try {
+            const res = await axios.get('/api/users?role=student');
+            if (res.data.success) {
+                setAllStudents(res.data.data);
+                // Initial search results = all students
+                setSearchResults(res.data.data);
+            }
+        } catch (error) {
+            console.error('Fetch students error:', error);
+            alert('Failed to load students list');
+        } finally {
+            setLoadingStudents(false);
+        }
+    };
+
     useEffect(() => {
+        // If Bulk Mode is OPEN, filter local 'allStudents'
+        if (showBulkModal && bulkMode === 'specific') {
+            if (allStudents.length === 0) {
+                // Trigger fetch if not loaded (though button click usually does it)
+                // fetchAllStudents(); 
+                // Actually relying on button click is safer to avoid instant load on mount
+                // But let's filter if we have data
+            }
+
+            if (!searchQuery) {
+                setSearchResults(allStudents);
+            } else {
+                const lower = searchQuery.toLowerCase();
+                setSearchResults(allStudents.filter(u =>
+                    u.name.toLowerCase().includes(lower) ||
+                    u.email.toLowerCase().includes(lower)
+                ));
+            }
+            return;
+        }
+
+        // Standard Remote Search for "New Chat" modal
         const timer = setTimeout(async () => {
-            if (searchQuery.length >= 2) {
+            if (searchQuery.length >= 2 && !showBulkModal) {
                 try {
                     const res = await axios.get(`/api/users/search?query=${searchQuery}`)
                     if (res.data.success) {
@@ -68,12 +111,12 @@ const AdminSupportChat = () => {
                 } catch (error) {
                     console.error('Search error:', error)
                 }
-            } else {
+            } else if (!showBulkModal) {
                 setSearchResults([])
             }
         }, 500)
         return () => clearTimeout(timer)
-    }, [searchQuery])
+    }, [searchQuery, showBulkModal, bulkMode, allStudents])
 
 
     // --- Core Chat Functions ---
@@ -278,8 +321,13 @@ const AdminSupportChat = () => {
     }
 
     const handleSaveWhatsAppSettings = async () => {
-        await handleSaveSettings({ phoneNumber: tempNumber, message: tempMessage })
-        alert('WhatsApp settings saved!')
+        await handleSaveSettings({
+            phoneNumber: tempNumber,
+            message: tempMessage,
+            primaryMethod: 'whatsapp' // Auto-switch to WhatsApp
+        })
+        setShowWhatsAppModal(false) // Close modal
+        alert('WhatsApp settings saved successfully!')
     }
 
     const handleSendWhatsApp = () => {
@@ -586,39 +634,103 @@ const AdminSupportChat = () => {
 
                                     {bulkMode === 'specific' && (
                                         <div className="mb-3">
-                                            <input
-                                                type="text" className="form-control mb-2"
-                                                placeholder="Search to add students..."
-                                                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                                            />
-                                            {/* Selected Pills */}
-                                            <div className="d-flex flex-wrap gap-1 mb-2">
-                                                {selectedBulkUsers.map(u => (
-                                                    <span key={u._id} className="badge bg-light text-dark border d-flex align-items-center">
-                                                        {u.name} <span className="ms-2 cursor-pointer" onClick={() => setSelectedBulkUsers(prev => prev.filter(x => x._id !== u._id))}>&times;</span>
-                                                    </span>
-                                                ))}
+                                            <div className="dropdown w-100 position-relative">
+                                                <button
+                                                    className="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!allStudents.length) fetchAllStudents();
+                                                        setIsStudentDropdownOpen(!isStudentDropdownOpen);
+                                                    }}
+                                                >
+                                                    {selectedBulkUsers.length === 0
+                                                        ? 'Select Students...'
+                                                        : `${selectedBulkUsers.length} Students Selected`}
+                                                </button>
+
+                                                {isStudentDropdownOpen && (
+                                                    <div className="card position-absolute w-100 mt-1 shadow-sm border p-2" style={{ zIndex: 1050, maxHeight: '300px', overflowY: 'auto' }}>
+                                                        <div className="d-flex justify-content-end mb-1">
+                                                            <button type="button" className="btn-close btn-sm" aria-label="Close" onClick={() => setIsStudentDropdownOpen(false)}></button>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control mb-2"
+                                                            placeholder="Search students..."
+                                                            value={searchQuery}
+                                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                                            autoFocus
+                                                        />
+
+                                                        {loadingStudents ? (
+                                                            <div className="text-center py-2"><small>Loading...</small></div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="form-check border-bottom pb-2 mb-2">
+                                                                    <input
+                                                                        className="form-check-input"
+                                                                        type="checkbox"
+                                                                        id="selectAll"
+                                                                        checked={
+                                                                            searchResults.length > 0 &&
+                                                                            searchResults.every(u => selectedBulkUsers.some(sel => sel._id === u._id))
+                                                                        }
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                // Select all visible
+                                                                                const newSelected = [...selectedBulkUsers];
+                                                                                searchResults.forEach(u => {
+                                                                                    if (!newSelected.some(sel => sel._id === u._id)) {
+                                                                                        newSelected.push(u);
+                                                                                    }
+                                                                                });
+                                                                                setSelectedBulkUsers(newSelected);
+                                                                            } else {
+                                                                                // Deselect all visible
+                                                                                const visibleIds = searchResults.map(u => u._id);
+                                                                                setSelectedBulkUsers(selectedBulkUsers.filter(u => !visibleIds.includes(u._id)));
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <label className="form-check-label fw-bold" htmlFor="selectAll">
+                                                                        Select All ({searchResults.length})
+                                                                    </label>
+                                                                </div>
+
+                                                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                                    {searchResults.length === 0 ? (
+                                                                        <div className="text-muted text-center"><small>No students found</small></div>
+                                                                    ) : (
+                                                                        searchResults.map(user => (
+                                                                            <div key={user._id} className="form-check mb-1">
+                                                                                <input
+                                                                                    className="form-check-input"
+                                                                                    type="checkbox"
+                                                                                    id={`user-${user._id}`}
+                                                                                    checked={selectedBulkUsers.some(u => u._id === user._id)}
+                                                                                    onChange={(e) => {
+                                                                                        if (e.target.checked) {
+                                                                                            setSelectedBulkUsers([...selectedBulkUsers, user]);
+                                                                                        } else {
+                                                                                            setSelectedBulkUsers(selectedBulkUsers.filter(u => u._id !== user._id));
+                                                                                        }
+                                                                                    }}
+                                                                                />
+                                                                                <label className="form-check-label text-truncate d-block" htmlFor={`user-${user._id}`}>
+                                                                                    {user.name} <small className="text-muted">({user.email})</small>
+                                                                                </label>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {/* Search Results */}
-                                            {searchResults.length > 0 && searchQuery.length >= 2 && (
-                                                <div className="list-group" style={{ maxHeight: '150px', overflow: 'auto' }}>
-                                                    {searchResults.map(user => (
-                                                        <button
-                                                            key={user._id} className="list-group-item list-group-item-action p-2"
-                                                            onClick={() => {
-                                                                if (!selectedBulkUsers.find(u => u._id === user._id)) {
-                                                                    setSelectedBulkUsers([...selectedBulkUsers, user])
-                                                                }
-                                                                setSearchQuery('')
-                                                                setSearchResults([])
-                                                            }}
-                                                        >
-                                                            <div className="d-flex align-items-center">
-                                                                <small className="fw-bold me-2">{user.name}</small>
-                                                                <small className="text-muted">{user.email}</small>
-                                                            </div>
-                                                        </button>
-                                                    ))}
+                                            {selectedBulkUsers.length > 0 && (
+                                                <div className="mt-2 text-muted small">
+                                                    Selected: {selectedBulkUsers.map(u => u.name).join(', ')}
                                                 </div>
                                             )}
                                         </div>
