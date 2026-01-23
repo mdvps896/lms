@@ -7,10 +7,10 @@ class CourseRatingDialog extends StatefulWidget {
   final Function(double rating, String review) onSubmit;
 
   const CourseRatingDialog({
-    super.key, 
+    super.key,
     this.initialRating,
     this.initialReview,
-    required this.onSubmit
+    required this.onSubmit,
   });
 
   @override
@@ -27,7 +27,6 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
     _rating = widget.initialRating ?? 0;
     _reviewController = TextEditingController(text: widget.initialReview);
   }
-
 
   @override
   void dispose() {
@@ -54,7 +53,7 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -76,13 +75,10 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
             const SizedBox(height: 12),
             const Text(
               'How was your experience?',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppConstants.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppConstants.textSecondary),
             ),
             const SizedBox(height: 24),
-  
+
             // Star Rating Row (Fixed Overflow)
             FittedBox(
               child: Container(
@@ -103,13 +99,17 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOutBack,
-                          transform: isSelected 
-                              ? Matrix4.diagonal3Values(1.1, 1.1, 1.0) 
-                              : Matrix4.identity(),
+                          transform:
+                              isSelected
+                                  ? Matrix4.diagonal3Values(1.1, 1.1, 1.0)
+                                  : Matrix4.identity(),
                           child: Icon(
-                            isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
+                            isSelected
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
                             color: isSelected ? Colors.amber : Colors.grey[300],
-                            size: 42, // Reduced slightly to ensure fit, but looks premium
+                            size:
+                                42, // Reduced slightly to ensure fit, but looks premium
                           ),
                         ),
                       ),
@@ -119,7 +119,7 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
               ),
             ),
             const SizedBox(height: 24),
-  
+
             // Review TextField
             TextField(
               controller: _reviewController,
@@ -138,7 +138,7 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 32),
-  
+
             // Bottom Buttons
             Row(
               children: [
@@ -163,13 +163,14 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _rating > 0 
-                      ? () {
-                           FocusScope.of(context).unfocus();
-                           Navigator.pop(context);
-                           widget.onSubmit(_rating, _reviewController.text);
-                        } 
-                      : null,
+                    onPressed:
+                        _rating > 0
+                            ? () {
+                              FocusScope.of(context).unfocus();
+                              Navigator.pop(context);
+                              widget.onSubmit(_rating, _reviewController.text);
+                            }
+                            : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConstants.primaryColor,
                       foregroundColor: Colors.white,
@@ -195,4 +196,3 @@ class _CourseRatingDialogState extends State<CourseRatingDialog> {
     );
   }
 }
-

@@ -1,35 +1,39 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
 import '../../../services/api_service.dart';
 import '../../lecture_player/lecture_player_screen.dart';
 import '../../pdf_viewer/pdf_viewer_screen.dart';
 import '../../exam/exam_detail_screen.dart';
 
-class CourseContentTab extends StatelessWidget {
+class CourseContentTab extends StatefulWidget {
   final Map<String, dynamic> course;
   final bool isEnrolled;
 
-  const CourseContentTab({super.key, required this.course, this.isEnrolled = false});
+  const CourseContentTab({
+    super.key,
+    required this.course,
+    this.isEnrolled = false,
+  });
+
+  @override
+  State<CourseContentTab> createState() => _CourseContentTabState();
+}
+
+class _CourseContentTabState extends State<CourseContentTab> {
+  int? _expandedIndex;
 
   @override
   Widget build(BuildContext context) {
-    final curriculum = course['curriculum'] as List<dynamic>? ?? [];
-    final exams = course['exams'] as List<dynamic>? ?? [];
-    final isFree = course['isFree'] ?? false;
+    final curriculum = widget.course['curriculum'] as List<dynamic>? ?? [];
+    final exams = widget.course['exams'] as List<dynamic>? ?? [];
+    final isFree = widget.course['isFree'] ?? false;
     final hasExams = exams.isNotEmpty;
-
-    // Debug: Print curriculum data
-    print('📚 Content Tab - Curriculum data:');
-    print('   Course: ${course['title']}');
-    print('   Is Free: $isFree');
-    print('   Curriculum count: ${curriculum.length}');
-    print('   Exams count: ${exams.length}');
 
     if (curriculum.isEmpty && exams.isEmpty) {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.4, // Provide enough space
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.4,
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(40),
@@ -52,54 +56,67 @@ class CourseContentTab extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(20),
-      itemCount: curriculum.length + (hasExams ? 1 : 0) + 1, // +1 for bottom spacing
+      itemCount: curriculum.length + (hasExams ? 1 : 0) + 1,
       itemBuilder: (context, index) {
         // Render Topics
         if (index < curriculum.length) {
           final topic = curriculum[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: _buildTopicSection(context, topic, isFree),
-          );
-        }
-        
-        // Render Exams Section (if exists and index matches)
-        if (hasExams && index == curriculum.length) {
-           return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildExamSection(context, exams, isFree),
+            child: _buildTopicSection(context, topic, isFree, index),
           );
         }
 
-        // Bottom Spacing
+        // Render Exams Section
+        if (hasExams && index == curriculum.length) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildExamSection(context, exams, isFree, index),
+          );
+        }
+
         return const SizedBox(height: 80);
       },
     );
   }
 
-  Widget _buildTopicSection(BuildContext context, Map<String, dynamic> topic, bool isCourseFree) {
+  Widget _buildTopicSection(
+    BuildContext context,
+    Map<String, dynamic> topic,
+    bool isCourseFree,
+    int index,
+  ) {
     final topicTitle = topic['title'] ?? 'Untitled Topic';
     final lectures = topic['lectures'] as List<dynamic>? ?? [];
     final lectureCount = lectures.length;
-    
-    // Calculate total duration (placeholder - you can add duration field in backend)
     final durationText = '$lectureCount Lesson${lectureCount != 1 ? 's' : ''}';
+    final isExpanded = _expandedIndex == index;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ExpansionTile(
-        initiallyExpanded: false,
+        key: ValueKey('topic_${index}_$isExpanded'),
+        initiallyExpanded: isExpanded,
+        onExpansionChanged: (expanded) {
+          setState(() {
+            if (expanded) {
+              _expandedIndex = index;
+            } else if (_expandedIndex == index) {
+              _expandedIndex = null;
+            }
+          });
+        },
         shape: const Border(),
         collapsedShape: const Border(),
         title: Text(
@@ -121,25 +138,41 @@ class CourseContentTab extends StatelessWidget {
     );
   }
 
-  Widget _buildExamSection(BuildContext context, List<dynamic> exams, bool isCourseFree) {
-     final examCount = exams.length;
-     final subtitle = '$examCount Exam${examCount != 1 ? 's' : ''}';
+  Widget _buildExamSection(
+    BuildContext context,
+    List<dynamic> exams,
+    bool isCourseFree,
+    int index,
+  ) {
+    final examCount = exams.length;
+    final subtitle = '$examCount Exam${examCount != 1 ? 's' : ''}';
+    final isExpanded = _expandedIndex == index;
 
-     return Container(
+    return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.1)), // Slightly blue border for difference
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.02),
+            color: Colors.blue.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ExpansionTile(
-        initiallyExpanded: true, // Default open for exams might be nice
+        key: ValueKey('exam_${index}_$isExpanded'),
+        initiallyExpanded: isExpanded,
+        onExpansionChanged: (expanded) {
+          setState(() {
+            if (expanded) {
+              _expandedIndex = index;
+            } else if (_expandedIndex == index) {
+              _expandedIndex = null;
+            }
+          });
+        },
         shape: const Border(),
         collapsedShape: const Border(),
         leading: Container(
@@ -148,7 +181,11 @@ class CourseContentTab extends StatelessWidget {
             color: Colors.blue[50],
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.assignment_rounded, color: Colors.blue, size: 20),
+          child: const Icon(
+            Icons.assignment_rounded,
+            color: Colors.blue,
+            size: 20,
+          ),
         ),
         title: const Text(
           'Course Exams',
@@ -169,26 +206,33 @@ class CourseContentTab extends StatelessWidget {
     );
   }
 
-  Widget _buildExamItem(BuildContext context, Map<String, dynamic> exam, bool isCourseFree) {
+  Widget _buildExamItem(
+    BuildContext context,
+    Map<String, dynamic> exam,
+    bool isCourseFree,
+  ) {
     // Safely extract properties
     final examTitle = exam['name'] ?? 'Untitled Exam';
     final examType = exam['type'] ?? 'regular';
     final duration = exam['duration'] ?? 0;
-    
+
     // Determine if exam is unlocked
-    final isUnlocked = isCourseFree || isEnrolled;
+    final isUnlocked = isCourseFree || widget.isEnrolled;
 
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isUnlocked ? Colors.blue.withOpacity(0.1) : Colors.grey[100],
+          color:
+              isUnlocked
+                  ? Colors.blue.withValues(alpha: 0.1)
+                  : Colors.grey[100],
           shape: BoxShape.circle,
         ),
         child: Icon(
-           isUnlocked ? Icons.quiz_rounded : Icons.lock_rounded,
-           size: 20,
-           color: isUnlocked ? Colors.blue : Colors.grey,
+          isUnlocked ? Icons.quiz_rounded : Icons.lock_rounded,
+          size: 20,
+          color: isUnlocked ? Colors.blue : Colors.grey,
         ),
       ),
       title: Text(
@@ -209,15 +253,19 @@ class CourseContentTab extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Container(
-             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-             decoration: BoxDecoration(
-               color: Colors.grey[100],
-               borderRadius: BorderRadius.circular(4),
-             ),
-             child: Text(
-               examType.toUpperCase(),
-               style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold),
-             ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              examType.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -252,39 +300,41 @@ class CourseContentTab extends StatelessWidget {
           // Note: exam object might need id mapping if keys vary
           final examId = exam['_id'] ?? exam['id'];
           if (examId != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ExamDetailScreen(
-                    exam: exam,
-                    examId: examId.toString(),
-                  ),
-                ),
-              );
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) =>
+                        ExamDetailScreen(exam: exam, examId: examId.toString()),
+              ),
+            );
           } else {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Error: Invalid Exam ID')),
-             );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error: Invalid Exam ID')),
+            );
           }
         }
       },
     );
   }
 
-  Widget _buildLectureItem(BuildContext context, Map<String, dynamic> lecture, bool isCourseFree) {
+  Widget _buildLectureItem(
+    BuildContext context,
+    Map<String, dynamic> lecture,
+    bool isCourseFree,
+  ) {
     final lectureTitle = lecture['title'] ?? 'Untitled Lecture';
     final lectureType = lecture['type'] ?? 'video';
     final isDemo = lecture['isDemo'] ?? false;
-    final content = lecture['content'] ?? '';
-    
+
     // Determine if lecture is unlocked
     // Unlock if: course is free OR lecture is marked as demo
-    final isUnlocked = isCourseFree || isDemo || isEnrolled;
+    final isUnlocked = isCourseFree || isDemo || widget.isEnrolled;
 
     // Get icon based on type
     IconData getIcon() {
       if (!isUnlocked) return Icons.lock_rounded;
-      
+
       switch (lectureType.toLowerCase()) {
         case 'video':
           return Icons.play_circle_outline;
@@ -300,7 +350,7 @@ class CourseContentTab extends StatelessWidget {
     // Get color based on unlock status
     Color getColor() {
       if (!isUnlocked) return Colors.grey;
-      
+
       switch (lectureType.toLowerCase()) {
         case 'video':
           return AppConstants.accentColor;
@@ -310,21 +360,18 @@ class CourseContentTab extends StatelessWidget {
           return Colors.blue;
         default:
           return AppConstants.primaryColor;
-        }
+      }
     }
 
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isUnlocked ? getColor().withOpacity(0.1) : Colors.grey[100],
+          color:
+              isUnlocked ? getColor().withValues(alpha: 0.1) : Colors.grey[100],
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          getIcon(),
-          size: 20,
-          color: getColor(),
-        ),
+        child: Icon(getIcon(), size: 20, color: getColor()),
       ),
       title: Row(
         children: [
@@ -342,9 +389,9 @@ class CourseContentTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 'FREE',
@@ -389,31 +436,38 @@ class CourseContentTab extends StatelessWidget {
           );
         } else {
           // Open lecture content
-          final courseId = course['_id'] ?? course['id'];
+          final courseId = widget.course['_id'] ?? widget.course['id'];
           _openLectureContent(context, lecture, courseId?.toString());
         }
       },
     );
   }
 
-  void _openLectureContent(BuildContext context, Map<String, dynamic> lecture, String? courseId) {
+  void _openLectureContent(
+    BuildContext context,
+    Map<String, dynamic> lecture,
+    String? courseId,
+  ) {
+
     final lectureType = lecture['type'] ?? 'video';
     final lectureId = lecture['_id'] ?? lecture['id'];
 
-    if (courseId != null && lectureId != null && isEnrolled) {
+    if (courseId != null && lectureId != null && widget.isEnrolled) {
       // Track progress in background
       ApiService().updateCourseProgress(courseId, lectureId.toString());
     }
-    
+
     if (lectureType.toLowerCase() == 'video') {
       // Navigate to video player
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => LecturePlayerScreen(
-            lecture: lecture,
-            courseTitle: course['title'] ?? 'Course',
-          ),
+          builder:
+              (context) => LecturePlayerScreen(
+                lecture: lecture,
+                courseTitle: widget.course['title'] ?? 'Course',
+                courseId: courseId ?? '',
+              ),
         ),
       );
     } else if (lectureType.toLowerCase() == 'pdf') {
@@ -421,11 +475,12 @@ class CourseContentTab extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PdfViewerScreen(
-            lecture: lecture,
-            courseTitle: course['title'] ?? 'Course',
-            courseId: courseId ?? '',
-          ),
+          builder:
+              (context) => PdfViewerScreen(
+                lecture: lecture,
+                courseTitle: widget.course['title'] ?? 'Course',
+                courseId: courseId ?? '',
+              ),
         ),
       );
     } else {

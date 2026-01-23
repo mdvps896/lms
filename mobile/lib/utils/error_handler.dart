@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 /// Centralized error handling utility
 class ErrorHandler {
@@ -8,31 +9,35 @@ class ErrorHandler {
     if (error is TimeoutException) {
       return 'Request timed out. Please check your internet connection and try again.';
     }
-    
+
     if (error is SocketException) {
       return 'No internet connection. Please check your network and try again.';
     }
-    
+
     if (error is FormatException) {
       return 'Invalid data received from server. Please try again.';
     }
-    
+
     if (error is HttpException) {
       return 'Server error occurred. Please try again later.';
     }
-    
+
     // Generic error message for unknown errors
     return 'An unexpected error occurred. Please try again later.';
   }
 
   /// Log error for debugging (only in debug mode)
-  static void logError(String context, dynamic error, [StackTrace? stackTrace]) {
+  static void logError(
+    String context,
+    dynamic error, [
+    StackTrace? stackTrace,
+  ]) {
     // In production, this would send to Firebase Crashlytics
     // For now, just use debug print
     if (error != null) {
-      print('ERROR in $context: ${error.toString()}');
+      debugPrint('ERROR in $context:  ${error.toString()}');
       if (stackTrace != null) {
-        print('StackTrace: $stackTrace');
+        debugPrint('StackTrace:  $stackTrace');
       }
     }
   }

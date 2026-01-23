@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -8,7 +11,7 @@ plugins {
 
 
 android {
-    namespace = "com.example.mobile"
+    namespace = "com.mdconsultancy.exam"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
@@ -25,24 +28,38 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mobile"
+        applicationId = "com.mdconsultancy.exam"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21
+        minSdk = 23
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val keyPropertiesFile = project.rootProject.file("key.properties")
+            val keyProperties = Properties()
+            if (keyPropertiesFile.exists()) {
+                keyProperties.load(FileInputStream(keyPropertiesFile))
+            }
+            keyPassword = keyProperties.getProperty("keyPassword")
+            storePassword = keyProperties.getProperty("storePassword")
+            keyAlias = keyProperties.getProperty("keyAlias")
+            val storeFileProperty = keyProperties.getProperty("storeFile")
+            if (storeFileProperty != null) {
+                storeFile = file(storeFileProperty)
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Updated to use release signing config
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Rename the output APK
-            setProperty("archivesBaseName", "gog")
         }
     }
 }

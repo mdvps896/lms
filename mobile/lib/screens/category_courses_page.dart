@@ -35,7 +35,10 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = widget.categoryName.contains('All') ? 'All' : widget.categoryName.replaceFirst(' Courses', '');
+    _selectedCategory =
+        widget.categoryName.contains('All')
+            ? 'All'
+            : widget.categoryName.replaceFirst(' Courses', '');
   }
 
   List<String> get categoryNames {
@@ -52,24 +55,26 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
 
   List<dynamic> get filteredCourses {
     var courses = widget.courses;
-    
+
     // Filter by category
     if (_selectedCategory != 'All') {
-      courses = courses.where((course) {
-        final cat = course['category'];
-        if (cat is Map) return cat['name'] == _selectedCategory;
-        return cat == _selectedCategory;
-      }).toList();
+      courses =
+          courses.where((course) {
+            final cat = course['category'];
+            if (cat is Map) return cat['name'] == _selectedCategory;
+            return cat == _selectedCategory;
+          }).toList();
     }
-    
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
-      courses = courses.where((course) {
-        final title = course['title']?.toString().toLowerCase() ?? '';
-        return title.contains(_searchQuery.toLowerCase());
-      }).toList();
+      courses =
+          courses.where((course) {
+            final title = course['title']?.toString().toLowerCase() ?? '';
+            return title.contains(_searchQuery.toLowerCase());
+          }).toList();
     }
-    
+
     return courses;
   }
 
@@ -88,7 +93,9 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(
-          _selectedCategory == 'All' ? 'All Courses' : '$_selectedCategory Courses',
+          _selectedCategory == 'All'
+              ? 'All Courses'
+              : '$_selectedCategory Courses',
           style: const TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
@@ -111,14 +118,20 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
               },
               decoration: InputDecoration(
                 hintText: 'Search courses...',
-                prefixIcon: const Icon(Icons.search, color: AppConstants.primaryColor),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppConstants.primaryColor,
+                ),
                 filled: true,
                 fillColor: Colors.grey[100],
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -134,16 +147,17 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
                 scrollDirection: Axis.horizontal,
                 itemCount: displayCategories.length,
                 itemBuilder: (context, index) {
-                  final isSelected = displayCategories[index] == _selectedCategory;
+                  final isSelected =
+                      displayCategories[index] == _selectedCategory;
                   return GestureDetector(
                     onTap: () async {
                       if (isSelected) return;
                       setState(() {
                         _isLoading = true;
                       });
-                      
+
                       await Future.delayed(const Duration(milliseconds: 200));
-                      
+
                       setState(() {
                         _selectedCategory = displayCategories[index];
                         _isLoading = false;
@@ -151,19 +165,31 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
                     },
                     child: Container(
                       margin: const EdgeInsets.only(right: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppConstants.primaryColor : Colors.white,
+                        color:
+                            isSelected
+                                ? AppConstants.primaryColor
+                                : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? AppConstants.primaryColor : Colors.grey.shade300,
+                          color:
+                              isSelected
+                                  ? AppConstants.primaryColor
+                                  : Colors.grey.shade300,
                         ),
                       ),
                       child: Center(
                         child: Text(
                           displayCategories[index],
                           style: TextStyle(
-                            color: isSelected ? Colors.white : AppConstants.textPrimary,
+                            color:
+                                isSelected
+                                    ? Colors.white
+                                    : AppConstants.textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
@@ -178,28 +204,30 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
 
           // Course Grid
           Expanded(
-            child: _isLoading
-                ? _buildSkeletonGrid()
-                : courses.isEmpty
+            child:
+                _isLoading
+                    ? _buildSkeletonGrid()
+                    : courses.isEmpty
                     ? const Center(
-                        child: Text(
-                          'No courses found',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75, // Increased from 0.82
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: courses.length,
-                        itemBuilder: (context, index) {
-                          return _buildCourseCard(courses[index]);
-                        },
+                      child: Text(
+                        'No courses found',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
+                    )
+                    : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75, // Increased from 0.82
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      itemCount: courses.length,
+                      itemBuilder: (context, index) {
+                        return _buildCourseCard(courses[index]);
+                      },
+                    ),
           ),
         ],
       ),
@@ -221,32 +249,37 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
   Widget _buildCourseCard(dynamic course) {
     bool isPurchased = false;
     if (widget.user != null && widget.user!.enrolledCourses != null) {
-        final String courseId = (course['id'] ?? course['_id'] ?? '').toString();
-        
-        for (var e in widget.user!.enrolledCourses!) {
-            String id = '';
-            DateTime? expiry;
-            
-            if (e is String) {
-               id = e;
-            } else if (e is Map) {
-               final cIdRaw = e['courseId'] ?? e['course'];
-               if (cIdRaw is Map) {
-                  id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
-               } else {
-                  id = (cIdRaw ?? '').toString();
-               }
-               if (e['expiresAt'] != null) expiry = DateTime.tryParse(e['expiresAt'].toString());
-            }
-            
-            if (id.isNotEmpty && id == courseId) {
-               if (expiry == null || DateTime.now().isBefore(expiry)) {
-                   isPurchased = true;
-                   break;
-               }
-            }
+      final String courseId = (course['id'] ?? course['_id'] ?? '').toString();
+
+      for (var e in widget.user!.enrolledCourses!) {
+        String id = '';
+        DateTime? expiry;
+
+        if (e is String) {
+          id = e;
+        } else if (e is Map) {
+          final cIdRaw = e['courseId'] ?? e['course'];
+          if (cIdRaw is Map) {
+            id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
+          } else {
+            id = (cIdRaw ?? '').toString();
+          }
+          if (e['expiresAt'] != null) {
+            expiry = DateTime.tryParse(e['expiresAt'].toString());
+          }
         }
+
+        if (id.isNotEmpty && id == courseId) {
+          if (expiry == null || DateTime.now().isBefore(expiry)) {
+            isPurchased = true;
+            break;
+          }
+        }
+      }
     }
+
+    final price = int.tryParse(course['price']?.toString() ?? '0') ?? 0;
+    final isFree = price <= 0;
 
     return GestureDetector(
       onTap: () async {
@@ -261,100 +294,158 @@ class _CategoryCoursesPageState extends State<CategoryCoursesPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey[300]!,
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Image Section
             ClipRRect(
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-              child: Stack(
-                children: [
-                  course['thumbnail'] != null
-                      ? CustomCachedImage(imageUrl: course['thumbnail'], height: 110, width: double.infinity, fit: BoxFit.cover)
-                      : Container(height: 110, color: AppConstants.primaryColor, child: const Icon(Icons.book_rounded, size: 40, color: Colors.white)),
-                  
-                  Positioned(
-                    top: 8, left: 8, right: 8,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: AppConstants.accentColor, borderRadius: BorderRadius.circular(6)),
-                          child: Text(
-                             (course['category'] is Map) ? course['category']['name'] : (course['category'] ?? 'General'),
-                             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(6)),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
-                              const SizedBox(width: 2),
-                              Text(course['rating']?.toString() ?? '4.5', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
+              child:
+                  course['thumbnail'] != null
+                      ? CustomCachedImage(
+                        imageUrl: course['thumbnail'],
+                        height: 110,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                      : Container(
+                        height: 110,
+                        color: AppConstants.primaryColor,
+                        child: const Icon(
+                          Icons.book_rounded,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      ),
             ),
+
+            // Content Section
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(widget.courses.isNotEmpty ? course['title'] ?? 'Untitled Course' : 'Untitled Course', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    const SizedBox(height: 2),
                     Text(
-                      course['description'] ?? 'No description available.', 
-                      maxLines: 2, 
-                      overflow: TextOverflow.ellipsis, 
-                      style: TextStyle(fontSize: 9, color: Colors.grey[600], height: 1.1)
+                      course['title'] ?? 'Untitled Course',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D3436),
+                        height: 1.2,
+                      ),
                     ),
+                    const SizedBox(height: 4),
+
+                    Text(
+                      course['description'] ?? 'No description available',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                        height: 1.2,
+                      ),
+                    ),
+
                     const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (!isPurchased)
-                            Text('₹${course['price'] ?? '999'}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppConstants.primaryColor))
-                        else
-                             const Text('Enrolled', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
-                            
-                        ElevatedButton(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => CourseDetailsScreen(course: course)),
-                            );
-                            if (widget.onRefresh != null) widget.onRefresh!();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isPurchased ? Colors.green : AppConstants.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                          child: Text(isPurchased ? 'Continue' : 'Buy Now', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+
+                    // Footer: Full-width Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color:
+                              isPurchased
+                                  ? Colors.green
+                                  : isFree
+                                  ? const Color(0xFF1E3A8A)
+                                  : AppConstants.secondaryColor,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isPurchased
+                                      ? Colors.green
+                                      : isFree
+                                      ? const Color(0xFF1E3A8A)
+                                      : AppConstants.secondaryColor)
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          CourseDetailsScreen(course: course),
+                                ),
+                              );
+                              if (widget.onRefresh != null) widget.onRefresh!();
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isPurchased
+                                          ? Icons.play_circle_outline
+                                          : isFree
+                                          ? Icons.card_giftcard
+                                          : Icons.shopping_cart_outlined,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isPurchased
+                                          ? 'Open'
+                                          : isFree
+                                          ? 'Enroll'
+                                          : 'Buy Now',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

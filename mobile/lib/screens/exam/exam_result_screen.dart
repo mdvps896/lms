@@ -30,8 +30,10 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-    
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
+
     // Show confetti if passed
     if (_isPassed()) {
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -47,18 +49,19 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
   }
 
   bool _isPassed() {
-    final double percentage = widget.totalMarks > 0 
-        ? (widget.scoredMarks.toDouble() / widget.totalMarks.toDouble()) * 100 
-        : 0.0;
-    
+    final double percentage =
+        widget.totalMarks > 0
+            ? (widget.scoredMarks.toDouble() / widget.totalMarks.toDouble()) *
+                100
+            : 0.0;
+
     double passCriteria = 40.0;
     final dynamic rawPassing = widget.exam['passingPercentage'];
     if (rawPassing != null) {
       passCriteria = double.tryParse(rawPassing.toString()) ?? 40.0;
     }
-    
+
     final bool passed = percentage >= passCriteria;
-    print('🔍 Result Screen Check: Per=$percentage%, Min=$passCriteria%, Result=${passed ? "PASS" : "FAIL"}');
     return passed;
   }
 
@@ -94,7 +97,8 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (widget.scoredMarks.toDouble() / widget.totalMarks.toDouble()) * 100;
+    final percentage =
+        (widget.scoredMarks.toDouble() / widget.totalMarks.toDouble()) * 100;
     final isPassed = _isPassed();
 
     return WillPopScope(
@@ -167,7 +171,7 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                               color: Colors.white,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -182,7 +186,8 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                                     style: TextStyle(
                                       fontSize: 48,
                                       fontWeight: FontWeight.bold,
-                                      color: isPassed ? Colors.green : Colors.red,
+                                      color:
+                                          isPassed ? Colors.green : Colors.red,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -216,7 +221,10 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                                 child: _buildStatCard(
                                   icon: Icons.cancel_outlined,
                                   title: 'Wrong',
-                                  value: (widget.totalQuestions - widget.correctAnswers).toString(),
+                                  value:
+                                      (widget.totalQuestions -
+                                              widget.correctAnswers)
+                                          .toString(),
                                   color: Colors.red,
                                 ),
                               ),
@@ -231,7 +239,8 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                                 child: _buildStatCard(
                                   icon: Icons.stars_outlined,
                                   title: 'Marks',
-                                  value: '${widget.scoredMarks}/${widget.totalMarks}',
+                                  value:
+                                      '${widget.scoredMarks}/${widget.totalMarks}',
                                   color: Colors.orange,
                                 ),
                               ),
@@ -273,11 +282,24 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                                 const SizedBox(height: 16),
                                 _buildDetailRow('Test Name', _getExamTitle()),
                                 _buildDetailRow('Category', _getCategoryName()),
-                                _buildDetailRow('Total Questions', widget.totalQuestions.toString()),
-                                _buildDetailRow('Passing Percentage', '${widget.exam['passingPercentage'] ?? 40}%'),
-                                _buildDetailRow('Your Percentage', '${percentage.toStringAsFixed(1)}%'),
-                                _buildDetailRow('Status', isPassed ? 'PASSED' : 'FAILED', 
-                                  valueColor: isPassed ? Colors.green : Colors.red),
+                                _buildDetailRow(
+                                  'Total Questions',
+                                  widget.totalQuestions.toString(),
+                                ),
+                                _buildDetailRow(
+                                  'Passing Percentage',
+                                  '${widget.exam['passingPercentage'] ?? 40}%',
+                                ),
+                                _buildDetailRow(
+                                  'Your Percentage',
+                                  '${percentage.toStringAsFixed(1)}%',
+                                ),
+                                _buildDetailRow(
+                                  'Status',
+                                  isPassed ? 'PASSED' : 'FAILED',
+                                  valueColor:
+                                      isPassed ? Colors.green : Colors.red,
+                                ),
                               ],
                             ),
                           ),
@@ -295,7 +317,7 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, -5),
                         ),
@@ -307,11 +329,17 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                Navigator.of(context).popUntil((route) => route.isFirst);
+                                Navigator.of(
+                                  context,
+                                ).popUntil((route) => route.isFirst);
                               },
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: BorderSide(color: AppConstants.primaryColor),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: BorderSide(
+                                  color: AppConstants.primaryColor,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -332,12 +360,16 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
                               onPressed: () {
                                 // Share results or retry
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Feature coming soon!')),
+                                  const SnackBar(
+                                    content: Text('Feature coming soon!'),
+                                  ),
                                 );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppConstants.primaryColor,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -414,13 +446,7 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -432,13 +458,7 @@ class _ExamResultScreenState extends State<ExamResultScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
           Text(
             value,
             style: TextStyle(

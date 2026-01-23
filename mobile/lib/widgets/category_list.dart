@@ -4,9 +4,9 @@ import '../utils/constants.dart';
 class CategoryList extends StatefulWidget {
   final List<Map<String, dynamic>> categories;
   final Function(String)? onCategorySelected;
-  
+
   const CategoryList({
-    super.key, 
+    super.key,
     required this.categories,
     this.onCategorySelected,
   });
@@ -36,7 +36,7 @@ class _CategoryListState extends State<CategoryList> {
           final isSelected = index == _selectedIndex;
           final category = allCategories[index];
           final categoryName = category['name'] ?? 'Unknown';
-          
+
           return GestureDetector(
             onTap: () {
               setState(() {
@@ -51,17 +51,23 @@ class _CategoryListState extends State<CategoryList> {
                 color: isSelected ? AppConstants.primaryColor : Colors.white,
                 borderRadius: BorderRadius.circular(25),
                 border: Border.all(
-                  color: isSelected ? AppConstants.primaryColor : Colors.grey.shade300,
+                  color:
+                      isSelected
+                          ? AppConstants.primaryColor
+                          : Colors.grey.shade300,
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppConstants.primaryColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        )
-                      ]
-                    : null,
+                boxShadow:
+                    isSelected
+                        ? [
+                          BoxShadow(
+                            color: AppConstants.primaryColor.withValues(
+                              alpha: 0.3,
+                            ),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                        : null,
               ),
               child: Center(
                 child: Text(

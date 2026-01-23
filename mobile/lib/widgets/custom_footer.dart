@@ -15,10 +15,10 @@ class CustomFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppConstants.secondaryColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -27,11 +27,17 @@ class CustomFooter extends StatelessWidget {
       child: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: onTap,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppConstants.primaryColor,
-        unselectedItemColor: AppConstants.textSecondary,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 10),
+        backgroundColor: AppConstants.secondaryColor,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 10,
+        ),
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -51,16 +57,14 @@ class CustomFooter extends StatelessWidget {
       icon: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.all(currentIndex == index ? 8 : 0),
-        decoration: currentIndex == index 
-          ? BoxDecoration(
-              color: AppConstants.primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            )
-          : null,
-        child: Icon(
-          icon,
-          size: currentIndex == index ? 26 : 24,
-        ),
+        decoration:
+            currentIndex == index
+                ? BoxDecoration(
+                  color: AppConstants.primaryColor,
+                  shape: BoxShape.circle,
+                )
+                : null,
+        child: Icon(icon, size: currentIndex == index ? 26 : 24),
       ),
       label: label,
     );

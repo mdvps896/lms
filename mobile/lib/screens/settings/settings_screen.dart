@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/constants.dart';
 import '../../services/api_service.dart';
 import '../../models/user_model.dart';
@@ -40,13 +41,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveSettings() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Save Notifications
-      final notifResult = await _apiService.toggleNotifications(_notificationsEnabled);
+      final notifResult = await _apiService.toggleNotifications(
+        _notificationsEnabled,
+      );
       // Save 2FA
       final tfaResult = await _apiService.toggle2FA(_twoFactorEnabled);
-      
+
       if (mounted) {
         if (notifResult['success'] && tfaResult['success']) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -59,7 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(notifResult['message'] ?? tfaResult['message'] ?? 'Failed to save some settings'),
+              content: Text(
+                notifResult['message'] ??
+                    tfaResult['message'] ??
+                    'Failed to save some settings',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -68,7 +75,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred while saving settings')),
+          const SnackBar(
+            content: Text('An error occurred while saving settings'),
+          ),
         );
       }
     } finally {
@@ -85,7 +94,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Settings',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppConstants.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -100,13 +112,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSettingTile(
                   Icons.notifications_active_outlined,
                   'Push Notifications',
-                  _notificationsEnabled ? 'Status: Enabled' : 'Status: Disabled',
+                  _notificationsEnabled
+                      ? 'Status: Enabled'
+                      : 'Status: Disabled',
                   isToggled: _notificationsEnabled,
                   trailing: Switch(
                     value: _notificationsEnabled,
                     onChanged: _showNotificationConfirmationDialog,
                     activeColor: Colors.red,
-                    activeTrackColor: Colors.red.withOpacity(0.5),
+                    activeTrackColor: Colors.red.withValues(alpha: 0.5),
                     inactiveThumbColor: Colors.yellow[700],
                     inactiveTrackColor: Colors.yellow[100],
                   ),
@@ -117,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _selectedLanguage,
                   onTap: () => _showLanguageDialog(),
                 ),
-                
+
                 const Divider(height: 32),
                 _buildSectionHeader('Account & Security'),
                 _buildSettingTile(
@@ -135,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _twoFactorEnabled,
                     onChanged: _show2FAConfirmationDialog,
                     activeColor: Colors.red,
-                    activeTrackColor: Colors.red.withOpacity(0.5),
+                    activeTrackColor: Colors.red.withValues(alpha: 0.5),
                     inactiveThumbColor: Colors.yellow[700],
                     inactiveTrackColor: Colors.yellow[100],
                   ),
@@ -143,11 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const Divider(height: 32),
                 _buildSectionHeader('App Info'),
-                _buildSettingTile(
-                  Icons.info_outline,
-                  'Version',
-                  '1.0.0',
-                ),
+                _buildSettingTile(Icons.info_outline, 'Version', '1.0.0'),
                 _buildSettingTile(
                   Icons.update,
                   'Check for Updates',
@@ -155,10 +165,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () {},
                 ),
                 const SizedBox(height: 20),
+
+                // Copyright Text in Settings
+                Center(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'All rights reserved by God of Graphics',
+                        style: TextStyle(
+                          color: Colors.black, // Changed to black
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () async {
+                          const url = 'https://hinguland.com/';
+                          if (await canLaunchUrl(Uri.parse(url))) {
+                            await launchUrl(
+                              Uri.parse(url),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        child: const Text(
+                          'Developed by Hinguland',
+                          style: TextStyle(
+                            color: Colors.black, // Changed to black
+                            fontSize: 12,
+                            fontWeight:
+                                FontWeight
+                                    .bold, // Make it slightly bolder to indicate link
+                            decoration:
+                                TextDecoration
+                                    .underline, // Optional: add underline to look like a link
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
-          
+
           // Save Button at the bottom
           Padding(
             padding: const EdgeInsets.all(20),
@@ -175,16 +226,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   elevation: 2,
                 ),
-                child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text(
-                      'SAVE SETTINGS',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
-                    ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Text(
+                          'SAVE SETTINGS',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
               ),
             ),
           ),
@@ -208,16 +267,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, String subtitle, {Widget? trailing, VoidCallback? onTap, bool? isToggled}) {
+  Widget _buildSettingTile(
+    IconData icon,
+    String title,
+    String subtitle, {
+    Widget? trailing,
+    VoidCallback? onTap,
+    bool? isToggled,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!, width: 1.5), // Clear 1px+ border
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1.5,
+        ), // Clear 1px+ border
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -229,22 +298,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppConstants.primaryColor.withOpacity(0.1),
+            color: AppConstants.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: AppConstants.primaryColor, size: 22),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-        subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-        trailing: trailing != null 
-          ? Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!, width: 1), // 1px border around toggle
-              ),
-              child: trailing,
-            )
-          : (onTap != null ? const Icon(Icons.chevron_right, color: Colors.grey) : null),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+        trailing:
+            trailing != null
+                ? Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      width: 1,
+                    ), // 1px border around toggle
+                  ),
+                  child: trailing,
+                )
+                : (onTap != null
+                    ? const Icon(Icons.chevron_right, color: Colors.grey)
+                    : null),
       ),
     );
   }
@@ -252,109 +333,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showNotificationConfirmationDialog(bool value) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Row(
-          children: [
-            Icon(
-              value ? Icons.notifications_active : Icons.notifications_off,
-              color: value ? Colors.green : Colors.red,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
-            const SizedBox(width: 10),
-            Text(value ? 'Enable Notifications?' : 'Disable Notifications?'),
-          ],
-        ),
-        content: Text(
-          value 
-            ? 'By enabling notifications, you will receive important updates about your exams, results, and new courses. Do you want to proceed?'
-            : 'Are you sure you want to disable notifications? You might miss important updates and announcements.',
-          style: const TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _notificationsEnabled = value);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: value ? Colors.green : Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            title: Row(
+              children: [
+                Icon(
+                  value ? Icons.notifications_active : Icons.notifications_off,
+                  color: value ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  value ? 'Enable Notifications?' : 'Disable Notifications?',
+                ),
+              ],
             ),
-            child: Text(value ? 'Yes, Enable' : 'Yes, Disable'),
+            content: Text(
+              value
+                  ? 'By enabling notifications, you will receive important updates about your exams, results, and new courses. Do you want to proceed?'
+                  : 'Are you sure you want to disable notifications? You might miss important updates and announcements.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => _notificationsEnabled = value);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: value ? Colors.green : Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(value ? 'Yes, Enable' : 'Yes, Disable'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _show2FAConfirmationDialog(bool value) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Row(
-          children: [
-            Icon(
-              value ? Icons.security : Icons.warning_amber_rounded,
-              color: value ? Colors.green : Colors.orange,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
-            const SizedBox(width: 10),
-            Text(value ? 'Enable 2FA?' : 'Disable 2FA?'),
-          ],
-        ),
-        content: Text(
-          value 
-            ? 'For extra security, we will send a 6-digit verification code to your email every time you log in. Do you want to enable this?'
-            : 'Are you sure you want to disable 2FA? Your account will be less secure and won\'t require email verification at login.',
-          style: const TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _twoFactorEnabled = value);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: value ? AppConstants.primaryColor : Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            title: Row(
+              children: [
+                Icon(
+                  value ? Icons.security : Icons.warning_amber_rounded,
+                  color: value ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 10),
+                Text(value ? 'Enable 2FA?' : 'Disable 2FA?'),
+              ],
             ),
-            child: Text(value ? 'Yes, Enable' : 'Yes, Disable'),
+            content: Text(
+              value
+                  ? 'For extra security, we will send a 6-digit verification code to your email every time you log in. Do you want to enable this?'
+                  : 'Are you sure you want to disable 2FA? Your account will be less secure and won\'t require email verification at login.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => _twoFactorEnabled = value);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      value ? AppConstants.primaryColor : Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(value ? 'Yes, Enable' : 'Yes, Disable'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showLanguageDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['English', 'Hindi', 'Marathi', 'Gujarati'].map((lang) {
-            return RadioListTile<String>(
-              title: Text(lang),
-              value: lang,
-              groupValue: _selectedLanguage,
-              onChanged: (val) {
-                setState(() => _selectedLanguage = val!);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Select Language'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  ['English', 'Hindi', 'Marathi', 'Gujarati'].map((lang) {
+                    return RadioListTile<String>(
+                      title: Text(lang),
+                      value: lang,
+                      groupValue: _selectedLanguage,
+                      onChanged: (val) {
+                        setState(() => _selectedLanguage = val!);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }).toList(),
+            ),
+          ),
     );
   }
 
@@ -366,50 +468,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Change Password'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: oldController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Old Password'),
-              ),
-              TextField(
-                controller: newController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'New Password'),
-              ),
-              TextField(
-                controller: confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirm New Password'),
-              ),
-            ],
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setLocalState) => AlertDialog(
+                  title: const Text('Change Password'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: oldController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Old Password',
+                        ),
+                      ),
+                      TextField(
+                        controller: newController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'New Password',
+                        ),
+                      ),
+                      TextField(
+                        controller: confirmController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm New Password',
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          isSavingState
+                              ? null
+                              : () async {
+                                if (newController.text !=
+                                    confirmController.text) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Passwords do not match'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                setLocalState(() => isSavingState = true);
+                                final result = await _apiService.changePassword(
+                                  oldController.text,
+                                  newController.text,
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(result['message'])),
+                                  );
+                                  if (result['success']) Navigator.pop(context);
+                                  setLocalState(() => isSavingState = false);
+                                }
+                              },
+                      child:
+                          isSavingState
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text('Save'),
+                    ),
+                  ],
+                ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: isSavingState ? null : () async {
-                if (newController.text != confirmController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
-                  return;
-                }
-                setLocalState(() => isSavingState = true);
-                final result = await _apiService.changePassword(oldController.text, newController.text);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
-                  if (result['success']) Navigator.pop(context);
-                  setLocalState(() => isSavingState = false);
-                }
-              },
-              child: isSavingState ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

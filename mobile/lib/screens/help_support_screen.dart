@@ -1,8 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/api/base_api_service.dart';
 import '../utils/constants.dart';
@@ -20,7 +21,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
-  
+
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
@@ -28,10 +29,33 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Map<String, dynamic>? _settings;
   Timer? _timer;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _whatsappEnabled = true; // Check if WhatsApp is enabled from backend
+  bool _showChat = false; // Show chat only if WhatsApp fails
 
   @override
   void initState() {
     super.initState();
+    _checkWhatsAppSupport();
+  }
+
+  Future<void> _checkWhatsAppSupport() async {
+    // Check if backend has WhatsApp configured
+    _settings = await _apiService.getSettings();
+    final whatsappSettings = _settings?['whatsappSupport'];
+    final whatsappNumber = whatsappSettings?['phoneNumber'];
+    final primaryMethod = whatsappSettings?['primaryMethod'];
+    
+    // Check if WhatsApp is the preferred method
+    bool isWhatsAppPrimary = primaryMethod == 'whatsapp';
+
+    setState(() {
+      _whatsappEnabled = whatsappNumber != null && whatsappNumber.toString().isNotEmpty;
+      // Show chat if WhatsApp is NOT primary, or if it is primary but not configured
+      _showChat = !isWhatsAppPrimary || !_whatsappEnabled;
+      _isLoading = false;
+    });
+
+    // Always load data so we can show history even if in WhatsApp mode
     _loadInitialData();
     _startPolling();
   }
@@ -52,7 +76,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    _user = await _apiService.getSavedUser();
+    // Refresh user profile to get latest blocked status
+    _user = await _apiService.refreshUserProfile(); 
+    _user ??= await _apiService.getSavedUser();
+    
     _settings = await _apiService.getSettings();
     await _fetchMessages();
     setState(() => _isLoading = false);
@@ -61,17 +88,17 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   Future<void> _fetchMessages({bool isPolling = false}) async {
     final messages = await _apiService.getSupportMessages();
-    
+
     // Check if new message arrived (especially from admin)
     if (messages.length > _messages.length) {
       final lastMsg = messages.last;
       bool isAdminMsg = lastMsg['isAdmin'] == true;
-      
+
       setState(() {
         _messages = messages;
       });
       _scrollToBottom();
-      
+
       // Play sound if polling (new message from admin) or if manual and last is admin
       if (isAdminMsg && isPolling) {
         _playSound();
@@ -90,13 +117,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       if (chatSound != null && chatSound['enabled'] == true) {
         final soundFile = chatSound['soundFile'] ?? '/sounds/notification.mp3';
         final volume = (chatSound['volume'] ?? 0.7).toDouble();
-        final url = BaseApiService.getFullUrl(soundFile);
-        
+        final url = _apiService.getFullUrl(soundFile);
+
         await _audioPlayer.setVolume(volume);
         await _audioPlayer.play(UrlSource(url));
       }
     } catch (e) {
-      print('Play Sound Error: $e');
     }
   }
 
@@ -117,19 +143,19 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     if (image == null) return;
 
     setState(() => _isSending = true);
-    
+
     try {
       final bytes = await image.readAsBytes();
       final imageUrl = await _apiService.uploadImage(bytes, image.name);
-      
+
       if (imageUrl != null) {
         await _apiService.sendSupportMessage(images: [imageUrl]);
         await _fetchMessages();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
     } finally {
       setState(() => _isSending = false);
     }
@@ -146,7 +172,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         'text': text,
         'isAdmin': false,
         'createdAt': DateTime.now().toIso8601String(),
-        'sender': _user?.id
+        'sender': _user?.id,
       });
       _isSending = true;
     });
@@ -157,18 +183,48 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       _playSound(); // Play sound on send
       await _fetchMessages();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
     } finally {
       setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _openWhatsApp() async {
+    try {
+      // Get WhatsApp number from backend settings
+      final whatsappNumber = _settings?['whatsappSupport']?['phoneNumber'] ?? '+919876543210';
+      final whatsappMessage = _settings?['whatsappSupport']?['message'] ?? 
+          'Hello, I need support with MD Consultancy app.';
+      
+      final Uri whatsappUrl = Uri.parse(
+        'https://wa.me/$whatsappNumber?text=${Uri.encodeComponent(whatsappMessage)}'
+      );
+      
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('WhatsApp is not installed on this device')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open WhatsApp: $e')),
+        );
+      }
     }
   }
 
   String _formatImageUrl(String url) {
     if (url.isEmpty) return '';
     if (url.startsWith('http')) return url;
-    return '${_apiService.serverUrl}$url';
+    // Use getFullUrl for consistent URL formatting
+    return _apiService.getFullUrl(url);
   }
 
   void _showFullImage(String url) {
@@ -183,12 +239,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final siteLogo = _settings?['general']?['siteLogo'] ?? '';
-    String adminName = _settings?['general']?['adminName'] ?? 'God of Graphics';
-    
-    // User requested specifically to have "God of Graphics" and not "MD Consultancy"
-    if (adminName.toLowerCase().contains('god of graphics')) {
-      adminName = 'God of Graphics';
-    }
+    const String adminName = 'MD Consultancy';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -196,10 +247,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         titleSpacing: 0,
-        leading: Navigator.canPop(context) ? IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.maybePop(context),
-        ) : null,
+        leading:
+            Navigator.canPop(context)
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.maybePop(context),
+                )
+                : null,
         title: Row(
           children: [
             Container(
@@ -210,13 +264,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 color: Colors.grey[100],
               ),
               child: ClipOval(
-                child: siteLogo.isNotEmpty
-                  ? Image.network(
-                      _formatImageUrl(siteLogo),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.support_agent, color: AppConstants.primaryColor),
-                    )
-                  : const Icon(Icons.support_agent, color: AppConstants.primaryColor),
+                child: Image.asset(
+                  'assets/logo_padded.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -225,7 +276,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               children: [
                 Text(
                   adminName,
-                  style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Row(
                   children: [
@@ -233,7 +288,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     SizedBox(width: 4),
                     Text(
                       'Online Support',
-                      style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -242,31 +301,110 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: _fetchMessages,
-                  color: AppConstants.primaryColor,
-                  child: _messages.isEmpty 
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          controller: _scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) {
-                            final msg = _messages[index];
-                            final isAdmin = msg['isAdmin'] ?? false;
-                            return _buildChatBubble(msg, isAdmin);
-                          },
-                        ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _fetchMessages,
+                    color: AppConstants.primaryColor,
+                    child: _messages.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                                  final msg = _messages[index];
+                                  final isAdmin = msg['isAdmin'] ?? false;
+                                  return _buildChatBubble(msg, isAdmin);
+                                },
+                              ),
+                      ),
+                    ),
+                    _buildInputArea(),
+                  ],
                 ),
-          ),
-          _buildInputArea(),
-        ],
+    );
+  }
+
+  Widget _buildWhatsAppOnlyUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 60,
+                color: Colors.green[700],
+              ),
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              'Need Help?',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Contact us directly on WhatsApp for instant support',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton.icon(
+              onPressed: _openWhatsApp,
+              icon: Icon(Icons.chat, size: 24),
+              label: const Text(
+                'Open WhatsApp',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _showChat = true;
+                });
+                _loadInitialData();
+                _startPolling();
+              },
+              child: Text(
+                'Or use in-app chat',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -280,11 +418,19 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.support_agent_rounded, size: 80, color: Colors.grey[300]),
+            Icon(
+              Icons.support_agent_rounded,
+              size: 80,
+              color: Colors.grey[300],
+            ),
             const SizedBox(height: 16),
             const Text(
               'How can we help you?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -298,7 +444,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 
   Widget _buildChatBubble(Map<String, dynamic> msg, bool isAdmin) {
-    final hasImages = msg['images'] != null && (msg['images'] as List).isNotEmpty;
+    final hasImages =
+        msg['images'] != null && (msg['images'] as List).isNotEmpty;
     final time = DateTime.tryParse(msg['createdAt'] ?? '') ?? DateTime.now();
     final timeFormatted = DateFormat('hh:mm a').format(time);
 
@@ -306,7 +453,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       alignment: isAdmin ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isAdmin ? Colors.grey[100] : AppConstants.primaryColor,
@@ -332,17 +481,24 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         color: Colors.white,
-                        constraints: const BoxConstraints(maxHeight: 220, maxWidth: 220),
+                        constraints: const BoxConstraints(
+                          maxHeight: 220,
+                          maxWidth: 220,
+                        ),
                         child: Image.network(
                           _formatImageUrl(url),
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Container(
+                            return SizedBox(
                               height: 150,
                               width: 150,
-                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
@@ -350,7 +506,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                               height: 100,
                               width: 100,
                               color: Colors.grey[200],
-                              child: const Icon(Icons.broken_image, color: Colors.grey),
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
                             );
                           },
                         ),
@@ -381,11 +540,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 if (!isAdmin) ...[
                   const SizedBox(width: 4),
                   Icon(
-                    Icons.done_all, 
-                    size: 12, 
-                    color: (msg['isRead'] == true) ? Colors.blue : Colors.white70
+                    Icons.done_all,
+                    size: 12,
+                    color:
+                        (msg['isRead'] == true) ? Colors.blue : Colors.white70,
                   ),
-                ]
+                ],
               ],
             ),
           ],
@@ -395,18 +555,97 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 
   Widget _buildInputArea() {
+    // Check if user is blocked
+    if (_user?.isSupportBlocked == true) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).padding.bottom + 16,
+        ),
+        color: Colors.red[50],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.block, color: Colors.red, size: 24),
+            const SizedBox(height: 8),
+            const Text(
+              'You are blocked from sending messages.',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Please contact administration for support.',
+              style: TextStyle(
+                color: Colors.red[700],
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // If WhatsApp is primary mode (and enabled), show only the big button
+    if (!_showChat && _whatsappEnabled) {
+      return Container(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 12,
+          bottom: MediaQuery.of(context).padding.bottom + 12,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _openWhatsApp,
+            icon: const Icon(Icons.chat_bubble_outline), 
+            label: const Text(
+              'Chat on WhatsApp',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                 borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: EdgeInsets.only(
-        left: 16, 
-        right: 16, 
-        top: 12, 
-        bottom: MediaQuery.of(context).padding.bottom + 12
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -416,7 +655,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         children: [
           IconButton(
             onPressed: _pickAndSendImage,
-            icon: const Icon(Icons.image_outlined, color: AppConstants.primaryColor),
+            icon: const Icon(
+              Icons.image_outlined,
+              color: AppConstants.primaryColor,
+            ),
           ),
           Expanded(
             child: Container(
@@ -440,9 +682,21 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             onTap: _isSending ? null : _sendMessage,
             child: CircleAvatar(
               backgroundColor: AppConstants.primaryColor,
-              child: _isSending 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              child:
+                  _isSending
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
             ),
           ),
         ],
@@ -469,7 +723,12 @@ class FullImageScreen extends StatelessWidget {
                   if (loadingProgress == null) return child;
                   return const CircularProgressIndicator(color: Colors.white);
                 },
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                errorBuilder:
+                    (context, error, stackTrace) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white,
+                      size: 50,
+                    ),
               ),
             ),
           ),

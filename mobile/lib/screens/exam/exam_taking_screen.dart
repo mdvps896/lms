@@ -1,10 +1,11 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../services/api_service.dart';
 import 'widgets/question_card.dart';
 import 'widgets/question_navigator.dart';
 import 'exam_result_screen.dart';
+import 'package:screen_protector/screen_protector.dart';
 
 class ExamTakingScreen extends StatefulWidget {
   final Map<String, dynamic> exam;
@@ -18,8 +19,8 @@ class ExamTakingScreen extends StatefulWidget {
 class _ExamTakingScreenState extends State<ExamTakingScreen> {
   int _currentQuestionIndex = 0;
   List<Map<String, dynamic>> _allQuestions = [];
-  Map<int, dynamic> _answers = {}; // questionIndex -> answer
-  Set<int> _markedForReview = {};
+  final Map<int, dynamic> _answers = {}; // questionIndex -> answer
+  final Set<int> _markedForReview = {};
   late int _remainingSeconds;
   int _durationMinutes = 60; // Default duration
   Timer? _timer;
@@ -28,8 +29,13 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenProtection(); // Enable protection
     _loadQuestions();
     _startTimer();
+  }
+
+  Future<void> _enableScreenProtection() async {
+    await ScreenProtector.protectDataLeakageOn();
   }
 
   void _loadQuestions() {
@@ -53,7 +59,8 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
 
   void _startTimer() {
     final duration = widget.exam['duration'];
-    _durationMinutes = duration is int ? duration : int.tryParse(duration.toString()) ?? 60;
+    _durationMinutes =
+        duration is int ? duration : int.tryParse(duration.toString()) ?? 60;
     _remainingSeconds = _durationMinutes * 60; // Convert minutes to seconds
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
@@ -70,6 +77,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    ScreenProtector.protectDataLeakageOff(); // Disable protection
     super.dispose();
   }
 
@@ -131,7 +139,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
 
   Future<void> _submitExam() async {
     if (_isSubmitting) return;
-    
+
     setState(() {
       _isSubmitting = true;
     });
@@ -154,7 +162,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
 
         // Check if answer is correct
         bool isCorrect = false;
-        
+
         if (question['type'] == 'multiple_choice') {
           // For multiple choice, check if all selected options are correct
           if (userAnswer is List) {
@@ -194,34 +202,47 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
 
     // Generate percentage and check against criteria
     final percentage = totalMarks > 0 ? (scoredMarks / totalMarks * 100) : 0.0;
-    
+
     // Defensive parsing for passing percentage
     double passCriteria = 40.0;
     final dynamic rawPassing = widget.exam['passingPercentage'];
     if (rawPassing != null) {
-        passCriteria = double.tryParse(rawPassing.toString()) ?? 40.0;
+      passCriteria = double.tryParse(rawPassing.toString()) ?? 40.0;
     }
-    
+
     final bool passed = percentage >= passCriteria;
-    
-    print('🏁 SUBMITTING EXAM: Title=${_getExamTitle()}');
-    print('📊 Scored: $scoredMarks / $totalMarks ($percentage%)');
-    print('🎯 Pass Criteria: $passCriteria');
-    print('🏆 Result: ${passed ? "PASS" : "FAIL"}');
-    
+
+
+
     try {
       final ApiService apiService = ApiService();
+      
+      // Convert answers from index-based to ID-based
+      final Map<String, dynamic> answersById = {};
+      _answers.forEach((index, answer) {
+        if (index < _allQuestions.length) {
+          final questionId = _allQuestions[index]['_id'];
+          if (questionId != null) {
+             // Sanitize answer: API expects String (ID/Text) or Int (Index), not Map
+            if (answer is Map) {
+              answersById[questionId.toString()] = answer['_id'] ?? answer['text'];
+            } else {
+              answersById[questionId.toString()] = answer;
+            }
+          }
+        }
+      });
+      
+      
       await apiService.submitExamAttempt(
         examId: widget.exam['_id'],
-        answers: _answers,
+        answers: answersById,
         score: scoredMarks,
         totalMarks: totalMarks,
         timeTaken: (_durationMinutes * 60) - _remainingSeconds,
         passed: passed,
       );
-      print('✅ Exam attempt saved to database');
     } catch (e) {
-      print('❌ Error saving exam attempt: $e');
     }
 
     // Navigate to result screen
@@ -229,14 +250,15 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => ExamResultScreen(
-            exam: widget.exam,
-            totalQuestions: _allQuestions.length,
-            correctAnswers: correctAnswers,
-            totalMarks: totalMarks,
-            scoredMarks: scoredMarks,
-            timeTaken: (_durationMinutes * 60) - _remainingSeconds,
-          ),
+          builder:
+              (context) => ExamResultScreen(
+                exam: widget.exam,
+                totalQuestions: _allQuestions.length,
+                correctAnswers: correctAnswers,
+                totalMarks: totalMarks,
+                scoredMarks: scoredMarks,
+                timeTaken: (_durationMinutes * 60) - _remainingSeconds,
+              ),
         ),
       );
     }
@@ -262,28 +284,32 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
   void _showSubmitDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Submit Test?'),
-        content: Text(
-          'You have answered ${_answers.length} out of ${_allQuestions.length} questions.\n\nAre you sure you want to submit?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _submitExam();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Submit Test?'),
+            content: Text(
+              'You have answered ${_answers.length} out of ${_allQuestions.length} questions.\n\nAre you sure you want to submit?',
             ),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _submitExam();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConstants.primaryColor,
+                ),
+                child: const Text(
+                  'Submit',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -293,7 +319,10 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
       return Scaffold(
         appBar: AppBar(
           backgroundColor: AppConstants.primaryColor,
-          title: const Text('Loading...', style: TextStyle(color: Colors.white)),
+          title: const Text(
+            'Loading...',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -307,21 +336,29 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
       onWillPop: () async {
         final shouldPop = await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Exit Test?'),
-            content: const Text('Your progress will be lost. Are you sure?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Exit Test?'),
+                content: const Text(
+                  'Your progress will be lost. Are you sure?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text(
+                      'Exit',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Exit', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
         );
         return shouldPop ?? false;
       },
@@ -337,16 +374,18 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (context) => QuestionNavigator(
-                  totalQuestions: _allQuestions.length,
-                  currentIndex: _currentQuestionIndex,
-                  answeredQuestions: _answers.keys.toSet(),
-                  markedQuestions: _markedForReview,
-                  onQuestionTap: (index) {
-                    Navigator.pop(context);
-                    _goToQuestion(index);
-                  },
-                ),
+                builder:
+                    (context) => QuestionNavigator(
+                      totalQuestions: _allQuestions.length,
+                      currentIndex: _currentQuestionIndex,
+                      answeredQuestions: _answers.keys.toSet(),
+                      markedQuestions: _markedForReview,
+                      questions: _allQuestions,
+                      onQuestionTap: (index) {
+                        Navigator.pop(context);
+                        _goToQuestion(index);
+                      },
+                    ),
               );
             },
           ),
@@ -363,10 +402,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
               ),
               Text(
                 'Question ${_currentQuestionIndex + 1}/${_allQuestions.length}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
           ),
@@ -375,21 +411,26 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _remainingSeconds < 300 ? Colors.red : Colors.white.withOpacity(0.2),
+                color:
+                    _remainingSeconds < 300
+                        ? Colors.red
+                        : Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.timer,
-                    color: _remainingSeconds < 300 ? Colors.white : Colors.white,
+                    color:
+                        _remainingSeconds < 300 ? Colors.white : Colors.white,
                     size: 16,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _formatTime(_remainingSeconds),
                     style: TextStyle(
-                      color: _remainingSeconds < 300 ? Colors.white : Colors.white,
+                      color:
+                          _remainingSeconds < 300 ? Colors.white : Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -405,7 +446,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
             LinearProgressIndicator(
               value: (_currentQuestionIndex + 1) / _allQuestions.length,
               backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(AppConstants.primaryColor),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppConstants.primaryColor,
+              ),
             ),
 
             // Question content
@@ -428,7 +471,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -5),
                   ),
@@ -446,11 +489,19 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
                               isMarked ? Icons.bookmark : Icons.bookmark_border,
                               size: 18,
                             ),
-                            label: Text(isMarked ? 'Marked' : 'Mark for Review'),
+                            label: Text(
+                              isMarked ? 'Marked' : 'Mark for Review',
+                            ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: isMarked ? AppConstants.primaryColor : Colors.grey[700],
+                              foregroundColor:
+                                  isMarked
+                                      ? AppConstants.primaryColor
+                                      : Colors.grey[700],
                               side: BorderSide(
-                                color: isMarked ? AppConstants.primaryColor : Colors.grey[300]!,
+                                color:
+                                    isMarked
+                                        ? AppConstants.primaryColor
+                                        : Colors.grey[300]!,
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -485,17 +536,21 @@ class _ExamTakingScreenState extends State<ExamTakingScreen> {
                               icon: const Icon(Icons.arrow_back, size: 18),
                               label: const Text('Previous'),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
                             ),
                           ),
-                        if (_currentQuestionIndex > 0) const SizedBox(width: 12),
+                        if (_currentQuestionIndex > 0)
+                          const SizedBox(width: 12),
                         Expanded(
                           flex: 2,
                           child: ElevatedButton(
-                            onPressed: _currentQuestionIndex < _allQuestions.length - 1
-                                ? _saveAndNext
-                                : _showSubmitDialog,
+                            onPressed:
+                                _currentQuestionIndex < _allQuestions.length - 1
+                                    ? _saveAndNext
+                                    : _showSubmitDialog,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppConstants.primaryColor,
                               padding: const EdgeInsets.symmetric(vertical: 14),

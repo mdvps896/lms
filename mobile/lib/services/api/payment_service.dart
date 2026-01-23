@@ -5,10 +5,9 @@ import 'base_api_service.dart';
 class PaymentService extends BaseApiService {
   Future<List<Map<String, dynamic>>> getCoupons() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/coupons?format=mobile')).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) return List<Map<String, dynamic>>.from(data['data']);
+      final data = await apiGet('/coupons?format=mobile');
+      if (data is Map && data['success'] == true) {
+        return List<Map<String, dynamic>>.from(data['data']);
       }
       return [];
     } catch (e) {
@@ -16,43 +15,49 @@ class PaymentService extends BaseApiService {
     }
   }
 
-  Future<Map<String, dynamic>> validateCoupon(String code, String courseId) async {
+  Future<Map<String, dynamic>> validateCoupon(
+    String code,
+    String courseId,
+  ) async {
     try {
       final user = await getSavedUser();
-      final response = await http.post(
-        Uri.parse('$baseUrl/coupons/validate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'code': code, 'courseId': courseId, 'userId': user?.id}),
-      ).timeout(const Duration(seconds: 10));
-      return jsonDecode(response.body);
+      
+      final result = await apiPost('/coupons/validate', {
+        'code': code,
+        'courseId': courseId,
+        'userId': user?.id,
+      });
+      return result;
     } catch (e) {
-      return {'success': false, 'message': 'Network error occurred'};
+      // Return a map so the UI can show the error (since exception might be 'Unauthorized')
+      return {'success': false, 'message': 'Validation failed: ${e.toString()}'};
     }
   }
 
-  Future<Map<String, dynamic>> createOrder(double amount, String currency) async {
+  Future<Map<String, dynamic>> createOrder(
+    double amount,
+    String currency,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/payment/create-order'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'amount': amount, 'currency': currency}),
-      ).timeout(const Duration(seconds: 15));
-      return jsonDecode(response.body);
+      final result = await apiPost('/payment/create-order', {
+        'amount': amount,
+        'currency': currency,
+      });
+      return result;
     } catch (e) {
-      return {'success': false, 'message': 'Network error connection to payment gateway'};
+      return {
+        'success': false,
+        'message': 'Error creating order: $e',
+      };
     }
   }
 
   Future<Map<String, dynamic>> verifyPayment(Map<String, dynamic> data) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/payment/verify-payment'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(data),
-      ).timeout(const Duration(seconds: 15));
-      return jsonDecode(response.body);
+      final result = await apiPost('/payment/verify-payment', data);
+      return result;
     } catch (e) {
-      return {'success': false, 'message': 'Network error verifying payment'};
+      return {'success': false, 'message': 'Error verifying payment: $e'};
     }
   }
 
@@ -60,12 +65,15 @@ class PaymentService extends BaseApiService {
     try {
       final user = await getSavedUser();
       if (user == null) return [];
-      final response = await http.get(Uri.parse('$baseUrl/student/payments?userId=${user.id}')).timeout(const Duration(seconds: 10));
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
+      
+      final data = await apiGet('/student/payments?userId=${user.id}');
+      
+      if (data is Map && data['success'] == true) {
         final payments = List<Map<String, dynamic>>.from(data['data']);
         for (var payment in payments) {
-          payment['courseThumbnail'] = BaseApiService.getFullUrl(payment['courseThumbnail']);
+          payment['courseThumbnail'] = getFullUrl(
+            payment['courseThumbnail'],
+          );
         }
         return payments;
       }

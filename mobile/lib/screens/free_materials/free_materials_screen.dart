@@ -7,14 +7,15 @@ import 'tabs/free_meetings_tab.dart';
 
 class FreeMaterialsScreen extends StatefulWidget {
   final int initialTabIndex;
-  
+
   const FreeMaterialsScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<FreeMaterialsScreen> createState() => _FreeMaterialsScreenState();
 }
 
-class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTickerProviderStateMixin {
+class _FreeMaterialsScreenState extends State<FreeMaterialsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -23,7 +24,7 @@ class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 4, 
+      length: 4,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -58,7 +59,10 @@ class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTi
                   Visibility(
                     visible: Navigator.canPop(context),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: AppConstants.textPrimary),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: AppConstants.textPrimary,
+                      ),
                       onPressed: () => Navigator.maybePop(context),
                     ),
                   ),
@@ -84,7 +88,7 @@ class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTi
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                  border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -92,18 +96,30 @@ class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTi
                   decoration: InputDecoration(
                     hintText: 'Search free materials...',
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                    prefixIcon: const Icon(Icons.search, color: AppConstants.primaryColor, size: 22),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppConstants.primaryColor,
+                      size: 22,
+                    ),
+                    suffixIcon:
+                        _searchController.text.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            )
+                            : null,
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
               ),
@@ -137,14 +153,8 @@ class _FreeMaterialsScreenState extends State<FreeMaterialsScreen> with SingleTi
                     icon: Icon(Icons.video_library, size: 20),
                     text: 'Videos',
                   ),
-                  Tab(
-                    icon: Icon(Icons.quiz, size: 20),
-                    text: 'Free Tests',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.video_call, size: 20),
-                    text: 'Meetings',
-                  ),
+                  Tab(icon: Icon(Icons.quiz, size: 20), text: 'Free Tests'),
+                  Tab(icon: Icon(Icons.video_call, size: 20), text: 'Meetings'),
                 ],
               ),
             ),

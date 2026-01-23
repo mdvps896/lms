@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'base_api_service.dart';
 
@@ -6,21 +7,26 @@ class CourseService extends BaseApiService {
   Future<List<Map<String, dynamic>>> getCourses() async {
     final cached = await getCached('courses');
     try {
-      final response = await http.get(Uri.parse('$baseUrl/courses')).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          final courses = List<Map<String, dynamic>>.from(data['data']);
-          for (var course in courses) {
-            course['thumbnail'] = BaseApiService.getFullUrl(course['thumbnail']);
-            if (course['instructor'] is Map) {
-              course['instructor']['profileImage'] = BaseApiService.getFullUrl(course['instructor']['profileImage']);
-              course['instructor']['profilePicture'] = BaseApiService.getFullUrl(course['instructor']['profilePicture']);
-            }
+      final data = await apiGet('/courses');
+      
+      if (data is Map && data['success'] == true) {
+        final courses = List<Map<String, dynamic>>.from(data['data']);
+        for (var course in courses) {
+          course['thumbnail'] = getFullUrl(
+            course['thumbnail'],
+          );
+          if (course['instructor'] is Map) {
+            course['instructor']['profileImage'] = getFullUrl(
+              course['instructor']['profileImage'],
+            );
+            course['instructor']['profilePicture'] =
+                getFullUrl(
+                  course['instructor']['profilePicture'],
+                );
           }
-          await saveCache('courses', courses);
-          return courses;
         }
+        await saveCache('courses', courses);
+        return courses;
       }
       return cached != null ? List<Map<String, dynamic>>.from(cached) : [];
     } catch (e) {
@@ -31,13 +37,11 @@ class CourseService extends BaseApiService {
   Future<List<Map<String, dynamic>>> getCategories() async {
     final cached = await getCached('categories');
     try {
-      final response = await http.get(Uri.parse('$baseUrl/categories')).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          await saveCache('categories', data['data']);
-          return List<Map<String, dynamic>>.from(data['data']);
-        }
+      final data = await apiGet('/categories');
+      
+      if (data is Map && data['success'] == true) {
+        await saveCache('categories', data['data']);
+        return List<Map<String, dynamic>>.from(data['data']);
       }
       return cached != null ? List<Map<String, dynamic>>.from(cached) : [];
     } catch (e) {
@@ -45,18 +49,26 @@ class CourseService extends BaseApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> getCourseById(String id, {String? userId}) async {
+  Future<Map<String, dynamic>?> getCourseById(
+    String id, {
+    String? userId,
+  }) async {
     try {
-      String url = '$baseUrl/courses/$id';
+      String url = '/courses/$id';
       if (userId != null) url += '?userId=$userId';
-      final response = await http.get(Uri.parse(url), headers: {'Cache-Control': 'no-cache'});
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
+      
+      final data = await apiGet(url);
+      
+      if (data is Map && data['success'] == true) {
         final course = data['data'] as Map<String, dynamic>;
-        course['thumbnail'] = BaseApiService.getFullUrl(course['thumbnail']);
+        course['thumbnail'] = getFullUrl(course['thumbnail']);
         if (course['instructor'] is Map) {
-          course['instructor']['profileImage'] = BaseApiService.getFullUrl(course['instructor']['profileImage']);
-          course['instructor']['profilePicture'] = BaseApiService.getFullUrl(course['instructor']['profilePicture']);
+          course['instructor']['profileImage'] = getFullUrl(
+            course['instructor']['profileImage'],
+          );
+          course['instructor']['profilePicture'] = getFullUrl(
+            course['instructor']['profilePicture'],
+          );
         }
         return course;
       }
@@ -66,16 +78,23 @@ class CourseService extends BaseApiService {
     }
   }
 
-  Future<Map<String, dynamic>> rateCourse(String courseId, double rating, String review) async {
+  Future<Map<String, dynamic>> rateCourse(
+    String courseId,
+    double rating,
+    String review,
+  ) async {
     try {
       final user = await getSavedUser();
-      if (user == null) return {'success': false, 'message': 'User not logged in'};
-      final response = await http.post(
-        Uri.parse('$baseUrl/courses/$courseId/rate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.id, 'rating': rating, 'review': review}),
-      );
-      return jsonDecode(response.body);
+      if (user == null) {
+        return {'success': false, 'message': 'User not logged in'};
+      }
+      
+      final result = await apiPost('/courses/$courseId/rate', {
+        'userId': user.id,
+        'rating': rating,
+        'review': review,
+      });
+      return result;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -84,13 +103,12 @@ class CourseService extends BaseApiService {
   Future<Map<String, dynamic>> toggleLike(String courseId) async {
     try {
       final user = await getSavedUser();
-      if (user == null) return {'success': false, 'message': 'User not logged in'};
-      final response = await http.post(
-        Uri.parse('$baseUrl/courses/$courseId/like'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.id}),
-      );
-      return jsonDecode(response.body);
+      if (user == null) {
+        return {'success': false, 'message': 'User not logged in'};
+      }
+      
+      final result = await apiPost('/courses/$courseId/like', {'userId': user.id});
+      return result;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -99,32 +117,47 @@ class CourseService extends BaseApiService {
   Future<void> updateCourseProgress(String courseId, String lectureId) async {
     try {
       final user = await getSavedUser();
-      if (user == null) return;
-      final response = await http.post(
-        Uri.parse('$baseUrl/student/update-progress'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.id, 'courseId': courseId, 'lectureId': lectureId}),
-      );
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
-        // Option to refresh profile could be here but for separation we might handle it in UI or use a stream
+      if (user == null) {
+        debugPrint('⚠️ Cannot update progress: User not logged in');
+        return;
+      }
+      
+      debugPrint('📝 Updating course progress:');
+      debugPrint('  User: ${user.name} (${user.id})');
+      debugPrint('  Course ID: $courseId');
+      debugPrint('  Lecture ID: $lectureId');
+      
+      final result = await apiPost('/student/update-progress', {
+        'userId': user.id,
+        'courseId': courseId,
+        'lectureId': lectureId,
+      });
+      
+      if (result['success'] == true) {
+        debugPrint('✅ Progress updated successfully');
+        debugPrint('  Completed lectures: ${result['completedLectures']}');
+      } else {
+        debugPrint('❌ Progress update failed: ${result['message']}');
       }
     } catch (e) {
-      print('Update Progress Error: $e');
+      debugPrint('❌ Error updating course progress: $e');
     }
   }
-  
+
   Future<List<Map<String, dynamic>>> getFreeMaterials() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/free-materials'));
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
+      final data = await apiGet('/free-materials');
+      
+      if (data is Map && data['success'] == true) {
         final materials = List<Map<String, dynamic>>.from(data['data']);
         for (var material in materials) {
           if (material['files'] != null) {
             for (var file in material['files']) {
-              if (file['type'] != 'video' || (file['url'] != null && !file['url'].toString().contains('youtube.com'))) {
-                file['url'] = BaseApiService.getFullUrl(file['url']);
+              // Add full URL for all files except YouTube videos
+              if (file['url'] != null &&
+                  !file['url'].toString().contains('youtube.com') &&
+                  !file['url'].toString().contains('youtu.be')) {
+                file['url'] = getFullUrl(file['url']);
               }
             }
           }
@@ -139,9 +172,8 @@ class CourseService extends BaseApiService {
 
   Future<List<Map<String, dynamic>>> getMeetings() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/meetings'));
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
+      final data = await apiGet('/meetings');
+      if (data is Map && data['success'] == true) {
         return List<Map<String, dynamic>>.from(data['data']);
       }
       return [];
@@ -149,6 +181,7 @@ class CourseService extends BaseApiService {
       return [];
     }
   }
+
   Future<Map<String, dynamic>> trackPdfView({
     required String action,
     required String courseId,
@@ -159,12 +192,19 @@ class CourseService extends BaseApiService {
     String? pdfName,
     int? currentPage,
     int? totalPages,
+    double? latitude,
+    double? longitude,
+    String? locationName,
+    int? activeDuration,
+    Map<int, int>? pageDurations,
   }) async {
     try {
       final user = await getSavedUser();
-      if (user == null) return {'success': false, 'message': 'User not logged in'};
+      if (user == null) {
+        return {'success': false, 'message': 'User not logged in'};
+      }
 
-      final body = {
+      final Map<String, dynamic> body = {
         'action': action,
         'userId': user.id,
         'courseId': courseId,
@@ -177,16 +217,55 @@ class CourseService extends BaseApiService {
       if (pdfName != null) body['pdfName'] = pdfName;
       if (currentPage != null) body['currentPage'] = currentPage;
       if (totalPages != null) body['totalPages'] = totalPages;
+      if (latitude != null) body['latitude'] = latitude;
+      if (longitude != null) body['longitude'] = longitude;
+      if (locationName != null) body['locationName'] = locationName;
+      if (activeDuration != null) body['activeDuration'] = activeDuration;
+      if (pageDurations != null) {
+        // Convert integer keys to strings for JSON encoding
+        body['pageDurations'] =
+            pageDurations.map((key, value) => MapEntry(key.toString(), value));
+      }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/courses/track-pdf-view'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-      
-      return jsonDecode(response.body);
+      final result = await apiPost('/courses/track-pdf-view', body);
+      return result;
     } catch (e) {
-      print('PDF Tracking Error: $e');
+
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> trackActivity({
+    required String action, // 'start', 'end'
+    required String type, // 'course_view'
+    required String contentId, // courseId
+    required String title,
+    String? activityId,
+    int? duration, // in seconds
+    int? activeDuration, // in seconds (active engagement time)
+  }) async {
+    try {
+      final user = await getSavedUser();
+      if (user == null) {
+        return {'success': false, 'message': 'User not logged in'};
+      }
+
+      final Map<String, dynamic> body = {
+        'action': action,
+        'userId': user.id,
+        'type': type,
+        'contentId': contentId,
+        'title': title,
+      };
+
+      if (activityId != null) body['activityId'] = activityId;
+      if (duration != null) body['duration'] = duration;
+      if (activeDuration != null) body['activeDuration'] = activeDuration;
+
+      final result = await apiPost('/activity/track', body);
+      return result;
+    } catch (e) {
+
       return {'success': false, 'message': e.toString()};
     }
   }

@@ -6,9 +6,10 @@ import '../services/api_service.dart';
 import '../widgets/search_skeleton.dart';
 import '../widgets/search_filter_bottom_sheet.dart';
 import 'course_details/course_details_screen.dart';
-import 'pdf_viewer/pdf_viewer_screen.dart'; // For PDFs
-import 'package:url_launcher/url_launcher.dart' as url_launcher; // For meetings
+import 'pdf_viewer/pdf_viewer_screen.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../widgets/common/custom_cached_image.dart';
+import 'lecture_player/lecture_player_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -21,18 +22,18 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final ApiService _apiService = ApiService();
-  
+
   // Data Sources
   List<Map<String, dynamic>> _allData = []; // Combined list
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _suggestions = [];
   List<String> _recentSearches = [];
-  
+
   bool _isSearching = false;
   bool _showResults = false;
   bool _isLoadingData = true;
   Timer? _debounce;
-  
+
   // Filter states
   String _selectedFilter = 'all'; // all, courses, pdfs, meetings, free
   String _selectedSort = 'newest';
@@ -74,7 +75,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ]);
 
       final courses = results[0].map((c) => {...c, 'type': 'course'}).toList();
-      
+
       // Process free materials - expand files array into individual searchable items
       List<Map<String, dynamic>> expandedMaterials = [];
       for (var m in results[1]) {
@@ -86,10 +87,13 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         // If material has files array, create separate entries for each file
-        if (m['files'] != null && m['files'] is List && (m['files'] as List).isNotEmpty) {
+        if (m['files'] != null &&
+            m['files'] is List &&
+            (m['files'] as List).isNotEmpty) {
           for (var file in m['files']) {
             if (file is Map) {
-              String fileType = (file['type'] ?? 'file').toString().toLowerCase();
+              String fileType =
+                  (file['type'] ?? 'file').toString().toLowerCase();
               // Normalize type
               if (fileType == 'video') {
                 fileType = 'video';
@@ -98,7 +102,7 @@ class _SearchScreenState extends State<SearchScreen> {
               } else {
                 fileType = 'pdf'; // default to pdf for documents
               }
-              
+
               expandedMaterials.add({
                 '_id': m['_id'],
                 'title': file['title'] ?? m['title'] ?? 'Untitled',
@@ -116,30 +120,31 @@ class _SearchScreenState extends State<SearchScreen> {
         } else {
           // No files array, keep as is
           expandedMaterials.add({
-            ...m, 
+            ...m,
             'type': m['type'] == 'video' ? 'video' : 'pdf',
             'category': categoryName,
             'rating': 4.5,
           });
         }
       }
-      
-      final meetings = results[2].map((m) {
-         String categoryName = 'Meeting';
-         if (m['category'] is Map) {
-            categoryName = m['category']['name']?.toString() ?? 'Meeting';
-         } else if (m['category'] != null) {
-            categoryName = m['category'].toString();
-         }
-         
-         return {
-          ...m, 
-          'type': 'meeting',
-          'title': m['title'] ?? 'Live Class',
-          'category': categoryName,
-          'rating': 5.0,
-        };
-      }).toList();
+
+      final meetings =
+          results[2].map((m) {
+            String categoryName = 'Meeting';
+            if (m['category'] is Map) {
+              categoryName = m['category']['name']?.toString() ?? 'Meeting';
+            } else if (m['category'] != null) {
+              categoryName = m['category'].toString();
+            }
+
+            return {
+              ...m,
+              'type': 'meeting',
+              'title': m['title'] ?? 'Live Class',
+              'category': categoryName,
+              'rating': 5.0,
+            };
+          }).toList();
 
       if (mounted) {
         setState(() {
@@ -150,7 +155,7 @@ class _SearchScreenState extends State<SearchScreen> {
         });
       }
     } catch (e) {
-      print('Error loading search data: $e');
+
       if (mounted) setState(() => _isLoadingData = false);
     }
   }
@@ -165,7 +170,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    
+
     if (query.isEmpty) {
       setState(() {
         _showResults = false;
@@ -185,26 +190,27 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-
   void _performSearch(String query) {
     _saveRecentSearch(query);
-    
+
     // Filter local data
-    var results = _allData.where((item) {
-      final title = (item['title'] ?? '').toString().toLowerCase();
-      final category = (item['category'] ?? '').toString().toLowerCase();
-      // Only courses have instructors mainly
-      final instructor = (item['instructor'] ?? '').toString().toLowerCase();
-      final searchLower = query.toLowerCase();
-      
-      return title.contains(searchLower) || 
-             category.contains(searchLower) || 
-             instructor.contains(searchLower);
-    }).toList();
+    var results =
+        _allData.where((item) {
+          final title = (item['title'] ?? '').toString().toLowerCase();
+          final category = (item['category'] ?? '').toString().toLowerCase();
+          // Only courses have instructors mainly
+          final instructor =
+              (item['instructor'] ?? '').toString().toLowerCase();
+          final searchLower = query.toLowerCase();
+
+          return title.contains(searchLower) ||
+              category.contains(searchLower) ||
+              instructor.contains(searchLower);
+        }).toList();
 
     // Apply content type filter
     results = _applyContentFilter(results);
-    
+
     // Apply sorting
     results = _applySorting(results);
 
@@ -216,9 +222,11 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _applyContentFilter(List<Map<String, dynamic>> results) {
+  List<Map<String, dynamic>> _applyContentFilter(
+    List<Map<String, dynamic>> results,
+  ) {
     if (_selectedFilter == 'all') return results;
-    
+
     switch (_selectedFilter.toLowerCase()) {
       case 'courses':
         return results.where((item) => item['type'] == 'course').toList();
@@ -228,8 +236,8 @@ class _SearchScreenState extends State<SearchScreen> {
         return results.where((item) => item['type'] == 'meeting').toList();
       case 'free':
         return results.where((item) {
-             final price = item['price'].toString();
-             return price == '0' || price.toLowerCase() == 'free';
+          final price = item['price'].toString();
+          return price == '0' || price.toLowerCase() == 'free';
         }).toList();
       default:
         return results;
@@ -239,20 +247,24 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, dynamic>> _applySorting(List<Map<String, dynamic>> results) {
     if (_selectedSort == 'newest') {
       // Sort by creation date if available, or just keeping order
-       // Assuming 'id' is MongoID which is time-sorted
-       results.sort((a, b) => (b['_id'] ?? b['id'] ?? '').toString().compareTo((a['_id'] ?? a['id'] ?? '').toString()));
+      // Assuming 'id' is MongoID which is time-sorted
+      results.sort(
+        (a, b) => (b['_id'] ?? b['id'] ?? '').toString().compareTo(
+          (a['_id'] ?? a['id'] ?? '').toString(),
+        ),
+      );
     } else if (_selectedSort == 'highest_rated') {
-       results.sort((a, b) {
-           double rA = double.tryParse((a['rating'] ?? 0).toString()) ?? 0;
-           double rB = double.tryParse((b['rating'] ?? 0).toString()) ?? 0;
-           return rB.compareTo(rA);
-       });
+      results.sort((a, b) {
+        double rA = double.tryParse((a['rating'] ?? 0).toString()) ?? 0;
+        double rB = double.tryParse((b['rating'] ?? 0).toString()) ?? 0;
+        return rB.compareTo(rA);
+      });
     } else if (_selectedSort == 'lowest_price') {
-       results.sort((a, b) {
-           double pA = double.tryParse((a['price'] ?? 0).toString()) ?? 0;
-           double pB = double.tryParse((b['price'] ?? 0).toString()) ?? 0;
-           return pA.compareTo(pB);
-       });
+      results.sort((a, b) {
+        double pA = double.tryParse((a['price'] ?? 0).toString()) ?? 0;
+        double pB = double.tryParse((b['price'] ?? 0).toString()) ?? 0;
+        return pA.compareTo(pB);
+      });
     }
     return results;
   }
@@ -262,20 +274,21 @@ class _SearchScreenState extends State<SearchScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => SearchFilterBottomSheet(
-        selectedFilter: _selectedFilter,
-        selectedSort: _selectedSort,
-        onApply: (filter, sort) {
-          setState(() {
-            _selectedFilter = filter;
-            _selectedSort = sort;
-          });
-          // Re-run search with new filters
-          if (_searchController.text.isNotEmpty) {
-            _performSearch(_searchController.text);
-          }
-        },
-      ),
+      builder:
+          (context) => SearchFilterBottomSheet(
+            selectedFilter: _selectedFilter,
+            selectedSort: _selectedSort,
+            onApply: (filter, sort) {
+              setState(() {
+                _selectedFilter = filter;
+                _selectedSort = sort;
+              });
+              // Re-run search with new filters
+              if (_searchController.text.isNotEmpty) {
+                _performSearch(_searchController.text);
+              }
+            },
+          ),
     );
   }
 
@@ -308,18 +321,30 @@ class _SearchScreenState extends State<SearchScreen> {
             decoration: InputDecoration(
               hintText: 'Search courses, categories...',
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: AppConstants.primaryColor, size: 20),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppConstants.primaryColor,
+                size: 20,
+              ),
+              suffixIcon:
+                  _searchController.text.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(
+                          Icons.clear,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                      : null,
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
         ),
@@ -328,7 +353,7 @@ class _SearchScreenState extends State<SearchScreen> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppConstants.accentColor.withOpacity(0.2),
+                color: AppConstants.accentColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -400,13 +425,20 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _recentSearches.isEmpty
-            ? const Text('No recent searches', style: TextStyle(color: Colors.grey))
-            : Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _recentSearches.map((text) => _buildRecentChip(text)).toList(),
-            ),
+            child:
+                _recentSearches.isEmpty
+                    ? const Text(
+                      'No recent searches',
+                      style: TextStyle(color: Colors.grey),
+                    )
+                    : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          _recentSearches
+                              .map((text) => _buildRecentChip(text))
+                              .toList(),
+                    ),
           ),
           const SizedBox(height: 24),
         ],
@@ -425,7 +457,7 @@ class _SearchScreenState extends State<SearchScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -437,7 +469,7 @@ class _SearchScreenState extends State<SearchScreen> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: AppConstants.primaryColor.withOpacity(0.1),
+                color: AppConstants.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -463,10 +495,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 4),
                   Text(
                     course['category'],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -496,13 +525,7 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             Icon(Icons.history, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 6),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
-            ),
+            Text(text, style: TextStyle(fontSize: 13, color: Colors.grey[700])),
           ],
         ),
       ),
@@ -528,10 +551,7 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 8),
             Text(
               'Try searching with different keywords',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -568,53 +588,95 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _handleNavigation(Map<String, dynamic> item) async {
     if (item['type'] == 'course') {
-       Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => CourseDetailsScreen(course: item)),
-       );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CourseDetailsScreen(course: item),
+        ),
+      );
     } else if (item['type'] == 'pdf') {
-       Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => PdfViewerScreen(
-             lecture: {'title': item['title'], 'content': item['url'] ?? item['fileUrl'] ?? item['path']},
-             courseTitle: 'Search Result',
-             courseId: '',
-          )),
-       );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => PdfViewerScreen(
+                lecture: {
+                  'title': item['title'],
+                  'content': _apiService.getFullUrl(item['url'] ?? item['fileUrl'] ?? item['path']),
+                },
+                courseTitle: 'Search Result',
+                courseId: '',
+              ),
+        ),
+      );
+    } else if (item['type'] == 'video') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => LecturePlayerScreen(
+                lecture: {
+                  'title': item['title'],
+                  'content': _apiService.getFullUrl(
+                    item['url'] ?? item['fileUrl'] ?? item['path'],
+                  ),
+                },
+                courseTitle: item['category'] ?? 'Search Result',
+                courseId: '',
+              ),
+        ),
+      );
     } else if (item['type'] == 'meeting') {
-       final url = item['meetingLink'] ?? item['link'] ?? '';
-       if (url.isEmpty) {
+      String? url = item['meetingLink'] ?? item['link'];
+      
+      // Check links array if main link is missing
+      if ((url == null || url.isEmpty) && item['links'] != null && (item['links'] as List).isNotEmpty) {
+        final links = item['links'] as List;
+        if (links.first is Map) {
+          url = links.first['url'];
+        }
+      }
+      
+      if (url == null || url.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No meeting link available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      try {
+        final uri = Uri.parse(url);
+
+        // Use platformDefault to let user choose browser
+        if (await url_launcher.canLaunchUrl(uri)) {
+          await url_launcher.launchUrl(
+            uri,
+            mode: url_launcher.LaunchMode.platformDefault,
+          );
+        } else {
+          try {
+             // Fallback for some devices/browsers
+             await url_launcher.launchUrl(
+               uri,
+               mode: url_launcher.LaunchMode.externalApplication,
+             );
+          } catch (e) {
+             throw 'Could not launch meeting link';
+          }
+        }
+      } catch (e) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No meeting link available'),
+            SnackBar(
+              content: Text('Failed to open meeting: $e'),
               backgroundColor: Colors.red,
             ),
           );
-          return;
-       }
-
-       try {
-         final uri = Uri.parse(url);
-         
-         // Use platformDefault to let user choose browser
-         if (await url_launcher.canLaunchUrl(uri)) {
-           await url_launcher.launchUrl(
-             uri,
-             mode: url_launcher.LaunchMode.platformDefault,
-           );
-         } else {
-           throw 'Could not launch meeting link';
-         }
-       } catch (e) {
-         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text('Failed to open meeting: $e'),
-               backgroundColor: Colors.red,
-             ),
-           );
-         }
-       }
+        }
+      }
     }
   }
 
@@ -628,7 +690,7 @@ class _SearchScreenState extends State<SearchScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -652,9 +714,12 @@ class _SearchScreenState extends State<SearchScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppConstants.accentColor.withOpacity(0.2),
+                        color: AppConstants.accentColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -681,12 +746,19 @@ class _SearchScreenState extends State<SearchScreen> {
                     if (item['type'] == 'course')
                       Row(
                         children: [
-                          Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
+                          Icon(
+                            Icons.person_outline,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               item['instructor'] ?? 'Admin',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -697,26 +769,47 @@ class _SearchScreenState extends State<SearchScreen> {
                     Row(
                       children: [
                         if (item['rating'] != null) ...[
-                           const Icon(Icons.star, size: 14, color: Colors.amber),
-                           const SizedBox(width: 4),
-                           Text(
-                             item['rating'].toString(),
-                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                           ),
-                           const SizedBox(width: 8),
+                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            item['rating'].toString(),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                         ],
                         if (item['type'] == 'course') ...[
-                           Icon(Icons.people_outline, size: 14, color: Colors.grey[600]),
-                           const SizedBox(width: 4),
-                           Text(
-                             '${item['students'] ?? 0}',
-                             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                           ),
+                          Icon(
+                            Icons.people_outline,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${item['students'] ?? 0}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
                         ],
                         if (item['type'] == 'pdf')
-                           const Text('PDF Document', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Text(
+                            'PDF Document',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
                         if (item['type'] == 'meeting')
-                           const Text('Live Session', style: TextStyle(fontSize: 12, color: Colors.red)),
+                          const Text(
+                            'Live Session',
+                            style: TextStyle(fontSize: 12, color: Colors.red),
+                          ),
+                        if (item['type'] == 'video')
+                          const Text(
+                            'Video Lecture',
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
                       ],
                     ),
                   ],
@@ -730,26 +823,41 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildThumbnail(Map<String, dynamic> item) {
-      if (item['type'] == 'course' && item['thumbnail'] != null) {
-          return CustomCachedImage(
-             imageUrl: item['thumbnail'],
-             width: 100,
-             height: 120,
-             fit: BoxFit.cover,
-          );
-      } else if (item['type'] == 'pdf') {
-          return Container(
-             width: 100, height: 120,
-             color: Colors.red[50],
-             child: const Center(child: Icon(Icons.picture_as_pdf, color: Colors.red, size: 40)),
-          );
-      } else if (item['type'] == 'meeting') {
-           return Container(
-             width: 100, height: 120,
-             color: Colors.blue[50],
-             child: const Center(child: Icon(Icons.video_call, color: Colors.blue, size: 40)),
-          );
-      }
-      return Container(width: 100, height: 120, color: Colors.grey[200]);
+    if (item['type'] == 'course' && item['thumbnail'] != null) {
+      return CustomCachedImage(
+        imageUrl: item['thumbnail'],
+        width: 100,
+        height: 120,
+        fit: BoxFit.cover,
+      );
+    } else if (item['type'] == 'pdf') {
+      return Container(
+        width: 100,
+        height: 120,
+        color: Colors.red[50],
+        child: const Center(
+          child: Icon(Icons.picture_as_pdf, color: Colors.red, size: 40),
+        ),
+      );
+    } else if (item['type'] == 'video') {
+      return Container(
+        width: 100,
+        height: 120,
+        color: Colors.blue[50],
+        child: const Center(
+          child: Icon(Icons.play_circle_filled, color: Colors.blue, size: 40),
+        ),
+      );
+    } else if (item['type'] == 'meeting') {
+      return Container(
+        width: 100,
+        height: 120,
+        color: Colors.blue[50],
+        child: const Center(
+          child: Icon(Icons.video_call, color: Colors.blue, size: 40),
+        ),
+      );
+    }
+    return Container(width: 100, height: 120, color: Colors.grey[200]);
   }
 }

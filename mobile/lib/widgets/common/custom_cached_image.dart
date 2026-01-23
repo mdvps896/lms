@@ -74,14 +74,16 @@ class _CustomCachedImageState extends State<CustomCachedImage> {
         _downloadAndCache(file);
       }
     } catch (e) {
-      print('Image Cache Error: $e');
+
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _downloadAndCache(File file) async {
     try {
-      final response = await http.get(Uri.parse(widget.imageUrl)).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse(widget.imageUrl))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         await file.writeAsBytes(response.bodyBytes);
         if (mounted) {
@@ -94,7 +96,7 @@ class _CustomCachedImageState extends State<CustomCachedImage> {
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Download Error: $e');
+
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -111,17 +113,16 @@ class _CustomCachedImageState extends State<CustomCachedImage> {
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
-        errorBuilder: (context, error, stackTrace) => widget.errorWidget ?? _buildErrorIcon(),
+        errorBuilder:
+            (context, error, stackTrace) =>
+                widget.errorWidget ?? _buildErrorIcon(),
       );
     } else {
       content = widget.errorWidget ?? _buildErrorIcon();
     }
 
     if (widget.borderRadius != null) {
-      return ClipRRect(
-        borderRadius: widget.borderRadius!,
-        child: content,
-      );
+      return ClipRRect(borderRadius: widget.borderRadius!, child: content);
     }
 
     return content;

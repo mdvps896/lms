@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../models/user_model.dart';
 import '../../utils/constants.dart';
 import '../home_screen.dart';
 import 'dart:async';
@@ -23,10 +24,13 @@ class OtpVerificationScreen extends StatefulWidget {
 }
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  final List<TextEditingController> _controllers = List.generate(6, (index) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
   final ApiService _apiService = ApiService();
-  
+
   bool _isLoading = false;
   int _resendTimer = 60;
   Timer? _timer;
@@ -82,10 +86,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       );
 
       if (response['success'] == true) {
+        // Save token and user data for auto-login
+        if (response['token'] != null && response['user'] != null) {
+          await _apiService.saveToken(response['token']);
+          // Parse user properly (handle if user is wrapped or not)
+          // The API returns 'user' object directly
+          final user = User.fromJson(response['user']);
+          await _apiService.saveUser(user);
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email verified successfully!'), backgroundColor: Colors.green),
+            const SnackBar(
+              content: Text('Email verified successfully! Logging in...'),
+              backgroundColor: Colors.green,
+            ),
           );
+          // Navigate to Home/Main Screen
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -95,7 +112,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Verification failed'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(response['message'] ?? 'Verification failed'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -124,13 +144,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         _startTimer();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP resent successfully!'), backgroundColor: Colors.green),
+            const SnackBar(
+              content: Text('OTP resent successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Failed to resend OTP')),
+            SnackBar(
+              content: Text(response['message'] ?? 'Failed to resend OTP'),
+            ),
           );
         }
       }
@@ -143,7 +168,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: Colors.black),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -152,7 +181,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             children: [
               const Text(
                 'Verify Email',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppConstants.primaryColor),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.primaryColor,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -170,23 +203,50 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                    : const Text('Verify & Register', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          'Verify & Register',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
               ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Didn't receive the code? ", style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    "Didn't receive the code? ",
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   GestureDetector(
                     onTap: _resendTimer == 0 ? _handleResend : null,
                     child: Text(
-                      _resendTimer == 0 ? 'Resend' : 'Resend in ${_resendTimer}s',
+                      _resendTimer == 0
+                          ? 'Resend'
+                          : 'Resend in ${_resendTimer}s',
                       style: TextStyle(
-                        color: _resendTimer == 0 ? AppConstants.primaryColor : Colors.grey,
+                        color:
+                            _resendTimer == 0
+                                ? AppConstants.primaryColor
+                                : Colors.grey,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -216,7 +276,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         keyboardType: TextInputType.number,
         maxLength: 1,
         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        decoration: const InputDecoration(counterText: '', border: InputBorder.none),
+        decoration: const InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+        ),
         onChanged: (value) {
           if (value.isNotEmpty && index < 5) {
             _focusNodes[index + 1].requestFocus();

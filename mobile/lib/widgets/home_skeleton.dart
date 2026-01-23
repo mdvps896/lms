@@ -33,15 +33,23 @@ class HomeSkeleton extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Search Bar Skeleton
-              _buildShimmerRect(width: double.infinity, height: 50, borderRadius: 25),
-              
+              _buildShimmerRect(
+                width: double.infinity,
+                height: 50,
+                borderRadius: 25,
+              ),
+
               const SizedBox(height: 24),
-              
+
               // Main Slider
-              _buildShimmerRect(width: double.infinity, height: 200, borderRadius: 24),
-              
+              _buildShimmerRect(
+                width: double.infinity,
+                height: 200,
+                borderRadius: 24,
+              ),
+
               const SizedBox(height: 24),
 
               // Categories
@@ -51,11 +59,16 @@ class HomeSkeleton extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 physics: const NeverScrollableScrollPhysics(),
                 child: Row(
-                  children: List.generate(5, (index) => 
-                    Padding(
+                  children: List.generate(
+                    5,
+                    (index) => Padding(
                       padding: const EdgeInsets.only(right: 12),
-                      child: _buildShimmerRect(width: 80, height: 36, borderRadius: 20),
-                    )
+                      child: _buildShimmerRect(
+                        width: 80,
+                        height: 36,
+                        borderRadius: 20,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -66,16 +79,28 @@ class HomeSkeleton extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   _buildShimmerRect(width: 140, height: 20),
-                   _buildShimmerRect(width: 60, height: 14),
+                  _buildShimmerRect(width: 140, height: 20),
+                  _buildShimmerRect(width: 60, height: 14),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _buildShimmerRect(width: double.infinity, height: 160, borderRadius: 20)),
+                  Expanded(
+                    child: _buildShimmerRect(
+                      width: double.infinity,
+                      height: 160,
+                      borderRadius: 20,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildShimmerRect(width: double.infinity, height: 160, borderRadius: 20)),
+                  Expanded(
+                    child: _buildShimmerRect(
+                      width: double.infinity,
+                      height: 160,
+                      borderRadius: 20,
+                    ),
+                  ),
                 ],
               ),
 
@@ -86,9 +111,21 @@ class HomeSkeleton extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _buildShimmerRect(width: double.infinity, height: 140, borderRadius: 24)),
+                  Expanded(
+                    child: _buildShimmerRect(
+                      width: double.infinity,
+                      height: 140,
+                      borderRadius: 24,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildShimmerRect(width: double.infinity, height: 140, borderRadius: 24)),
+                  Expanded(
+                    child: _buildShimmerRect(
+                      width: double.infinity,
+                      height: 140,
+                      borderRadius: 24,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -98,7 +135,11 @@ class HomeSkeleton extends StatelessWidget {
     );
   }
 
-  Widget _buildShimmerRect({required double width, required double height, double borderRadius = 8}) {
+  Widget _buildShimmerRect({
+    required double width,
+    required double height,
+    double borderRadius = 8,
+  }) {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.grey[100]!,

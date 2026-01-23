@@ -16,13 +16,18 @@ class LegalTabsScreen extends StatefulWidget {
   State<LegalTabsScreen> createState() => _LegalTabsScreenState();
 }
 
-class _LegalTabsScreenState extends State<LegalTabsScreen> with SingleTickerProviderStateMixin {
+class _LegalTabsScreenState extends State<LegalTabsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this, initialIndex: widget.initialIndex);
+    _tabController = TabController(
+      length: 7,
+      vsync: this,
+      initialIndex: widget.initialIndex,
+    );
   }
 
   @override
@@ -35,7 +40,10 @@ class _LegalTabsScreenState extends State<LegalTabsScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Policies & Info', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Policies & Info',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppConstants.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:ui';
 
 class AppLifecycleManager extends StatefulWidget {
@@ -11,7 +10,8 @@ class AppLifecycleManager extends StatefulWidget {
   State<AppLifecycleManager> createState() => _AppLifecycleManagerState();
 }
 
-class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsBindingObserver {
+class _AppLifecycleManagerState extends State<AppLifecycleManager>
+    with WidgetsBindingObserver {
   bool _isAppInBackground = false;
 
   @override
@@ -29,13 +29,11 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsB
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     setState(() {
-      _isAppInBackground = state == AppLifecycleState.paused || 
-                          state == AppLifecycleState.inactive ||
-                          state == AppLifecycleState.hidden;
+      _isAppInBackground =
+          state == AppLifecycleState.paused ||
+          state == AppLifecycleState.inactive ||
+          state == AppLifecycleState.hidden;
     });
-
-    print('🔄 App Lifecycle: $state');
-    print('   Background: $_isAppInBackground');
   }
 
   @override
@@ -50,16 +48,12 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsB
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   child: const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.lock,
-                          size: 80,
-                          color: Colors.white,
-                        ),
+                        Icon(Icons.lock, size: 80, color: Colors.white),
                         SizedBox(height: 20),
                         Text(
                           'App Minimized',
@@ -72,10 +66,7 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsB
                         SizedBox(height: 8),
                         Text(
                           'Tap to continue',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                       ],
                     ),

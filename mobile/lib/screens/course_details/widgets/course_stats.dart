@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class CourseStats extends StatelessWidget {
   final Map<String, dynamic> course;
-  
+
   const CourseStats({super.key, required this.course});
 
   @override
@@ -26,14 +26,22 @@ class CourseStats extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildStatItem(Icons.play_circle_fill_rounded, '$totalLectures Lessons', Colors.redAccent),
-          _buildDivider(),
-          _buildStatItem(Icons.quiz_rounded, '$totalQuizzes Quizzes', Colors.amber),
+          _buildStatItem(
+            Icons.play_circle_fill_rounded,
+            '$totalLectures Lessons',
+            Colors.redAccent,
+          ),
           _buildDivider(),
           _buildStatItem(
-            Icons.card_membership_rounded, 
-            hasCertificate ? 'Certificate' : 'No Certificate', 
-            hasCertificate ? Colors.blue : Colors.grey
+            Icons.quiz_rounded,
+            '$totalQuizzes Quizzes',
+            Colors.amber,
+          ),
+          _buildDivider(),
+          _buildStatItem(
+            Icons.card_membership_rounded,
+            hasCertificate ? 'Certificate' : 'No Certificate',
+            hasCertificate ? Colors.blue : Colors.grey,
           ),
         ],
       ),
@@ -65,10 +73,6 @@ class CourseStats extends StatelessWidget {
   }
 
   Widget _buildDivider() {
-    return Container(
-      width: 1,
-      height: 24,
-      color: Colors.grey[200],
-    );
+    return Container(width: 1, height: 24, color: Colors.grey[200]);
   }
 }

@@ -34,13 +34,17 @@ class CourseProgress extends StatelessWidget {
                       color: Colors.grey[600],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey[600]),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 12),
-          
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

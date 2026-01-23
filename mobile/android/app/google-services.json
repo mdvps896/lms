@@ -1,41 +1,49 @@
 {
   "project_info": {
-    "project_number": "65424001934",
-    "project_id": "god-of-graphics",
-    "storage_bucket": "god-of-graphics.firebasestorage.app"
+    "project_number": "759353925761",
+    "project_id": "mdapp-ca23e",
+    "storage_bucket": "mdapp-ca23e.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:65424001934:android:bf4fe8a1d22bb61c3732df",
+        "mobilesdk_app_id": "1:759353925761:android:31302cfb9512ed2784ad80",
         "android_client_info": {
-          "package_name": "com.example.mobile"
+          "package_name": "com.mdconsultancy.exam"
         }
       },
       "oauth_client": [
         {
-          "client_id": "65424001934-svarnn7vs767ham17lc32rne7cpmca50.apps.googleusercontent.com",
+          "client_id": "759353925761-abdmbaa69ougrjga89othp6lm9beip1f.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.mobile",
+            "package_name": "com.mdconsultancy.exam",
             "certificate_hash": "6100a2fa2f74662c23bf27bf7ea070354e773d86"
           }
         },
         {
-          "client_id": "65424001934-hpccfvrag8ngsmsj0aogqc1vsvir3eh5.apps.googleusercontent.com",
+          "client_id": "759353925761-qtfgon2n1gvr36t8ouncboofvsl1bo5v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mdconsultancy.exam",
+            "certificate_hash": "3c3beec7d16e5fe2aa8aef9aca280aff194d88d8"
+          }
+        },
+        {
+          "client_id": "759353925761-t8h3muifn063beokf0scmnav2mal4ujl.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyA_PGLSsaem3NaY4UApgdrTMygWzvQh6o4"
+          "current_key": "AIzaSyAhoeIUO2pWO5kaljLkCx2_JpUSZck-n8M"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "65424001934-hpccfvrag8ngsmsj0aogqc1vsvir3eh5.apps.googleusercontent.com",
+              "client_id": "759353925761-memcm8i04o072v6gbtpu133qstnq5mol.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

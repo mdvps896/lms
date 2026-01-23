@@ -64,7 +64,8 @@ class CourseReviewsDialog extends StatelessWidget {
                             children: [
                               CircleAvatar(
                                 radius: 15,
-                                backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
+                                backgroundColor: AppConstants.primaryColor
+                                    .withValues(alpha: 0.1),
                                 child: Text(
                                   (review['userName'] ?? 'U')[0].toUpperCase(),
                                   style: const TextStyle(
@@ -98,7 +99,8 @@ class CourseReviewsDialog extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          if (review['review'] != null && review['review'].toString().isNotEmpty)
+                          if (review['review'] != null &&
+                              review['review'].toString().isNotEmpty)
                             Text(
                               review['review'],
                               style: TextStyle(

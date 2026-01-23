@@ -69,9 +69,9 @@ class FreeMaterialGrid extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => FreeMaterialsScreen(
-              initialTabIndex: item['tabIndex'] ?? 0,
-            ),
+            builder:
+                (context) =>
+                    FreeMaterialsScreen(initialTabIndex: item['tabIndex'] ?? 0),
           ),
         );
       },

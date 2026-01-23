@@ -35,18 +35,20 @@ class ProfileScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.white,
-                    backgroundImage: user.profileImage != null
-                        ? NetworkImage(user.profileImage!)
-                        : null,
-                    child: user.profileImage == null
-                        ? Text(
-                            user.name.substring(0, 1).toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 40,
-                              color: AppConstants.primaryColor,
-                            ),
-                          )
-                        : null,
+                    backgroundImage:
+                        user.profileImage != null
+                            ? NetworkImage(user.profileImage!)
+                            : null,
+                    child:
+                        user.profileImage == null
+                            ? Text(
+                              user.name.substring(0, 1).toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 40,
+                                color: AppConstants.primaryColor,
+                              ),
+                            )
+                            : null,
                   ),
                   Positioned(
                     bottom: 0,
@@ -55,11 +57,17 @@ class ProfileScreen extends StatelessWidget {
                       backgroundColor: AppConstants.primaryColor,
                       radius: 18,
                       child: IconButton(
-                        icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                        icon: const Icon(
+                          Icons.camera_alt,
+                          size: 18,
+                          color: Colors.white,
+                        ),
                         onPressed: () {
                           // Implement Image Picker and Upload logic here
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Image upload feature coming soon')),
+                            const SnackBar(
+                              content: Text('Image upload feature coming soon'),
+                            ),
                           );
                         },
                       ),
@@ -69,22 +77,16 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              user.name,
-              style: AppConstants.headingStyle,
-            ),
-            Text(
-              user.email,
-              style: AppConstants.bodyStyle,
-            ),
+            Text(user.name, style: AppConstants.headingStyle),
+            Text(user.email, style: AppConstants.bodyStyle),
             const SizedBox(height: 32),
-            
+
             // Profile Menu Items
             _buildProfileItem(Icons.person_outline, 'Edit Profile'),
             _buildProfileItem(Icons.settings_outlined, 'Settings'),
             _buildProfileItem(Icons.security_outlined, 'Privacy & Security'),
             _buildProfileItem(Icons.help_outline, 'Help & Support'),
-            
+
             const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -123,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -131,11 +133,12 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: ListTile(
         leading: Icon(icon, color: AppConstants.primaryColor),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w500),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey,
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: () {},
       ),
     );

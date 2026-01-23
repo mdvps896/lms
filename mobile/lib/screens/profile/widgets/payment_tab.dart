@@ -15,7 +15,11 @@ class PaymentTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[200]),
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 80,
+              color: Colors.grey[200],
+            ),
             const SizedBox(height: 16),
             const Text('No transactions found'),
           ],
@@ -57,7 +61,7 @@ class PaymentTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -68,11 +72,16 @@ class PaymentTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isFree ? Colors.green.withOpacity(0.1) : AppConstants.primaryColor.withOpacity(0.1),
+              color:
+                  isFree
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : AppConstants.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isFree ? Icons.card_giftcard : Icons.account_balance_wallet_outlined,
+              isFree
+                  ? Icons.card_giftcard
+                  : Icons.account_balance_wallet_outlined,
               color: isFree ? Colors.green : AppConstants.primaryColor,
               size: 20,
             ),
@@ -84,7 +93,10 @@ class PaymentTab extends StatelessWidget {
               children: [
                 Text(
                   payment['courseTitle'] ?? 'Course Purchase',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -109,7 +121,10 @@ class PaymentTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: (payment['status'] == 'success') ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                  color:
+                      (payment['status'] == 'success')
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -117,7 +132,10 @@ class PaymentTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: (payment['status'] == 'success') ? Colors.green : Colors.red,
+                    color:
+                        (payment['status'] == 'success')
+                            ? Colors.green
+                            : Colors.red,
                   ),
                 ),
               ),

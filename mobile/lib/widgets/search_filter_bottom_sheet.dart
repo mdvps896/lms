@@ -14,7 +14,8 @@ class SearchFilterBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<SearchFilterBottomSheet> createState() => _SearchFilterBottomSheetState();
+  State<SearchFilterBottomSheet> createState() =>
+      _SearchFilterBottomSheetState();
 }
 
 class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
@@ -52,7 +53,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             // Header
             Padding(
               padding: const EdgeInsets.all(20),
@@ -74,9 +75,9 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 ],
               ),
             ),
-  
+
             const Divider(height: 1),
-  
+
             // Sort Section
             Padding(
               padding: const EdgeInsets.all(20),
@@ -94,21 +95,17 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildSortChip('Newest', 'newest'),
-                      ),
+                      Expanded(child: _buildSortChip('Newest', 'newest')),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildSortChip('Oldest', 'oldest'),
-                      ),
+                      Expanded(child: _buildSortChip('Oldest', 'oldest')),
                     ],
                   ),
                 ],
               ),
             ),
-  
+
             const Divider(height: 1),
-  
+
             // Filter Section
             Padding(
               padding: const EdgeInsets.all(20),
@@ -126,17 +123,33 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   const SizedBox(height: 12),
                   _buildFilterOption('All', 'all', Icons.apps_rounded),
                   const SizedBox(height: 8),
-                  _buildFilterOption('Courses', 'courses', Icons.school_rounded),
+                  _buildFilterOption(
+                    'Courses',
+                    'courses',
+                    Icons.school_rounded,
+                  ),
                   const SizedBox(height: 8),
-                  _buildFilterOption('PDFs', 'pdfs', Icons.picture_as_pdf_rounded),
+                  _buildFilterOption(
+                    'PDFs',
+                    'pdfs',
+                    Icons.picture_as_pdf_rounded,
+                  ),
                   const SizedBox(height: 8),
-                  _buildFilterOption('Meeting Links', 'meetings', Icons.video_call_rounded),
+                  _buildFilterOption(
+                    'Meeting Links',
+                    'meetings',
+                    Icons.video_call_rounded,
+                  ),
                   const SizedBox(height: 8),
-                  _buildFilterOption('Free Materials', 'free', Icons.card_giftcard_rounded),
+                  _buildFilterOption(
+                    'Free Materials',
+                    'free',
+                    Icons.card_giftcard_rounded,
+                  ),
                 ],
               ),
             ),
-  
+
             // Apply Button
             Padding(
               padding: const EdgeInsets.all(20),
@@ -166,7 +179,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 ),
               ),
             ),
-  
+
             // Safe area for iOS
             SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
@@ -186,14 +199,13 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? AppConstants.primaryColor.withOpacity(0.1) 
-              : Colors.grey[100],
+          color:
+              isSelected
+                  ? AppConstants.primaryColor.withValues(alpha: 0.1)
+                  : Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? AppConstants.primaryColor 
-                : Colors.transparent,
+            color: isSelected ? AppConstants.primaryColor : Colors.transparent,
             width: 2,
           ),
         ),
@@ -203,9 +215,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isSelected 
-                  ? AppConstants.primaryColor 
-                  : Colors.grey[700],
+              color: isSelected ? AppConstants.primaryColor : Colors.grey[700],
             ),
           ),
         ),
@@ -224,14 +234,13 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? AppConstants.primaryColor.withOpacity(0.1) 
-              : Colors.grey[50],
+          color:
+              isSelected
+                  ? AppConstants.primaryColor.withValues(alpha: 0.1)
+                  : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? AppConstants.primaryColor 
-                : Colors.grey[200]!,
+            color: isSelected ? AppConstants.primaryColor : Colors.grey[200]!,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -240,9 +249,8 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected 
-                    ? AppConstants.primaryColor 
-                    : Colors.grey[300],
+                color:
+                    isSelected ? AppConstants.primaryColor : Colors.grey[300],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -258,9 +266,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected 
-                      ? AppConstants.primaryColor 
-                      : AppConstants.textPrimary,
+                  color:
+                      isSelected
+                          ? AppConstants.primaryColor
+                          : AppConstants.textPrimary,
                 ),
               ),
             ),

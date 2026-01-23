@@ -17,8 +17,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-    
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
+
     // Show confetti if passed
     if (widget.attempt['passed'] == true) {
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -46,7 +48,8 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final examData = widget.attempt['exam'];
-    final examName = examData is Map ? (examData['name'] ?? 'Unknown Test') : 'Unknown Test';
+    final examName =
+        examData is Map ? (examData['name'] ?? 'Unknown Test') : 'Unknown Test';
     final score = widget.attempt['score'] ?? 0;
     final totalMarks = widget.attempt['totalMarks'] ?? 100;
     final percentage = totalMarks > 0 ? (score / totalMarks * 100) : 0;
@@ -77,7 +80,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
                             onPressed: () => Navigator.pop(context),
                           ),
                           const Spacer(),
@@ -127,7 +133,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -209,16 +215,28 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                               const SizedBox(height: 16),
                               _buildDetailRow('Test Name', examName),
                               _buildDetailRow('Score', '$score marks'),
-                              _buildDetailRow('Total Marks', '$totalMarks marks'),
-                              _buildDetailRow('Percentage', '${percentage.toStringAsFixed(1)}%'),
-                              _buildDetailRow('Time Taken', _formatTime(timeTaken)),
+                              _buildDetailRow(
+                                'Total Marks',
+                                '$totalMarks marks',
+                              ),
+                              _buildDetailRow(
+                                'Percentage',
+                                '${percentage.toStringAsFixed(1)}%',
+                              ),
+                              _buildDetailRow(
+                                'Time Taken',
+                                _formatTime(timeTaken),
+                              ),
                               if (submittedAt != null)
                                 _buildDetailRow(
                                   'Submitted At',
                                   '${submittedAt.day}/${submittedAt.month}/${submittedAt.year} ${submittedAt.hour}:${submittedAt.minute.toString().padLeft(2, '0')}',
                                 ),
-                              _buildDetailRow('Status', passed ? 'PASSED' : 'FAILED', 
-                                valueColor: passed ? Colors.green : Colors.red),
+                              _buildDetailRow(
+                                'Status',
+                                passed ? 'PASSED' : 'FAILED',
+                                valueColor: passed ? Colors.green : Colors.red,
+                              ),
                             ],
                           ),
                         ),
@@ -285,13 +303,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -303,13 +315,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
           Flexible(
             child: Text(
               value,

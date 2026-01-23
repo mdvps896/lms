@@ -7,17 +7,22 @@ class Logger {
   /// Only visible in debug mode
   static void log(String message, {String tag = 'APP'}) {
     if (kDebugMode) {
-      debugPrint('[$tag] $message');
+      debugPrint('[$tag]  $message');
     }
   }
 
   /// Log errors with optional error object
   /// Only visible in debug mode
-  static void error(String message, {String tag = 'ERROR', Object? error, StackTrace? stackTrace}) {
+  static void error(
+    String message, {
+    String tag = 'ERROR',
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
     if (kDebugMode) {
-      debugPrint('[$tag] $message');
-      if (error != null) debugPrint('Error: $error');
-      if (stackTrace != null) debugPrint('StackTrace: $stackTrace');
+      debugPrint('[$tag]  $message');
+      if (error != null) debugPrint('Error:  $error');
+      if (stackTrace != null) debugPrint('StackTrace:  $stackTrace');
     }
   }
 
@@ -25,14 +30,14 @@ class Logger {
   /// Only visible in debug mode
   static void warning(String message, {String tag = 'WARNING'}) {
     if (kDebugMode) {
-      debugPrint('[$tag] $message');
+      debugPrint('[$tag]  $message');
     }
   }
 
   /// Log network requests (debug only)
   static void network(String message, {String tag = 'NETWORK'}) {
     if (kDebugMode) {
-      debugPrint('[$tag] $message');
+      debugPrint('[$tag]  $message');
     }
   }
 }

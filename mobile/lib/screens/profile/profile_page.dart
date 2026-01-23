@@ -14,7 +14,8 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ApiService _apiService = ApiService();
   User? _user;
@@ -31,7 +32,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
-    
+
     // Refresh user profile and get other data in parallel
     final results = await Future.wait([
       _apiService.refreshUserProfile(),
@@ -58,15 +59,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Error loading profile')),
-      );
+      return const Scaffold(body: Center(child: Text('Error loading profile')));
     }
 
     return Scaffold(
@@ -116,10 +113,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           ),
                         ),
                         Text(
-                          _user!.email,
+                          _user!.email.endsWith('@mobile.local') ? 'Not provided' : _user!.email,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -138,7 +135,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: AppConstants.primaryColor,
                   indicatorWeight: 3,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                   tabs: const [
                     Tab(text: 'Info'),
                     Tab(text: 'Performance'),
@@ -174,7 +174,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         border: Border.all(color: Colors.white, width: 4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -183,15 +183,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       child: CircleAvatar(
         radius: 45,
         backgroundColor: Colors.white,
-        backgroundImage: _user!.profileImage != null 
-            ? NetworkImage(ApiService.getFullUrl(_user!.profileImage)) 
-            : null,
-        child: _user!.profileImage == null
-            ? Text(
-                _user!.name.substring(0, 1).toUpperCase(),
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppConstants.primaryColor),
-              )
-            : null,
+        backgroundImage:
+            _user!.profileImage != null
+                ? NetworkImage(_apiService.getFullUrl(_user!.profileImage))
+                : null,
+        child:
+            _user!.profileImage == null
+                ? Text(
+                  _user!.name.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: AppConstants.primaryColor,
+                  ),
+                )
+                : null,
       ),
     );
   }
@@ -208,11 +214,12 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Colors.white,
-      child: _tabBar,
-    );
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: Colors.white, child: _tabBar);
   }
 
   @override

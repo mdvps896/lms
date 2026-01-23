@@ -22,7 +22,11 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
           Text(
             user?.name ?? 'Student',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
@@ -38,7 +42,9 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
             if (user != null) {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => ProfileScreen(user: user!)),
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(user: user!),
+                ),
               );
             }
           },
@@ -46,15 +52,19 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: CircleAvatar(
               backgroundColor: Colors.white,
-              backgroundImage: user?.profileImage != null
-                  ? NetworkImage(user!.profileImage!)
-                  : null,
-              child: user?.profileImage == null
-                  ? Text(
-                      user?.name.substring(0, 1).toUpperCase() ?? 'S',
-                      style: const TextStyle(color: AppConstants.primaryColor),
-                    )
-                  : null,
+              backgroundImage:
+                  user?.profileImage != null
+                      ? NetworkImage(user!.profileImage!)
+                      : null,
+              child:
+                  user?.profileImage == null
+                      ? Text(
+                        user?.name.substring(0, 1).toUpperCase() ?? 'S',
+                        style: const TextStyle(
+                          color: AppConstants.primaryColor,
+                        ),
+                      )
+                      : null,
             ),
           ),
         ),

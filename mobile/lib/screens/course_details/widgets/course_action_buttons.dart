@@ -19,7 +19,7 @@ class CourseActionButtons extends StatelessWidget {
                 backgroundColor: AppConstants.accentColor, // Orange/Gold
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shadowColor: AppConstants.accentColor.withOpacity(0.4),
+                shadowColor: AppConstants.accentColor.withValues(alpha: 0.4),
                 elevation: 8,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

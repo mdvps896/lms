@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../utils/constants.dart';
 
 class PricingBreakdown extends StatelessWidget {
   final Map<String, dynamic> course;
@@ -8,7 +9,7 @@ class PricingBreakdown extends StatelessWidget {
   final double? updatedTotalPayable;
 
   const PricingBreakdown({
-    super.key, 
+    super.key,
     required this.course,
     this.couponCode,
     this.discountAmount,
@@ -22,17 +23,19 @@ class PricingBreakdown extends StatelessWidget {
     final String basePrice = _safeToString(course['price']);
     final bool gstEnabled = course['gstEnabled'] == true;
     final String gstPercentage = _safeToString(course['gstPercentage']);
-    
+
     // Use updated values if available, otherwise fallback to course data
-    final String gstAmount = updatedGstAmount != null 
-        ? updatedGstAmount!.toStringAsFixed(0)
-        : _safeToString(course['gstAmount']);
-        
-    final String totalPrice = updatedTotalPayable != null
-        ? updatedTotalPayable!.toStringAsFixed(0)
-        : (_safeToString(course['totalPrice']) != '0' 
-            ? _safeToString(course['totalPrice']) 
-            : basePrice);
+    final String gstAmount =
+        updatedGstAmount != null
+            ? updatedGstAmount!.toStringAsFixed(0)
+            : _safeToString(course['gstAmount']);
+
+    final String totalPrice =
+        updatedTotalPayable != null
+            ? updatedTotalPayable!.toStringAsFixed(0)
+            : (_safeToString(course['totalPrice']) != '0'
+                ? _safeToString(course['totalPrice'])
+                : basePrice);
 
     return Container(
       margin: const EdgeInsets.all(20),
@@ -42,7 +45,7 @@ class PricingBreakdown extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -53,51 +56,49 @@ class PricingBreakdown extends StatelessWidget {
         children: [
           const Text(
             'Pricing Details',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          
+
           // Course Price
           _buildPriceRow('Course Price', '₹$basePrice'),
-          
+
           // Coupon Discount
           if (couponCode != null && discountAmount != null) ...[
             const SizedBox(height: 12),
             _buildPriceRow(
-              'Coupon ($couponCode)', 
+              'Coupon ($couponCode)',
               '-₹${discountAmount!.toStringAsFixed(0)}',
               color: Colors.green,
             ),
           ],
-          
+
           // GST (if enabled)
           if (gstEnabled) ...[
             const SizedBox(height: 12),
-            _buildPriceRow('GST ($gstPercentage%)', '+₹$gstAmount', isGst: true),
+            _buildPriceRow(
+              'GST ($gstPercentage%)',
+              '+₹$gstAmount',
+              isGst: true,
+            ),
           ],
-          
+
           const Divider(height: 24),
-          
+
           // Total Price
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'You Pay',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
                 '₹$totalPrice',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFD32F2F),
+                  color: AppConstants.primaryColor,
                 ),
               ),
             ],
@@ -107,7 +108,12 @@ class PricingBreakdown extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceRow(String label, String value, {bool isGst = false, Color? color}) {
+  Widget _buildPriceRow(
+    String label,
+    String value, {
+    bool isGst = false,
+    Color? color,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

@@ -20,8 +20,12 @@ class CourseDetailsSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Image
-            _buildShimmerRect(width: double.infinity, height: 220, borderRadius: 0),
-            
+            _buildShimmerRect(
+              width: double.infinity,
+              height: 220,
+              borderRadius: 0,
+            ),
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -59,7 +63,13 @@ class CourseDetailsSkeleton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Expanded(child: _buildShimmerRect(width: double.infinity, height: 56, borderRadius: 16)),
+                  Expanded(
+                    child: _buildShimmerRect(
+                      width: double.infinity,
+                      height: 56,
+                      borderRadius: 16,
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   _buildShimmerRect(width: 50, height: 50, borderRadius: 16),
                   const SizedBox(width: 12),
@@ -82,7 +92,7 @@ class CourseDetailsSkeleton extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 30),
 
             // Progress/Curriculum
@@ -114,24 +124,26 @@ class CourseDetailsSkeleton extends StatelessWidget {
                         Expanded(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: List.generate(3, (index) => 
-                              Row(
+                            children: List.generate(
+                              3,
+                              (index) => Row(
                                 children: [
                                   _buildShimmerCircle(24),
                                   const SizedBox(width: 12),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       _buildShimmerRect(width: 180, height: 14),
                                       const SizedBox(height: 4),
                                       _buildShimmerRect(width: 50, height: 10),
                                     ],
-                                  )
+                                  ),
                                 ],
-                              )
+                              ),
                             ),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -144,7 +156,11 @@ class CourseDetailsSkeleton extends StatelessWidget {
     );
   }
 
-  Widget _buildShimmerRect({required double width, required double height, double borderRadius = 8}) {
+  Widget _buildShimmerRect({
+    required double width,
+    required double height,
+    double borderRadius = 8,
+  }) {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.grey[100]!,

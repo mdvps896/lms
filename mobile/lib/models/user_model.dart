@@ -9,7 +9,7 @@ class User {
   final DateTime? createdAt;
   final dynamic category;
   final List<dynamic>? enrolledCourses;
-  
+
   // Address fields
   final String? address;
   final String? city;
@@ -17,6 +17,7 @@ class User {
   final String? pincode;
   final bool twoFactorEnabled;
   final bool notificationsEnabled;
+  final bool isSupportBlocked;
 
   User({
     required this.id,
@@ -35,6 +36,7 @@ class User {
     this.pincode,
     this.twoFactorEnabled = false,
     this.notificationsEnabled = true,
+    this.isSupportBlocked = false,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -46,15 +48,19 @@ class User {
       profileImage: json['image'] ?? json['profileImage'],
       phone: json['phone'],
       rollNumber: json['rollNumber'],
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      category: json['category'] is Map ? json['category']['name'] : json['category'],
-      enrolledCourses: json['enrolledCourses'] is List ? json['enrolledCourses'] : [],
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      category:
+          json['category'] is Map ? json['category']['name'] : json['category'],
+      enrolledCourses:
+          json['enrolledCourses'] is List ? json['enrolledCourses'] : [],
       address: json['address'],
       city: json['city'],
       state: json['state'],
       pincode: json['pincode'],
       twoFactorEnabled: json['twoFactorEnabled'] ?? false,
       notificationsEnabled: json['notificationsEnabled'] ?? true,
+      isSupportBlocked: json['isSupportBlocked'] ?? false,
     );
   }
 
@@ -76,6 +82,7 @@ class User {
       'pincode': pincode,
       'twoFactorEnabled': twoFactorEnabled,
       'notificationsEnabled': notificationsEnabled,
+      'isSupportBlocked': isSupportBlocked,
     };
   }
 }

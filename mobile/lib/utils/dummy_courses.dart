@@ -9,7 +9,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '499',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500',
       'instructor': 'John Doe',
       'duration': '25h 30m',
       'students': '12,450',
@@ -21,7 +22,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '599',
       'rating': '4.7',
-      'thumbnail': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500',
       'instructor': 'Jane Smith',
       'duration': '30h 15m',
       'students': '8,920',
@@ -33,7 +35,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '799',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=500',
       'instructor': 'Mike Johnson',
       'duration': '35h 20m',
       'students': '6,780',
@@ -47,7 +50,8 @@ class DummyCourses {
       'category': 'Design',
       'price': '699',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500',
       'instructor': 'Sarah Williams',
       'duration': '28h 45m',
       'students': '15,230',
@@ -59,7 +63,8 @@ class DummyCourses {
       'category': 'Design',
       'price': '549',
       'rating': '4.6',
-      'thumbnail': 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=500',
       'instructor': 'David Brown',
       'duration': '22h 30m',
       'students': '9,450',
@@ -71,7 +76,8 @@ class DummyCourses {
       'category': 'Design',
       'price': '399',
       'rating': '4.7',
-      'thumbnail': 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1547658719-da2b51169166?w=500',
       'instructor': 'Emily Davis',
       'duration': '20h 15m',
       'students': '18,670',
@@ -85,7 +91,8 @@ class DummyCourses {
       'category': 'Business',
       'price': '899',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500',
       'instructor': 'Robert Taylor',
       'duration': '32h 40m',
       'students': '22,340',
@@ -97,7 +104,8 @@ class DummyCourses {
       'category': 'Business',
       'price': '999',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500',
       'instructor': 'Lisa Anderson',
       'duration': '26h 20m',
       'students': '11,890',
@@ -109,7 +117,8 @@ class DummyCourses {
       'category': 'Business',
       'price': '1299',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=500',
       'instructor': 'James Wilson',
       'duration': '40h 10m',
       'students': '7,560',
@@ -123,7 +132,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '999',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500',
       'instructor': 'Dr. Michael Chen',
       'duration': '45h 30m',
       'students': '19,450',
@@ -135,7 +145,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '1199',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500',
       'instructor': 'Dr. Anna Martinez',
       'duration': '42h 15m',
       'students': '16,780',
@@ -147,7 +158,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '1499',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=500',
       'instructor': 'Dr. Kevin Lee',
       'duration': '50h 45m',
       'students': '14,230',
@@ -161,7 +173,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '899',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?w=500',
       'instructor': 'Chris Martin',
       'duration': '38h 20m',
       'students': '21,340',
@@ -173,7 +186,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '599',
       'rating': '4.7',
-      'thumbnail': 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=500',
       'instructor': 'Tom Harris',
       'duration': '24h 30m',
       'students': '17,890',
@@ -185,7 +199,8 @@ class DummyCourses {
       'category': 'Code',
       'price': '499',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=500',
       'instructor': 'Dr. Charles White',
       'duration': '28h 45m',
       'students': '25,670',
@@ -199,7 +214,8 @@ class DummyCourses {
       'category': 'Design',
       'price': '799',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=500',
       'instructor': 'Alex Turner',
       'duration': '26h 15m',
       'students': '12,450',
@@ -211,7 +227,8 @@ class DummyCourses {
       'category': 'Design',
       'price': '699',
       'rating': '4.7',
-      'thumbnail': 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500',
       'instructor': 'Rachel Green',
       'duration': '30h 20m',
       'students': '10,890',
@@ -225,7 +242,8 @@ class DummyCourses {
       'category': 'Live',
       'price': '1999',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=500',
       'instructor': 'Mark Thompson',
       'duration': 'Live Sessions',
       'students': '3,450',
@@ -237,7 +255,8 @@ class DummyCourses {
       'category': 'Live',
       'price': '1799',
       'rating': '4.8',
-      'thumbnail': 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=500',
       'instructor': 'Steven Clark',
       'duration': 'Live Sessions',
       'students': '4,230',
@@ -249,7 +268,8 @@ class DummyCourses {
       'category': 'Live',
       'price': '2199',
       'rating': '4.9',
-      'thumbnail': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=500',
+      'thumbnail':
+          'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=500',
       'instructor': 'Jennifer Lopez',
       'duration': 'Live Sessions',
       'students': '5,670',
@@ -272,8 +292,8 @@ class DummyCourses {
     return courses.where((course) {
       final title = course['title']?.toString().toLowerCase() ?? '';
       final description = course['description']?.toString().toLowerCase() ?? '';
-      return title.contains(query.toLowerCase()) || 
-             description.contains(query.toLowerCase());
+      return title.contains(query.toLowerCase()) ||
+          description.contains(query.toLowerCase());
     }).toList();
   }
 }

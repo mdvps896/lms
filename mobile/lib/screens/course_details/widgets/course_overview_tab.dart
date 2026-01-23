@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'pricing_breakdown.dart';
-import '../../../../utils/constants.dart';
 import 'course_stats.dart';
 import 'expandable_text.dart';
 import 'course_video_player.dart';
@@ -16,7 +15,7 @@ class CourseOverviewTab extends StatelessWidget {
   final VoidCallback? onRate;
 
   const CourseOverviewTab({
-    super.key, 
+    super.key,
     required this.course,
     this.couponCode,
     this.discountAmount,
@@ -52,29 +51,32 @@ class CourseOverviewTab extends StatelessWidget {
     }
 
     final String demoVideoUrl = safeString(course['demoVideo']);
-    
+
     // Duration Logic
     String duration = '0h 0m';
     if (course['duration'] is String) {
-       duration = course['duration'];
+      duration = course['duration'];
     } else if (course['duration'] is Map) {
-       duration = "${course['duration']['value'] ?? 0} ${course['duration']['unit'] ?? ''}";
+      duration =
+          "${course['duration']['value'] ?? 0} ${course['duration']['unit'] ?? ''}";
     }
-    
+
     // Lectures Logic
     int totalLectures = 0;
     if (course['totalLectures'] != null) {
-       totalLectures = int.tryParse(course['totalLectures'].toString()) ?? 0;
+      totalLectures = int.tryParse(course['totalLectures'].toString()) ?? 0;
     } else if (course['curriculum'] is List) {
-       for (var section in course['curriculum']) {
-          if (section is Map && section['lectures'] is List) {
-             totalLectures += (section['lectures'] as List).length;
-          }
-       }
+      for (var section in course['curriculum']) {
+        if (section is Map && section['lectures'] is List) {
+          totalLectures += (section['lectures'] as List).length;
+        }
+      }
     }
     // Fallback default only if truly 0? Or just leave as 0/calculated.
-    if (totalLectures == 0) totalLectures = 5; // Default for demo if 0, or just let it be 0. 
-    // User complaint suggests 142 was wrong. 5 was "Correct" (OG). 
+    if (totalLectures == 0) {
+      totalLectures = 5; // Default for demo if 0, or just let it be 0.
+    }
+    // User complaint suggests 142 was wrong. 5 was "Correct" (OG).
     // If I calculate 0, I might show 0.
     // I will remove the hardcoded 142.
     if (duration == '0h 0m') duration = 'Course Duration';
@@ -102,28 +104,59 @@ class CourseOverviewTab extends StatelessWidget {
           // Course Duration & Info
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-            child: Row(
+            child: Column(
               children: [
-                const Icon(Icons.access_time_rounded, size: 18, color: Colors.grey),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'Duration: $duration', 
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Validity: $duration',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.ondemand_video_rounded,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Total Lectures: $totalLectures',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                const Icon(Icons.ondemand_video_rounded, size: 18, color: Colors.grey),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'Total Lectures: $totalLectures', 
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.menu_book_rounded,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Reading Duration: ${course['readingDurationText'] ?? 'Not specified'}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -137,7 +170,10 @@ class CourseOverviewTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Course Preview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Course Preview',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
                   CourseVideoPlayer(
                     videoUrl: demoVideoUrl,
@@ -164,54 +200,65 @@ class CourseOverviewTab extends StatelessWidget {
           // Rating Section - Show if enrolled
           if (isEnrolled)
             Padding(
-               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-               child: Container(
-                  width: double.infinity,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearProgressIndicator(value: 1.0).valueColor == null ? null : const LinearGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFFFA500)], // Gold Gradient
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Container(
+                width: double.infinity,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient:
+                      LinearProgressIndicator(value: 1.0).valueColor == null
+                          ? null
+                          : const LinearGradient(
+                            colors: [
+                              Color(0xFFFFD700),
+                              Color(0xFFFFA500),
+                            ], // Gold Gradient
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onRate,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: onRate,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(isRated ? Icons.star_half_rounded : Icons.star_rounded, color: Colors.black, size: 24),
-                            const SizedBox(width: 10),
-                            Text(
-                              isRated ? 'Update My Rating' : 'Rate this Course',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                                letterSpacing: 0.5,
-                              ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isRated
+                                ? Icons.star_half_rounded
+                                : Icons.star_rounded,
+                            color: Colors.black,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            isRated ? 'Update My Rating' : 'Rate this Course',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              letterSpacing: 0.5,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-               ),
+                ),
+              ),
             ),
 
-          
           const SizedBox(height: 100), // Extra bottom padding for BottomBar
         ],
       ),

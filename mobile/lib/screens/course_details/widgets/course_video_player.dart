@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -22,7 +22,8 @@ class CourseVideoPlayer extends StatefulWidget {
   State<CourseVideoPlayer> createState() => _CourseVideoPlayerState();
 }
 
-class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTickerProviderStateMixin {
+class _CourseVideoPlayerState extends State<CourseVideoPlayer>
+    with SingleTickerProviderStateMixin {
   late VideoPlayerController _videoPlayerController;
   ChewieController? _chewieController;
   bool _isLoading = true;
@@ -47,10 +48,9 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
     _animation = Tween<Offset>(
       begin: const Offset(-0.8, -0.8),
       end: const Offset(0.8, 0.8),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _loadUser() async {
@@ -64,7 +64,8 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
 
   void _checkVideoType() {
     // Check if URL is YouTube
-    if (widget.videoUrl.contains('youtube.com') || widget.videoUrl.contains('youtu.be')) {
+    if (widget.videoUrl.contains('youtube.com') ||
+        widget.videoUrl.contains('youtu.be')) {
       _isYouTube = true;
       _youtubeVideoId = _extractYouTubeId(widget.videoUrl);
       setState(() => _isLoading = false);
@@ -93,13 +94,16 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
   Future<void> _openYouTubeVideo() async {
     try {
       final Uri url = Uri.parse(widget.videoUrl);
-      
+
       // Try to launch URL
       final bool canLaunch = await canLaunchUrl(url);
-      
+
       if (canLaunch) {
-        final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-        
+        final bool launched = await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+
         if (!launched) {
           // If launch failed, copy to clipboard
           await _copyUrlToClipboard();
@@ -109,14 +113,13 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
         await _copyUrlToClipboard();
       }
     } catch (e) {
-      print('Error opening YouTube: $e');
       await _copyUrlToClipboard();
     }
   }
 
   Future<void> _copyUrlToClipboard() async {
     await Clipboard.setData(ClipboardData(text: widget.videoUrl));
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -142,27 +145,56 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
 
   Future<void> _initializeRegularPlayer() async {
     try {
-      print('🎥 Initializing video player for URL: ${widget.videoUrl}');
-      
+
+      final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.31.7:3000/api';
+      final baseUrl = apiUrl.replaceAll('/api', '');
+
       // Replace localhost with actual IP for mobile
       String videoUrl = widget.videoUrl;
       if (videoUrl.contains('localhost')) {
-        // Get API URL from environment
-        final apiUrl = dotenv.env['API_URL'] ?? 'http://192.168.31.7:3000/api';
-        final baseUrl = apiUrl.replaceAll('/api', '');
         videoUrl = videoUrl.replaceAll('http://localhost:3000', baseUrl);
-        print('🔄 Replaced localhost with: $videoUrl');
       }
-      
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+
+      // If it's a relative path, prepend base URL
+      if (!videoUrl.startsWith('http')) {
+        videoUrl = '$baseUrl${videoUrl.startsWith('/') ? '' : '/'}$videoUrl';
+      }
+
+      // Use demo-video proxy for better range support (streaming)
+      if (videoUrl.contains('/api/storage/secure-file') || videoUrl.contains('/api/storage/file/')) {
+        String pathForDemo = '';
+        if (videoUrl.contains('?path=')) {
+          final uri = Uri.parse(videoUrl);
+          pathForDemo = uri.queryParameters['path'] ?? '';
+        } else if (videoUrl.contains('/api/storage/file/')) {
+          pathForDemo = videoUrl.split('/api/storage/file/').last;
+        } else if (videoUrl.contains('/api/storage/secure-file/')) {
+          pathForDemo = videoUrl.split('/api/storage/secure-file/').last;
+        }
+
+        if (pathForDemo.isNotEmpty) {
+           videoUrl = '$baseUrl/api/storage/demo-video?path=${Uri.encodeQueryComponent(pathForDemo)}';
+        }
+      }
+
+      // Ensure non-ASCII characters (e.g. Hindi filenames) or spaces are encoded
+      if (videoUrl.contains(RegExp(r'[^\x00-\x7F]')) || videoUrl.contains(' ')) {
+        videoUrl = Uri.encodeFull(videoUrl);
+      }
+
+      _videoPlayerController = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+      );
       await _videoPlayerController.initialize();
-      
+
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController,
         aspectRatio: 16 / 9,
         autoPlay: false,
         looping: false,
-        placeholder: Container(color: Colors.black), // Black background instead of thumbnail
+        placeholder: Container(
+          color: Colors.black,
+        ), // Black background instead of thumbnail
         materialProgressColors: ChewieProgressColors(
           playedColor: AppConstants.primaryColor,
           handleColor: AppConstants.primaryColor,
@@ -176,7 +208,6 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Video init error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -232,7 +263,7 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
               // Dark overlay
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
@@ -249,7 +280,7 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 15,
                             spreadRadius: 3,
                           ),
@@ -264,9 +295,12 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
                     const SizedBox(height: 16),
                     // Info text
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: const Column(
@@ -274,7 +308,11 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.smart_display, color: Colors.white, size: 20),
+                              Icon(
+                                Icons.smart_display,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Tap to Watch on YouTube',
@@ -305,7 +343,7 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
         ),
       );
     }
-    
+
     // Regular video
     if (_chewieController == null) {
       return Container(
@@ -335,8 +373,9 @@ class _CourseVideoPlayerState extends State<CourseVideoPlayer> with SingleTicker
 
   Widget _buildWatermark() {
     if (_user == null) return const SizedBox.shrink();
-    
-    final String text = '${_user?.phone ?? ''} | Roll: ${_user?.rollNumber ?? ''}';
+
+    final String text =
+        '${_user?.phone ?? ''} | Roll: ${_user?.rollNumber ?? ''}';
     if (text == ' | Roll: ') return const SizedBox.shrink();
 
     return IgnorePointer(

@@ -1,15 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
-import '../../services/api_service.dart'; // Import here
+import '../../services/api_service.dart';
 import 'widgets/course_header.dart';
 import 'widgets/course_overview_tab.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import '../payment_success_screen.dart'; // Import success screen
+import '../payment_success_screen.dart';
 import 'widgets/course_content_tab.dart';
 import '../../models/user_model.dart';
 import 'widgets/course_rating_dialog.dart';
 import 'widgets/course_reviews_dialog.dart';
+import '../login_screen.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class CourseDetailsScreen extends StatefulWidget {
   final Map<String, dynamic>? course;
@@ -27,20 +31,20 @@ class CourseDetailsScreen extends StatefulWidget {
   State<CourseDetailsScreen> createState() => _CourseDetailsScreenState();
 }
 
-class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTickerProviderStateMixin {
+class _CourseDetailsScreenState extends State<CourseDetailsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
-  User? _currentUser;
-  final TextEditingController _couponController = TextEditingController(); 
+  final TextEditingController _couponController = TextEditingController();
   String? appliedCouponCode;
   double? discountAmount;
-  double? finalPrice; 
+  double? finalPrice;
   double? gstAmount;
-  double? totalPayable; 
+  double? totalPayable;
   bool _isValidatingCoupon = false;
   late Razorpay _razorpay;
   bool _isProcessingPayment = false;
-  
+
   Map<String, dynamic>? _courseData;
   bool _isLoadingDetails = false;
   int _likesCount = 0;
@@ -50,80 +54,108 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
   bool _isExpired = false;
   final ApiService _apiService = ApiService();
   
+  Map<String, dynamic>? _settings;
+
   Future<void> _toggleLike() async {
     final id = widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
     if (id == null) return;
-    
+
     // Optimistic update
     setState(() {
       _isLiked = !_isLiked;
       _likesCount += _isLiked ? 1 : -1;
     });
-    
+
     final result = await _apiService.toggleLike(id);
     if (result['success'] == true) {
-       setState(() {
-          _isLiked = result['isLiked'] ?? _isLiked;
-          _likesCount = result['likesCount'] ?? _likesCount;
-       });
+      setState(() {
+        _isLiked = result['isLiked'] ?? _isLiked;
+        _likesCount = result['likesCount'] ?? _likesCount;
+      });
     } else {
-       // Revert on failure
-       setState(() {
-          _isLiked = !_isLiked;
-          _likesCount += _isLiked ? 1 : -1;
-       });
-       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Error updating like status')));
-       }
+      // Revert on failure
+      setState(() {
+        _isLiked = !_isLiked;
+        _likesCount += _isLiked ? 1 : -1;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Error updating like status'),
+          ),
+        );
+      }
     }
   }
 
   void _openRatingDialog() {
-     final userRating = _courseData?['userRating'];
-     double? initialRating;
-     String? initialReview;
-     
-     if (userRating != null) {
-        initialRating = (userRating['rating'] as num?)?.toDouble();
-        initialReview = userRating['review']?.toString();
-     }
+    final userRating = _courseData?['userRating'];
+    double? initialRating;
+    String? initialReview;
 
-     showDialog(
-       context: context,
-       builder: (dialogContext) => CourseRatingDialog(
-         initialRating: initialRating,
-         initialReview: initialReview,
-         onSubmit: (rating, review) async {
-            print('🌟 Dialog Submit Clicked: $rating, $review');
-            final id = widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
-            
-            if (id == null) return;
-            
-            // Use the stable 'context' (from State) instead of 'dialogContext'
-            final scaffoldMessenger = ScaffoldMessenger.of(context);
-            scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Submitting rating...')));
-            
-            final result = await _apiService.rateCourse(id, rating, review);
-            
-            if (mounted) {
-               if (result['success'] == true) {
-                   scaffoldMessenger.hideCurrentSnackBar();
-                   scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Rating submitted!')));
-                   setState(() => _isRated = true);
-                   _checkCourseDetails(force: true, silent: true);
-               } else if (result['error']?.toString().toLowerCase().contains('already rated') == true || 
-                          result['message']?.toString().toLowerCase().contains('already rated') == true) {
-                   scaffoldMessenger.showSnackBar(const SnackBar(content: Text('You have already rated this course.')));
-                   setState(() => _isRated = true);
-               } else {
-                   scaffoldMessenger.showSnackBar(SnackBar(content: Text(result['error'] ?? result['message'] ?? 'Failed to submit rating')));
-               }
-            }
-         },
-       ),
-     );
+    if (userRating != null) {
+      initialRating = (userRating['rating'] as num?)?.toDouble();
+      initialReview = userRating['review']?.toString();
+    }
+
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => CourseRatingDialog(
+            initialRating: initialRating,
+            initialReview: initialReview,
+            onSubmit: (rating, review) async {
+              final id =
+                  widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
+
+              if (id == null) return;
+
+              // Use the stable 'context' (from State) instead of 'dialogContext'
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Submitting rating...')),
+              );
+
+              final result = await _apiService.rateCourse(id, rating, review);
+
+              if (mounted) {
+                if (result['success'] == true) {
+                  scaffoldMessenger.hideCurrentSnackBar();
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text('Rating submitted!')),
+                  );
+                  setState(() => _isRated = true);
+                  _checkCourseDetails(force: true, silent: true);
+                } else if (result['error']?.toString().toLowerCase().contains(
+                          'already rated',
+                        ) ==
+                        true ||
+                    result['message']?.toString().toLowerCase().contains(
+                          'already rated',
+                        ) ==
+                        true) {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('You have already rated this course.'),
+                    ),
+                  );
+                  setState(() => _isRated = true);
+                } else {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        result['error'] ??
+                            result['message'] ??
+                            'Failed to submit rating',
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+    );
   }
-
 
   @override
   void dispose() {
@@ -133,101 +165,103 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
     _razorpay.clear();
     super.dispose();
   }
-  
-  Future<void> _checkCourseDetails({bool force = false, bool silent = false}) async {
-     // If we have full data already, skip unless forced
-     if (!force && _courseData != null && _courseData!['curriculum'] != null && _courseData!['description'] != null) {
-        return;
-     }
 
-     final id = widget.courseId ?? widget.course?['_id'] ?? widget.course?['id'];
-     if (id == null) return;
+  Future<void> _checkCourseDetails({
+    bool force = false,
+    bool silent = false,
+  }) async {
+    // Always fetch fresh details to ensure user specific data (isLiked, isRated) is correct
+    // if (!force && _courseData != null && _courseData!['curriculum'] != null && _courseData!['description'] != null) {
+    //    return;
+    // }
 
-     if (!silent) setState(() => _isLoadingDetails = true);
-     
-     // Get User ID for customized details (likes, ratings)
-     final user = await _apiService.getSavedUser();
-     final userId = user?.id;
-     
-     final fullData = await _apiService.getCourseById(id, userId: userId);
-     
-     if (mounted) {
-         setState(() {
-             if (fullData != null) {
-                // Merge or replace
-                _courseData = fullData;
-                
-                // Update Like & Rate Status
-                _likesCount = fullData['likesCount'] ?? 0;
-                _isLiked = fullData['isLiked'] ?? false;
-                _isRated = fullData['isRated'] ?? false;
-             }
-             if (!silent) _isLoadingDetails = false;
-         });
-     }
+    final id = widget.courseId ?? widget.course?['_id'] ?? widget.course?['id'];
+    if (id == null) return;
+
+    if (!silent) setState(() => _isLoadingDetails = true);
+
+    // Get User ID for customized details (likes, ratings)
+    final user = await _apiService.getSavedUser();
+    final userId = user?.id;
+
+    final fullData = await _apiService.getCourseById(id, userId: userId);
+
+    if (mounted) {
+      setState(() {
+        if (fullData != null) {
+          // Merge or replace
+          _courseData = fullData;
+
+          // Update Like & Rate Status
+          _likesCount = fullData['likesCount'] ?? 0;
+          _isLiked = fullData['isLiked'] ?? false;
+          _isRated = fullData['isRated'] ?? false;
+        }
+        if (!silent) _isLoadingDetails = false;
+      });
+    }
   }
 
   Future<void> _checkEnrollment() async {
     try {
       final user = await _apiService.getSavedUser();
       if (user != null) {
-         setState(() => _currentUser = user);
-         _calculateEnrollmentStatus(user);
+        _calculateEnrollmentStatus(user);
       }
-    } catch(e) {
-      print('Enrollment check error: $e');
+    } catch (e) {
     }
   }
 
   void _calculateEnrollmentStatus(User user) {
-     if (user.enrolledCourses == null) return;
-     
-     bool found = false;
-     bool expired = false;
-     
-     for (var e in user.enrolledCourses!) {
-         String id = '';
-         DateTime? expiry;
-         
-         if (e is String) {
-            id = e;
-         } else if (e is Map) {
-            final cIdRaw = e['courseId'] ?? e['course'];
-            if (cIdRaw is Map) {
-               id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
-            } else {
-               id = (cIdRaw ?? '').toString();
-            }
-            
-            if (e['expiresAt'] != null) {
-                expiry = DateTime.tryParse(e['expiresAt'].toString());
-            }
-         }
-         
-         final String targetId = widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'] ?? '';
-         
-         if (id.isNotEmpty && id == targetId) {
-             if (expiry != null && DateTime.now().isAfter(expiry)) {
-                 expired = true;
-             } else {
-                 found = true;
-                 expired = false;
-                 break;
-             }
-         }
-     }
-     
-     setState(() {
-         _isEnrolled = found;
-         _isExpired = expired;
-     });
-     
-     if (found && !expired) {
-        // Auto-switch to Content Tab
-        Future.delayed(const Duration(milliseconds: 100), () {
-           if (mounted) _tabController.animateTo(1);
-        });
-     }
+    if (user.enrolledCourses == null) return;
+
+    bool found = false;
+    bool expired = false;
+
+    for (var e in user.enrolledCourses!) {
+      String id = '';
+      DateTime? expiry;
+
+      if (e is String) {
+        id = e;
+      } else if (e is Map) {
+        final cIdRaw = e['courseId'] ?? e['course'];
+        if (cIdRaw is Map) {
+          id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
+        } else {
+          id = (cIdRaw ?? '').toString();
+        }
+
+        if (e['expiresAt'] != null) {
+          expiry = DateTime.tryParse(e['expiresAt'].toString());
+        }
+      }
+
+      final String targetId =
+          widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'] ?? '';
+
+      if (id.isNotEmpty && id == targetId) {
+        if (expiry != null && DateTime.now().isAfter(expiry)) {
+          expired = true;
+        } else {
+          found = true;
+          expired = false;
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      _isEnrolled = found;
+      _isExpired = expired;
+    });
+
+    if (found && !expired) {
+      // Auto-switch to Content Tab
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _tabController.animateTo(1);
+      });
+    }
   }
 
   void _showReviewsDialog() {
@@ -239,22 +273,105 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
     );
   }
 
+  Future<void> _fetchSettings() async {
+    try {
+      final settings = await _apiService.getSettings();
+      if (mounted) {
+        setState(() {
+          _settings = settings;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching settings: $e');
+    }
+  }
+
+  Future<void> _shareCourse() async {
+    if (_courseData == null) return;
+
+    final String title = _courseData!['title'] ?? 'Course';
+    final String courseId =
+        (widget.courseId ?? _courseData!['_id'] ?? _courseData!['id'])
+            .toString();
+
+    // Construct the course link
+    final String baseUrl = _apiService.serverUrl;
+    final String shareLink = '$baseUrl/courses/$courseId';
+
+    final String shareText =
+        'Check out this course: $title\n\n$shareLink\n\nShared via ${AppConstants.appName}';
+
+    try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Preparing to share...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final String? imageUrl = _courseData!['thumbnail'];
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        try {
+          final String fullImageUrl = _apiService.getFullUrl(imageUrl);
+          debugPrint('Downloading image for share: $fullImageUrl');
+
+          // Download image with timeout
+          final response = await http
+              .get(Uri.parse(fullImageUrl))
+              .timeout(const Duration(seconds: 5));
+
+          if (response.statusCode == 200) {
+            final tempDir = await getTemporaryDirectory();
+            final file = File('${tempDir.path}/course_share_image.png');
+            await file.writeAsBytes(response.bodyBytes);
+
+            if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+            // Share image + text
+            await Share.shareXFiles(
+              [XFile(file.path)],
+              text: shareText,
+              subject: title,
+            );
+            return;
+          }
+        } catch (e) {
+          debugPrint('Error downloading image for share: $e');
+        }
+      }
+
+      // Fallback: Share text only
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      await Share.share(shareText, subject: title);
+    } catch (e) {
+      debugPrint('Error sharing course: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await Share.share(shareText, subject: title);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _courseData = widget.course;
-    
-    _tabController = TabController(length: 3, vsync: this);
 
+    _tabController = TabController(length: 3, vsync: this);
 
     // Init Razorpay
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
-    
+
     _checkCourseDetails();
     _checkEnrollment();
+    _fetchSettings();
 
     // Auto-apply coupon if provided
     if (widget.applyCouponCode != null) {
@@ -269,11 +386,14 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
     setState(() => _isValidatingCoupon = true);
 
     try {
-      final courseId = widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
+      final courseId =
+          widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
       if (courseId == null) {
         setState(() => _isValidatingCoupon = false);
         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Error: Course ID not found. Please try refreshing.')),
+          const SnackBar(
+            content: Text('Error: Course ID not found. Please try refreshing.'),
+          ),
         );
         return;
       }
@@ -298,7 +418,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Applied! Saved ₹${discountAmount?.toInt()}')),
+                Expanded(
+                  child: Text('Applied! Saved ₹${discountAmount?.toInt()}'),
+                ),
               ],
             ),
             backgroundColor: Colors.green,
@@ -306,9 +428,21 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
           ),
         );
       } else {
+        final message = result['message']?.toString() ?? 'Invalid coupon';
+        if (message.contains('Unauthorized') || message.contains('Invalid token')) {
+          await _apiService.logout();
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (route) => false,
+            );
+          }
+          return;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Invalid coupon'),
+            content: Text(message),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -316,9 +450,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
       }
     } catch (e) {
       setState(() => _isValidatingCoupon = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -341,18 +475,20 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
         _isSuccessProcessing = false;
         return;
       }
-      
+
       // Get User ID from ApiService
       final user = await _apiService.getSavedUser();
-      if (user == null || user.id == null) {
+      if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: User session invalid. Please login again.')),
+          const SnackBar(
+            content: Text('Error: User session invalid. Please login again.'),
+          ),
         );
         setState(() => _isProcessingPayment = false);
         _isSuccessProcessing = false;
         return;
       }
-      final userId = user.id!;
+      final userId = user.id;
 
       final amount = totalPayable ?? _parsePrice(_courseData?['price']);
 
@@ -360,57 +496,70 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
         'razorpay_payment_id': response.paymentId,
         'razorpay_order_id': response.orderId,
         'razorpay_signature': response.signature,
-        'courseId': widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'],
+        'courseId':
+            widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'],
         'userId': userId,
         'amount': amount,
       };
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Payment successful! Verifying...')),
-      );
-      
-      await _verifyPaymentServer(verificationData);
 
-    } catch (e) {
-      print('Payment Success Error: $e');
-      setState(() => _isProcessingPayment = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment Error: $e')),
+        const SnackBar(content: Text('Payment successful! Verifying...')),
       );
+
+      await _verifyPaymentServer(verificationData);
+    } catch (e) {
+      setState(() => _isProcessingPayment = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment Error: $e')));
     } finally {
       _isSuccessProcessing = false;
     }
   }
 
   Future<void> _verifyPaymentServer(Map<String, dynamic> data) async {
-     try {
-       final result = await _apiService.verifyPayment(data);
-       
-       // Reset loading
-       setState(() => _isProcessingPayment = false);
+    try {
+      final result = await _apiService.verifyPayment(data);
 
-       if (result['success'] == true) {
-          // Refresh User Profile to get updated enrolled courses
-          await _apiService.refreshUserProfile();
+      // Reset loading
+      setState(() => _isProcessingPayment = false);
 
-          // Navigate to Success Screen
+      if (result['success'] == true) {
+        // Refresh User Profile to get updated enrolled courses
+        await _apiService.refreshUserProfile();
+
+        // Navigate to Success Screen
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PaymentSuccessScreen(),
+            ),
+          );
+        }
+      } else {
+        final message = result['message']?.toString() ?? 'Verification failed';
+         if (message.contains('Unauthorized') || message.contains('Invalid token')) {
+          await _apiService.logout();
           if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const PaymentSuccessScreen()),
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (route) => false,
             );
           }
-       } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Verification failed: ${result['message']}')),
-          );
-       }
-     } catch (e) {
-        setState(() => _isProcessingPayment = false);
+          return;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification network error: $e')),
+          SnackBar(content: Text('Verification failed: $message')),
         );
-     }
+      }
+    } catch (e) {
+      setState(() => _isProcessingPayment = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Verification network error: $e')));
+    }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
@@ -427,39 +576,37 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
   }
 
   Future<void> _initiatePayment() async {
-    print('💰 Buy Now Button Clicked');
-    
+
     if (_isProcessingPayment) {
-      print('⚠️ Payment already processing');
       return;
     }
-    
+
     // Check user login first
     final user = await _apiService.getSavedUser();
     if (user == null) {
-      print('❌ User not logged in');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to purchase')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login to purchase')));
       return;
     }
-    
+
     setState(() => _isProcessingPayment = true);
 
     try {
       // 1. Calculate Amount
-      final amount = totalPayable ?? 
-          double.tryParse(_courseData?['totalPrice']?.toString() ?? _courseData?['price']?.toString() ?? '0') ?? 0;
-      
-      print('💰 Calculated Amount: $amount');
-      print('💰 totalPayable: $totalPayable');
-      print('💰 courseData totalPrice: ${_courseData?['totalPrice']}');
-      print('💰 courseData price: ${_courseData?['price']}');
-      
+      final amount =
+          totalPayable ??
+          double.tryParse(
+            _courseData?['totalPrice']?.toString() ??
+                _courseData?['price']?.toString() ??
+                '0',
+          ) ??
+          0;
+
+
       // 2. Check if price is 0 (100% discount coupon applied)
       if (amount <= 0) {
-        print('🎉 Free enrollment - Price is 0');
-        
+
         // Show loading message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -480,10 +627,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
             duration: Duration(seconds: 3),
           ),
         );
-        
+
         // Direct enrollment - call backend API to enroll user
-        final courseId = widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
-        
+        final courseId =
+            widget.courseId ?? _courseData?['_id'] ?? _courseData?['id'];
+
         // Create a free enrollment verification
         final enrollmentData = {
           'courseId': courseId,
@@ -492,49 +640,47 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
           'couponCode': appliedCouponCode,
           'isFree': true,
         };
-        
+
         await _verifyPaymentServer(enrollmentData);
         return;
       }
 
       // 3. For paid courses, proceed with Razorpay
-      print('💳 Paid course - Opening Razorpay');
-      
+
       // Create Order on Server
       final orderResult = await _apiService.createOrder(amount, 'INR');
-      
+
       if (orderResult['success'] == true) {
         final keyId = orderResult['keyId'];
         final orderId = orderResult['orderId'];
-        
+
         if (keyId == null || orderId == null) {
-           throw Exception('Invalid order credentials from server');
+          throw Exception('Invalid order credentials from server');
         }
 
         var options = {
           'key': keyId,
-          'amount': orderResult['amount'], 
-          'name': 'Duralux Academy',
+          'amount': orderResult['amount'],
+          'name': AppConstants.appName,
           'description': _courseData?['title'] ?? 'Course Purchase',
           'order_id': orderId,
           'timeout': 180,
-          'prefill': {
-            'email': user.email,
-          }
+          'prefill': {'email': user.email},
         };
 
         _razorpay.open(options);
       } else {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order creation failed: ${orderResult['message']}')),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order creation failed: ${orderResult['message']}'),
+          ),
         );
         setState(() => _isProcessingPayment = false);
       }
-
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(content: Text('Error initiating payment: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error initiating payment: $e')));
       setState(() => _isProcessingPayment = false);
     }
   }
@@ -559,10 +705,12 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
   }
 
   Widget _buildReviewsTab() {
-    if (_courseData == null) return const Center(child: Text('No details available'));
-    
+    if (_courseData == null) {
+      return const Center(child: Text('No details available'));
+    }
+
     final reviews = List<dynamic>.from(_courseData!['reviews'] ?? []);
-    
+
     return Container(
       color: Colors.white,
       child: ListView(
@@ -581,7 +729,10 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                   children: [
                     Text(
                       _courseData!['rating']?.toString() ?? '4.5',
-                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     const Row(
@@ -590,7 +741,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                         Icon(Icons.star_rounded, color: Colors.amber, size: 20),
                         Icon(Icons.star_rounded, color: Colors.amber, size: 20),
                         Icon(Icons.star_rounded, color: Colors.amber, size: 20),
-                        Icon(Icons.star_half_rounded, color: Colors.amber, size: 20),
+                        Icon(
+                          Icons.star_half_rounded,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -618,7 +773,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                                 child: LinearProgressIndicator(
                                   value: pct,
                                   backgroundColor: Colors.grey[200],
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.amber[400]!),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.amber[400]!,
+                                  ),
                                   minHeight: 4,
                                 ),
                               ),
@@ -632,13 +789,15 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
               ],
             ),
           ),
-          
+
           // Reviews List
           if (reviews.isEmpty)
-             const Padding(
-               padding: EdgeInsets.symmetric(vertical: 40),
-               child: Center(child: Text('No reviews yet. Be the first to rate!')),
-             )
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text('No reviews yet. Be the first to rate!'),
+              ),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
@@ -655,10 +814,16 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
+                          backgroundColor: AppConstants.primaryColor.withValues(
+                            alpha: 0.1,
+                          ),
                           child: Text(
                             (review['userName'] ?? 'U')[0].toUpperCase(),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppConstants.primaryColor),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppConstants.primaryColor,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -668,11 +833,17 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                             children: [
                               Text(
                                 review['userName'] ?? 'Student',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                               Text(
                                 review['date'] ?? 'Just now',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 11,
+                                ),
                               ),
                             ],
                           ),
@@ -680,7 +851,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                         Row(
                           children: List.generate(5, (starIndex) {
                             return Icon(
-                              starIndex < (review['rating'] ?? 0) ? Icons.star_rounded : Icons.star_outline_rounded,
+                              starIndex < (review['rating'] ?? 0)
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
                               size: 14,
                               color: Colors.amber,
                             );
@@ -691,13 +864,17 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                     const SizedBox(height: 8),
                     Text(
                       review['review'] ?? '',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 14, height: 1.4),
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
                     ),
                   ],
                 );
               },
             ),
-          
+
           // Rate Button
           if (_isEnrolled && !_isExpired)
             Padding(
@@ -708,12 +885,14 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
                   backgroundColor: AppConstants.primaryColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(_isRated ? 'Update My Rating' : 'Rate this Course'),
               ),
             ),
-            
+
           const SizedBox(height: 120), // Padding for the fixed button bar
         ],
       ),
@@ -722,12 +901,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-
     // Handle Loading
     if (_isLoadingDetails) {
-       return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-       );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Handle null course
@@ -740,91 +916,97 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: NestedScrollView(
-          controller: _scrollController,
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverAppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                pinned: true,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
-                  onPressed: () => Navigator.maybePop(context),
+        controller: _scrollController,
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              pinned: true,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.black87,
                 ),
-                title: const Text(
-                  'Course Details',
-                  style: TextStyle(
-                    color: Colors.black87,
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              title: const Text(
+                'Course Details',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.share_rounded, color: Colors.black87),
+                  onPressed: _shareCourse,
+                ),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: CourseHeader(
+                course: _courseData!,
+                likesCount: _likesCount,
+                isLiked: _isLiked,
+                onLikeToggle: _toggleLike,
+                onShowReviews: _showReviewsDialog,
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverAppBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  labelColor: AppConstants.primaryColor,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppConstants.primaryColor,
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    fontSize: 18,
                   ),
-                ),
-                centerTitle: true,
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.share_rounded, color: Colors.black87),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: CourseHeader(
-                  course: _courseData!,
-                  likesCount: _likesCount,
-                  isLiked: _isLiked,
-                  onLikeToggle: _toggleLike,
-                  onShowReviews: _showReviewsDialog,
+                  tabs: const [
+                    Tab(text: 'Overview'),
+                    Tab(text: 'Content'),
+                    Tab(text: 'Reviews'),
+                  ],
                 ),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverAppBarDelegate(
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: AppConstants.primaryColor,
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: AppConstants.primaryColor,
-                    indicatorWeight: 3,
-                    labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    tabs: const [
-                      Tab(text: 'Overview'),
-                      Tab(text: 'Content'),
-                      Tab(text: 'Reviews'),
-                    ],
-                  ),
-                ),
-              ),
-            ];
-          },
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              CourseOverviewTab(
-                course: _courseData!,
-                couponCode: appliedCouponCode,
-                discountAmount: discountAmount,
-                updatedGstAmount: gstAmount,
-                updatedTotalPayable: totalPayable,
-                isEnrolled: _isEnrolled && !_isExpired,
-                isRated: _isRated,
-                onRate: _openRatingDialog,
-              ),
-              CourseContentTab(
-                key: UniqueKey(), // Keeping Key to force rebuild just in case
-                course: _courseData!,
-                isEnrolled: _isEnrolled && !_isExpired,
-              ),
-              _buildReviewsTab(),
-            ],
-          ),
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            CourseOverviewTab(
+              course: _courseData!,
+              couponCode: appliedCouponCode,
+              discountAmount: discountAmount,
+              updatedGstAmount: gstAmount,
+              updatedTotalPayable: totalPayable,
+              isEnrolled: _isEnrolled && !_isExpired,
+              isRated: _isRated,
+              onRate: _openRatingDialog,
+            ),
+            CourseContentTab(
+              key: UniqueKey(), // Keeping Key to force rebuild just in case
+              course: _courseData!,
+              isEnrolled: _isEnrolled && !_isExpired,
+            ),
+            _buildReviewsTab(),
+          ],
         ),
+      ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF5F5), // Light red/pink background
+          color: const Color(0xFFF1F8E9), // Light green background
           boxShadow: [
-             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),
@@ -834,134 +1016,271 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> with SingleTi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Coupon Input Section (Hide if enrolled)
-              if (!(_isEnrolled && !_isExpired)) ...[
-                  if (appliedCouponCode == null) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _couponController,
-                            decoration: InputDecoration(
-                              hintText: 'Enter coupon code',
-                              prefixIcon: const Icon(Icons.local_offer, size: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              // Coupon Input Section (Hide if enrolled OR if course is free)
+              if (!(_isEnrolled && !_isExpired) &&
+                  (_parsePrice(widget.course?['price']) > 0)) ...[
+                if (appliedCouponCode == null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _couponController,
+                          decoration: InputDecoration(
+                            hintText: 'Enter coupon code',
+                            prefixIcon: const Icon(Icons.local_offer, size: 20),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
-                            onSubmitted: (value) {
-                              if (value.isNotEmpty) _applyCoupon(value);
-                            },
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onSubmitted: (value) {
+                            if (value.isNotEmpty) _applyCoupon(value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed:
+                            _isValidatingCoupon
+                                ? null
+                                : () {
+                                  if (_couponController.text.isNotEmpty) {
+                                    _applyCoupon(_couponController.text);
+                                  }
+                                },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.primaryColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        child:
+                            _isValidatingCoupon
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Text(
+                                  'Apply',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  // Applied Coupon Display
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: _isValidatingCoupon ? null : () {
-                            if (_couponController.text.isNotEmpty) _applyCoupon(_couponController.text);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConstants.primaryColor,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Coupon Applied: $appliedCouponCode',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              if (discountAmount != null)
+                                Text(
+                                  'You saved ₹${discountAmount!.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green[700],
+                                  ),
+                                ),
+                            ],
                           ),
-                          child: _isValidatingCoupon 
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: _removeCoupon,
+                          color: Colors.red,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                  ] else ...[
-                    // Applied Coupon Display
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Coupon Applied: $appliedCouponCode', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                                if (discountAmount != null)
-                                  Text('You saved ₹${discountAmount!.toStringAsFixed(0)}', style: TextStyle(fontSize: 12, color: Colors.green[700])),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: _removeCoupon,
-                            color: Colors.red,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ],
-              
+
               // Price and Action Button
               Row(
                 children: [
-                  // Price Section (Hide if enrolled)
-                  if (!(_isEnrolled && !_isExpired)) ...[
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (appliedCouponCode != null && discountAmount != null) ...[
-                              Text('₹${widget.course?['totalPrice'] ?? widget.course?['price'] ?? '0'}', style: const TextStyle(fontSize: 14, color: Colors.grey, decoration: TextDecoration.lineThrough)),
-                              if (gstAmount != null && gstAmount! > 0) Text('+GST ₹${gstAmount?.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                              Text('₹${totalPayable?.toStringAsFixed(0) ?? finalPrice?.toStringAsFixed(0) ?? '0'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD32F2F))),
-                            ] else if (widget.course?['gstEnabled'] == true) ...[
-                               Text('₹${widget.course?['price'] ?? '0'}', style: const TextStyle(fontSize: 14, color: Colors.grey, decoration: TextDecoration.lineThrough)),
-                               Text('+GST ${widget.course?['gstPercentage'] ?? '0'}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                               const SizedBox(height: 2),
-                               Text('₹${widget.course?['totalPrice'] ?? widget.course?['price'] ?? '0'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD32F2F))),
-                            ] else ...[
-                               const Text('Total Price', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                               const SizedBox(height: 4),
-                               Text('₹${widget.course?['price'] ?? '999'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD32F2F))),
-                            ],
+                  // Price Section (Hide if enrolled OR if course is free)
+                  if (!(_isEnrolled && !_isExpired) &&
+                      (_parsePrice(widget.course?['price']) > 0)) ...[
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (appliedCouponCode != null &&
+                              discountAmount != null) ...[
+                            Text(
+                              '₹${widget.course?['totalPrice'] ?? widget.course?['price'] ?? '0'}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            if (gstAmount != null && gstAmount! > 0)
+                              Text(
+                                '+GST ₹${gstAmount?.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            Text(
+                              '₹${totalPayable?.toStringAsFixed(0) ?? finalPrice?.toStringAsFixed(0) ?? '0'}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppConstants.primaryColor,
+                              ),
+                            ),
+                          ] else if (widget.course?['gstEnabled'] == true) ...[
+                            Text(
+                              '₹${widget.course?['price'] ?? '0'}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            Text(
+                              '+GST ${widget.course?['gstPercentage'] ?? '0'}%',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${widget.course?['totalPrice'] ?? widget.course?['price'] ?? '0'}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppConstants.primaryColor,
+                              ),
+                            ),
+                          ] else ...[
+                            const Text(
+                              'Total Price',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '₹${widget.course?['price'] ?? '999'}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppConstants.primaryColor,
+                              ),
+                            ),
                           ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
+                    ),
+                    const SizedBox(width: 16),
                   ],
 
                   // Action Button (Buy Now or Continue Learning)
                   Expanded(
                     flex: (_isEnrolled && !_isExpired) ? 1 : 3,
                     child: ElevatedButton(
-                      onPressed: (_isEnrolled && !_isExpired) 
-                          ? () { _tabController.animateTo(1); }
-                          : (_isProcessingPayment ? null : _initiatePayment),
+                      onPressed:
+                          (_isEnrolled && !_isExpired)
+                              ? () {
+                                _tabController.animateTo(1);
+                              }
+                              : (((_settings?['integrations']?['offlinePayments']?['enabled'] ?? false) == true)
+                                  ? null // Disable function for offline payments
+                                  : (_isProcessingPayment
+                                      ? null
+                                      : _initiatePayment)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: (_isEnrolled && !_isExpired) ? const Color(0xFFD32F2F) : const Color(0xFFFDD835),
+                        backgroundColor:
+                            (_isEnrolled && !_isExpired)
+                                ? AppConstants.primaryColor
+                                : (((_settings?['integrations']?['offlinePayments']?['enabled'] ?? false) == true)
+                                    ? Colors.orange // Distinct color for offline
+                                    : const Color(0xFFFDD835)),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
-                      child: _isProcessingPayment
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : Text(
-                        (_isEnrolled && !_isExpired) ? 'Continue Learning' : 'Buy Now',
-                        style: TextStyle(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold,
-                          color: (_isEnrolled && !_isExpired) ? Colors.white : Colors.black,
-                        ),
-                      ),
+                      child:
+                          _isProcessingPayment
+                              ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
+                              : Text(
+                                (_isEnrolled && !_isExpired)
+                                    ? 'Continue Learning'
+                                    : (((_settings?['integrations']?['offlinePayments']?['enabled'] ?? false) == true)
+                                        ? (_settings?['integrations']?['offlinePayments']?['message'] ?? 'Please pay offline')
+                                        : (((totalPayable ??
+                                                _parsePrice(
+                                                  _courseData?['totalPrice'] ??
+                                                      _courseData?['price'],
+                                                )) <=
+                                            0)
+                                        ? 'Enroll Now'
+                                        : 'Buy Now')),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      ((_isEnrolled && !_isExpired) || ((_settings?['integrations']?['offlinePayments']?['enabled'] ?? false) == true))
+                                          ? Colors.white
+                                          : Colors.black,
+                                ),
+                              ),
                     ),
                   ),
                 ],
@@ -985,11 +1304,16 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height + 1;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: Colors.white, // Sticky background
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.end, // Align tab bar to bottom of height
+        mainAxisAlignment:
+            MainAxisAlignment.end, // Align tab bar to bottom of height
         children: [
           _tabBar,
           Container(height: 1, color: Colors.grey[200]), // Bottom border

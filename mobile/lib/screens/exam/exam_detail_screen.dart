@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../services/api_service.dart';
 import 'exam_taking_screen.dart';
@@ -21,10 +21,10 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Always start with the basic exam data
     _fullExamData = widget.exam;
-    
+
     // Load full data in background if examId is provided
     if (widget.examId != null) {
       _loadFullExamData();
@@ -35,7 +35,48 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
     setState(() => _isLoading = true);
     try {
       final data = await _apiService.getExamById(widget.examId!);
-      
+
+      if (data != null) {
+        if (data['questionGroups'] != null) {
+          final groups = data['questionGroups'] as List;
+          
+          // Log the structure of each group
+          for (int i = 0; i < groups.length; i++) {
+            final group = groups[i];
+            if (group is Map) {
+              if (group['questions'] != null) {
+              }
+            }
+          }
+          
+          int totalQuestions = 0;
+          for (var group in groups) {
+            if (group['questions'] != null) {
+              totalQuestions += (group['questions'] as List).length;
+            }
+          }
+          
+          // Check if exam has no questions
+          if (totalQuestions == 0) {
+            if (mounted) {
+              setState(() {
+                _fullExamData = data;
+                _isLoading = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This exam has no questions yet. Please contact your instructor.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+            return;
+          }
+        } else {
+        }
+      }
+
       if (data != null && mounted) {
         setState(() {
           _fullExamData = data;
@@ -44,12 +85,41 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
       } else {
         if (mounted) {
           setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to load test questions. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
-      print('Error loading full exam data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+        
+        String errorMessage = 'Error loading exam details';
+        if (e.toString().contains('SocketException')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (e.toString().contains('TimeoutException')) {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (e.toString().contains('FormatException')) {
+          errorMessage = 'Invalid response from server. Please contact support.';
+        } else {
+          errorMessage = 'Error: ${e.toString()}';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadFullExamData,
+            ),
+          ),
+        );
       }
     }
   }
@@ -94,7 +164,9 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _displayExam['title'] ?? _displayExam['name'] ?? 'Test',
+                          _displayExam['title'] ??
+                              _displayExam['name'] ??
+                              'Test',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -103,9 +175,12 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -138,7 +213,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         Row(
                           children: [
                             Expanded(
@@ -160,16 +235,17 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                             ),
                           ],
                         ),
-                        
+
                         const SizedBox(height: 12),
-                        
+
                         Row(
                           children: [
                             Expanded(
                               child: _buildInfoCard(
                                 icon: Icons.stars_outlined,
                                 title: 'Total Marks',
-                                value: '${_displayExam['totalMarks'] ?? _getTotalMarks(_displayExam)}',
+                                value:
+                                    '${_displayExam['totalMarks'] ?? _getTotalMarks(_displayExam)}',
                                 color: Colors.green,
                               ),
                             ),
@@ -186,7 +262,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                         ),
 
                         const SizedBox(height: 12),
-                        
+
                         Row(
                           children: [
                             Expanded(
@@ -221,13 +297,23 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        
-                        _buildInstructionItem('Read each question carefully before answering'),
-                        _buildInstructionItem('You can mark questions for review'),
-                        _buildInstructionItem('Timer will start once you begin the test'),
-                        _buildInstructionItem('Submit the test before time runs out'),
-                        _buildInstructionItem('You cannot pause the test once started'),
-                        
+
+                        _buildInstructionItem(
+                          'Read each question carefully before answering',
+                        ),
+                        _buildInstructionItem(
+                          'You can mark questions for review',
+                        ),
+                        _buildInstructionItem(
+                          'Timer will start once you begin the test',
+                        ),
+                        _buildInstructionItem(
+                          'Submit the test before time runs out',
+                        ),
+                        _buildInstructionItem(
+                          'You cannot pause the test once started',
+                        ),
+
                         const SizedBox(height: 100),
                       ],
                     ),
@@ -244,7 +330,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -255,16 +341,19 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: !_isLoading && _fullExamData['questionGroups'] != null
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ExamTakingScreen(exam: _fullExamData),
-                            ),
-                          );
-                        }
-                      : null,
+                  onPressed:
+                      !_isLoading && _hasQuestions()
+                          ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        ExamTakingScreen(exam: _fullExamData),
+                              ),
+                            );
+                          }
+                          : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConstants.primaryColor,
                     shape: RoundedRectangleBorder(
@@ -273,36 +362,39 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                     elevation: 0,
                     disabledBackgroundColor: Colors.grey[400],
                   ),
-                  child: _isLoading
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                  child:
+                      _isLoading
+                          ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 12),
-                            Text(
-                              'Loading questions...',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white,
+                              SizedBox(width: 12),
+                              Text(
+                                'Loading questions...',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
                               ),
+                            ],
+                          )
+                          : Text(
+                            _hasQuestions() 
+                                ? 'START TEST' 
+                                : 'No Questions Available',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                          ],
-                        )
-                      : const Text(
-                          'START TEST',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
                           ),
-                        ),
                 ),
               ),
             ),
@@ -338,13 +430,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -392,7 +478,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
     if (exam['questionGroups'] != null && exam['questionGroups'] is List) {
       int total = 0;
       final groups = exam['questionGroups'] as List;
-      
+
       for (var group in groups) {
         if (group is Map) {
           // If group is populated (has questions array)
@@ -402,10 +488,10 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
           }
         }
       }
-      
+
       return total.toString();
     }
-    
+
     return '0';
   }
 
@@ -427,7 +513,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
   String _getPassingMarks(Map<String, dynamic> exam) {
     final totalMarks = exam['totalMarks'] as int? ?? 0;
     final passingPercentage = exam['passingPercentage'] as int? ?? 40;
-    
+
     if (totalMarks > 0) {
       final passingMarks = (totalMarks * passingPercentage / 100).ceil();
       return '$passingMarks ($passingPercentage%)';
@@ -448,5 +534,16 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
       return (exam['attempts'] as List).length.toString();
     }
     return '0';
+  }
+
+  bool _hasQuestions() {
+    if (_fullExamData['questionGroups'] == null) return false;
+    final groups = _fullExamData['questionGroups'] as List;
+    for (var group in groups) {
+      if (group['questions'] != null && (group['questions'] as List).isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
   }
 }

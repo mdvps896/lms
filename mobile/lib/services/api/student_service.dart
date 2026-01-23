@@ -9,15 +9,11 @@ class StudentService extends BaseApiService {
     if (user == null) throw Exception('User not logged in');
     final cached = await getCached('dashboard_${user.id}');
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/student/dashboard?userId=${user.id}'),
-      ).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          await saveCache('dashboard_${user.id}', data['data']);
-          return data['data'];
-        }
+      final data = await apiGet('/student/dashboard?userId=${user.id}');
+      
+      if (data is Map && data['success'] == true) {
+        await saveCache('dashboard_${user.id}', data['data']);
+        return data['data'];
       }
       return cached ?? (throw Exception('Failed to load dashboard'));
     } catch (e) {
@@ -30,19 +26,21 @@ class StudentService extends BaseApiService {
     try {
       final savedUser = await getSavedUser();
       if (savedUser == null) return null;
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/${savedUser.id}'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
-         final userMap = data['data'] as Map<String, dynamic>;
-         userMap['profilePicture'] = BaseApiService.getFullUrl(userMap['profilePicture']);
-         userMap['profileImage'] = BaseApiService.getFullUrl(userMap['profileImage']);
-         
-         final newUser = User.fromJson(userMap);
-         await saveUser(newUser);
-         return newUser;
+      
+      final data = await apiGet('/users/${savedUser.id}');
+      
+      if (data is Map && data['success'] == true) {
+        final userMap = data['data'] as Map<String, dynamic>;
+        userMap['profilePicture'] = getFullUrl(
+          userMap['profilePicture'],
+        );
+        userMap['profileImage'] = getFullUrl(
+          userMap['profileImage'],
+        );
+
+        final newUser = User.fromJson(userMap);
+        await saveUser(newUser);
+        return newUser;
       }
       return null;
     } catch (e) {
@@ -54,15 +52,13 @@ class StudentService extends BaseApiService {
     try {
       final user = await getSavedUser();
       if (user == null) return [];
-      final response = await http.get(
-        Uri.parse('$baseUrl/student/my-courses?userId=${user.id}'), 
-        headers: {'Cache-Control': 'no-cache'}
-      ).timeout(const Duration(seconds: 10));
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
+      
+      final data = await apiGet('/student/my-courses?userId=${user.id}');
+      
+      if (data is Map && data['success'] == true) {
         final courses = List<Map<String, dynamic>>.from(data['courses']);
         for (var course in courses) {
-          course['thumbnail'] = BaseApiService.getFullUrl(course['thumbnail']);
+          course['thumbnail'] = getFullUrl(course['thumbnail']);
         }
         return courses;
       }
@@ -75,13 +71,12 @@ class StudentService extends BaseApiService {
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     try {
       final user = await getSavedUser();
-      if (user == null) return {'success': false, 'message': 'User not logged in'};
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/profile/update'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.id, ...data}),
-      ).timeout(const Duration(seconds: 10));
-      final result = jsonDecode(response.body);
+      if (user == null) {
+        return {'success': false, 'message': 'User not logged in'};
+      }
+      
+      final result = await apiPost('/auth/profile/update', {'userId': user.id, ...data});
+      
       if (result['success'] == true) await refreshUserProfile();
       return result;
     } catch (e) {

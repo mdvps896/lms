@@ -1,12 +1,9 @@
-import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import 'package:intl/intl.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:gal/gal.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../help_support_screen.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
@@ -15,7 +12,8 @@ class TransactionDetailScreen extends StatefulWidget {
   const TransactionDetailScreen({super.key, required this.payment});
 
   @override
-  State<TransactionDetailScreen> createState() => _TransactionDetailScreenState();
+  State<TransactionDetailScreen> createState() =>
+      _TransactionDetailScreenState();
 }
 
 class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
@@ -24,7 +22,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
   Future<void> _captureAndSave() async {
     if (_isDownloading) return;
-    
+
     setState(() => _isDownloading = true);
 
     try {
@@ -41,11 +39,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         try {
           // Check if we have permission first (Best practice with Gal)
           if (!await Gal.hasAccess()) {
-             await Gal.requestAccess();
+            await Gal.requestAccess();
           }
 
           // Save to Gallery
-          await Gal.putImageBytes(image, name: "receipt_${DateTime.now().millisecondsSinceEpoch}");
+          await Gal.putImageBytes(
+            image,
+            name: "receipt_${DateTime.now().millisecondsSinceEpoch}",
+          );
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -56,11 +57,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             );
           }
         } catch (e) {
-           _showError('Gallery Access Denied or Failed: $e');
+          _showError('Gallery Access Denied or Failed: $e');
         }
       }
     } catch (e) {
-      print('Capture error: $e');
+
       _showError('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isDownloading = false);
@@ -71,10 +72,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message), 
+          content: Text(message),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
-          action: SnackBarAction(label: 'OK', textColor: Colors.white, onPressed: () {}),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
         ),
       );
     }
@@ -101,7 +106,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
           children: [
             const Text(
               'Transaction Successful',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 2), // Added small space
             Text(
@@ -126,10 +135,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1), // Slightly lighter border
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.2),
+                          width: 1,
+                        ), // Slightly lighter border
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -139,17 +151,28 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Received by', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+                          const Text(
+                            'Received by',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(color: AppConstants.primaryColor, shape: BoxShape.circle),
+                                decoration: const BoxDecoration(
+                                  color: AppConstants.primaryColor,
+                                  shape: BoxShape.circle,
+                                ),
                                 child: const CircleAvatar(
                                   radius: 25,
                                   backgroundColor: Colors.white,
-                                  backgroundImage: AssetImage('assets/logo.png'),
+                                  backgroundImage: AssetImage(
+                                    'assets/logo.png',
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -159,15 +182,24 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                                   children: [
                                     const Text(
                                       'GOD OF GRAPHICS',
-                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    const Text('support@godofgraphics.com', style: TextStyle(color: Colors.black54)),
+                                    const Text(
+                                      'support@godofgraphics.com',
+                                      style: TextStyle(color: Colors.black54),
+                                    ),
                                   ],
                                 ),
                               ),
                               Text(
                                 '₹${amount.toInt()}',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -176,59 +208,112 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              const Text('Course Name : ', style: TextStyle(color: Colors.black54)),
+                              const Text(
+                                'Course Name : ',
+                                style: TextStyle(color: Colors.black54),
+                              ),
                               Expanded(
                                 child: Text(
                                   payment['courseTitle'] ?? 'General Course',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              Icon(Icons.check_circle, color: Colors.green[700], size: 16),
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green[700],
+                                size: 16,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 24),
-                          
-                          _buildDetailRow(Icons.list_alt, 'Payment Details', isExpandable: true),
+
+                          _buildDetailRow(
+                            Icons.list_alt,
+                            'Payment Details',
+                            isExpandable: true,
+                          ),
                           const SizedBox(height: 16),
-                          _buildInfoField('Transaction ID', payment['razorpayPaymentId'] ?? 'T${DateTime.now().millisecondsSinceEpoch}'),
+                          _buildInfoField(
+                            'Transaction ID',
+                            payment['razorpayPaymentId'] ??
+                                'T${DateTime.now().millisecondsSinceEpoch}',
+                          ),
                           const SizedBox(height: 16),
-                          const Text('Credited to', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                          const Text(
+                            'Credited to',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(color: AppConstants.secondaryColor, shape: BoxShape.circle),
-                                child: const Icon(Icons.account_balance, color: Colors.white, size: 20),
+                                decoration: const BoxDecoration(
+                                  color: AppConstants.secondaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.account_balance,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Razorpay Order ID', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const Text(
+                                      'Razorpay Order ID',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                     Text(
-                                      payment['razorpayOrderId'] ?? payment['razorpay_order_id'] ?? (payment['isFree'] == true ? 'FREE_ENROLLMENT' : 'N/A'),
-                                      style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                      payment['razorpayOrderId'] ??
+                                          payment['razorpay_order_id'] ??
+                                          (payment['isFree'] == true
+                                              ? 'FREE_ENROLLMENT'
+                                              : 'N/A'),
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Text('₹${amount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                '₹${amount.toInt()}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 24),
-                          
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _buildActionIcon(Icons.history, 'History', onTap: () => Navigator.pop(context)),
                               _buildActionIcon(
-                                _isDownloading ? Icons.hourglass_empty : Icons.download_for_offline_outlined, 
-                                _isDownloading ? 'Saving...' : 'Download', 
+                                Icons.history,
+                                'History',
+                                onTap: () => Navigator.pop(context),
+                              ),
+                              _buildActionIcon(
+                                _isDownloading
+                                    ? Icons.hourglass_empty
+                                    : Icons.download_for_offline_outlined,
+                                _isDownloading ? 'Saving...' : 'Download',
                                 onTap: _isDownloading ? null : _captureAndSave,
                               ),
                             ],
@@ -237,26 +322,40 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const HelpSupportScreen(),
+                          ),
                         );
                       },
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
                         child: const Row(
                           children: [
-                            Icon(Icons.chat_bubble_outline_rounded, color: AppConstants.primaryColor),
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              color: AppConstants.primaryColor,
+                            ),
                             SizedBox(width: 12),
-                            Text('Contact Support', style: TextStyle(fontWeight: FontWeight.w500)),
+                            Text(
+                              'Contact Support',
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
                             Spacer(),
                             Icon(Icons.chevron_right, color: Colors.black54),
                           ],
@@ -267,7 +366,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 20),
             const SizedBox(height: 40),
           ],
@@ -276,14 +375,22 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String title, {bool isExpandable = false}) {
+  Widget _buildDetailRow(
+    IconData icon,
+    String title, {
+    bool isExpandable = false,
+  }) {
     return Row(
       children: [
         Icon(icon, color: AppConstants.primaryColor, size: 20),
         const SizedBox(width: 12),
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const Spacer(),
-        if (isExpandable) const Icon(Icons.keyboard_arrow_up, color: Colors.black54),
+        if (isExpandable)
+          const Icon(Icons.keyboard_arrow_up, color: Colors.black54),
       ],
     );
   }
@@ -292,12 +399,24 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.black54, fontSize: 12),
+        ),
         const SizedBox(height: 4),
         Row(
           children: [
-            Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
-            const Icon(Icons.copy_outlined, size: 16, color: AppConstants.primaryColor),
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            const Icon(
+              Icons.copy_outlined,
+              size: 16,
+              color: AppConstants.primaryColor,
+            ),
           ],
         ),
       ],
@@ -311,11 +430,17 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppConstants.primaryColor.withOpacity(0.05), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: AppConstants.primaryColor.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: AppConstants.primaryColor, size: 24),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.black87)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Colors.black87),
+          ),
         ],
       ),
     );

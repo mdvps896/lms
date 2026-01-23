@@ -7,6 +7,8 @@ class ContinueLearningCard extends StatelessWidget {
   final double progress;
   final Color color;
   final IconData icon;
+  final String? duration;
+
   final String? courseId;
 
   const ContinueLearningCard({
@@ -17,6 +19,8 @@ class ContinueLearningCard extends StatelessWidget {
     required this.color,
     required this.icon,
     this.courseId,
+    // Duration of the course
+    this.duration,
   });
 
   @override
@@ -25,9 +29,13 @@ class ContinueLearningCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1), // Light background color as requested
+        color: color.withValues(
+          alpha: 0.1,
+        ), // Light background color as requested
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)), // Slight border match
+        border: Border.all(
+          color: color.withValues(alpha: 0.2),
+        ), // Slight border match
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,7 +46,7 @@ class ContinueLearningCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -73,14 +81,33 @@ class ContinueLearningCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppConstants.textSecondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppConstants.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (duration != null && duration!.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Icon(Icons.access_time, size: 10, color: AppConstants.textSecondary.withOpacity(0.7)),
+                const SizedBox(width: 2),
+                Text(
+                  duration!,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppConstants.textSecondary.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ]
+            ],
           ),
           const SizedBox(height: 12),
           ClipRRect(

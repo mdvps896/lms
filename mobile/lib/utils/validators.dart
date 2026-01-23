@@ -12,9 +12,9 @@ class Validators {
   static bool isStrongPassword(String password) {
     // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
     return password.length >= 8 &&
-           password.contains(RegExp(r'[A-Z]')) &&
-           password.contains(RegExp(r'[a-z]')) &&
-           password.contains(RegExp(r'[0-9]'));
+        password.contains(RegExp(r'[A-Z]')) &&
+        password.contains(RegExp(r'[a-z]')) &&
+        password.contains(RegExp(r'[0-9]'));
   }
 
   /// Validate phone number (10 digits)
@@ -25,8 +25,7 @@ class Validators {
 
   /// Validate name (at least 2 characters, letters only)
   static bool isValidName(String name) {
-    return name.trim().length >= 2 && 
-           RegExp(r'^[a-zA-Z\s]+$').hasMatch(name);
+    return name.trim().length >= 2 && RegExp(r'^[a-zA-Z\s]+$').hasMatch(name);
   }
 
   // Form validators that return error messages

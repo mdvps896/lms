@@ -51,7 +51,7 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
     }
 
     final courses = filteredCourses;
-    
+
     if (courses.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -72,23 +72,20 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
             itemCount: (limitedCourses.length / 2).ceil(),
             itemBuilder: (context, pageIndex) {
               final startIndex = pageIndex * 2;
-              final endIndex = (startIndex + 2 > limitedCourses.length) 
-                  ? limitedCourses.length 
-                  : startIndex + 2;
+              final endIndex =
+                  (startIndex + 2 > limitedCourses.length)
+                      ? limitedCourses.length
+                      : startIndex + 2;
               final pageCourses = limitedCourses.sublist(startIndex, endIndex);
-              
+
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: _buildCourseCard(pageCourses[0]),
-                    ),
+                    Expanded(child: _buildCourseCard(pageCourses[0])),
                     if (pageCourses.length > 1) ...[
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCourseCard(pageCourses[1]),
-                      ),
+                      Expanded(child: _buildCourseCard(pageCourses[1])),
                     ],
                   ],
                 ),
@@ -106,9 +103,10 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
               width: _currentPage == index ? 24 : 8,
               height: 8,
               decoration: BoxDecoration(
-                color: _currentPage == index
-                    ? AppConstants.primaryColor
-                    : Colors.grey[300],
+                color:
+                    _currentPage == index
+                        ? AppConstants.primaryColor
+                        : Colors.grey[300],
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -121,28 +119,30 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
   Widget _buildCourseCard(dynamic course) {
     bool isPurchased = false;
     if (widget.user != null && widget.user!.enrolledCourses != null) {
-        final String courseId = (course['id'] ?? course['_id'] ?? '').toString();
-        for (var e in widget.user!.enrolledCourses!) {
-            String id = '';
-            DateTime? expiry;
-            if (e is String) {
-               id = e;
-            } else if (e is Map) {
-               final cIdRaw = e['courseId'] ?? e['course'];
-               if (cIdRaw is Map) {
-                  id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
-               } else {
-                  id = (cIdRaw ?? '').toString();
-               }
-               if (e['expiresAt'] != null) expiry = DateTime.tryParse(e['expiresAt'].toString());
-            }
-            if (id.isNotEmpty && id == courseId) {
-               if (expiry == null || DateTime.now().isBefore(expiry)) {
-                   isPurchased = true;
-                   break;
-               }
-            }
+      final String courseId = (course['id'] ?? course['_id'] ?? '').toString();
+      for (var e in widget.user!.enrolledCourses!) {
+        String id = '';
+        DateTime? expiry;
+        if (e is String) {
+          id = e;
+        } else if (e is Map) {
+          final cIdRaw = e['courseId'] ?? e['course'];
+          if (cIdRaw is Map) {
+            id = (cIdRaw['_id'] ?? cIdRaw['id'] ?? '').toString();
+          } else {
+            id = (cIdRaw ?? '').toString();
+          }
+          if (e['expiresAt'] != null) {
+            expiry = DateTime.tryParse(e['expiresAt'].toString());
+          }
         }
+        if (id.isNotEmpty && id == courseId) {
+          if (expiry == null || DateTime.now().isBefore(expiry)) {
+            isPurchased = true;
+            break;
+          }
+        }
+      }
     }
 
     return GestureDetector(
@@ -161,7 +161,11 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: AppConstants.primaryColor.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5)),
+            BoxShadow(
+              color: AppConstants.primaryColor.withValues(alpha: 0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
           ],
         ),
         child: ClipRRect(
@@ -172,12 +176,32 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
                 child: Stack(
                   children: [
                     course['thumbnail'] != null
-                      ? SizedBox( height: 220, child: CustomCachedImage(imageUrl: course['thumbnail'], fit: BoxFit.cover)) // Added SizeBox to prevent layout errors in Stack if needed, though positioned fill usually handles it. But 'Image.network' had fit cover.
-                      : Container(color: AppConstants.primaryColor.withOpacity(0.3), child: const Center(child: Icon(Icons.book_rounded, size: 50, color: Colors.white))),
+                        ? SizedBox(
+                          height: 220,
+                          child: CustomCachedImage(
+                            imageUrl: course['thumbnail'],
+                            fit: BoxFit.cover,
+                          ),
+                        ) // Added SizeBox to prevent layout errors in Stack if needed, though positioned fill usually handles it. But 'Image.network' had fit cover.
+                        : Container(
+                          color: AppConstants.primaryColor.withValues(
+                            alpha: 0.3,
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.book_rounded,
+                              size: 50,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Colors.black.withOpacity(0.7), Colors.black.withOpacity(0.3)],
+                          colors: [
+                            Colors.black.withValues(alpha: 0.7),
+                            Colors.black.withValues(alpha: 0.3),
+                          ],
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                         ),
@@ -196,18 +220,48 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(color: AppConstants.accentColor, borderRadius: BorderRadius.circular(8)),
-                          child: Text(course['category'] ?? 'General', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppConstants.accentColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            course['category'] ?? 'General',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           child: Row(
                             children: [
-                              const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 16,
+                                color: Colors.amber,
+                              ),
                               const SizedBox(width: 4),
-                              Text(course['rating']?.toString() ?? '4.5', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text(
+                                course['rating']?.toString() ?? '4.5',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -216,26 +270,63 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(course['title'] ?? 'Untitled Course', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(
+                          course['title'] ?? 'Untitled Course',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               child: Text(
-                                isPurchased ? 'Enrolled' : '₹${course['price'] ?? '999'}',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isPurchased ? Colors.green : AppConstants.primaryColor),
+                                isPurchased
+                                    ? 'Enrolled'
+                                    : '₹${course['price'] ?? '999'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isPurchased
+                                          ? Colors.green
+                                          : AppConstants.primaryColor,
+                                ),
                               ),
                             ),
                             Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: isPurchased ? Colors.green : AppConstants.primaryColor,
-                                  borderRadius: BorderRadius.circular(10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    isPurchased
+                                        ? Colors.green
+                                        : AppConstants.primaryColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                isPurchased ? 'Open' : 'Buy',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
-                                child: Text(isPurchased ? 'Open' : 'Buy', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ),
                             ),
                           ],
                         ),
@@ -257,12 +348,24 @@ class _CategoryCourseSliderState extends State<CategoryCourseSlider> {
       highlightColor: Colors.grey[100]!,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(children: [Expanded(child: _buildSkeletonCard()), const SizedBox(width: 12), Expanded(child: _buildSkeletonCard())]),
+        child: Row(
+          children: [
+            Expanded(child: _buildSkeletonCard()),
+            const SizedBox(width: 12),
+            Expanded(child: _buildSkeletonCard()),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSkeletonCard() {
-    return Container(height: 220, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)));
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
   }
 }

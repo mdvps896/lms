@@ -5,12 +5,38 @@ class StateSelectionDialog extends StatelessWidget {
   const StateSelectionDialog({super.key});
 
   final List<String> states = const [
-    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-    'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry'
+    'Andhra Pradesh',
+    'Arunachal Pradesh',
+    'Assam',
+    'Bihar',
+    'Chhattisgarh',
+    'Goa',
+    'Gujarat',
+    'Haryana',
+    'Himachal Pradesh',
+    'Jharkhand',
+    'Karnataka',
+    'Kerala',
+    'Madhya Pradesh',
+    'Maharashtra',
+    'Manipur',
+    'Meghalaya',
+    'Mizoram',
+    'Nagaland',
+    'Odisha',
+    'Punjab',
+    'Rajasthan',
+    'Sikkim',
+    'Tamil Nadu',
+    'Telangana',
+    'Tripura',
+    'Uttar Pradesh',
+    'Uttarakhand',
+    'West Bengal',
+    'Delhi',
+    'Jammu & Kashmir',
+    'Ladakh',
+    'Puducherry',
   ];
 
   @override
@@ -24,7 +50,10 @@ class StateSelectionDialog extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(Icons.location_on_rounded, color: AppConstants.accentColor),
+                const Icon(
+                  Icons.location_on_rounded,
+                  color: AppConstants.accentColor,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Select State',
@@ -34,7 +63,7 @@ class StateSelectionDialog extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
-                )
+                ),
               ],
             ),
           ),
@@ -43,7 +72,9 @@ class StateSelectionDialog extends StatelessWidget {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: states.length,
-              separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
+              separatorBuilder:
+                  (context, index) =>
+                      const Divider(height: 1, indent: 16, endIndent: 16),
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(states[index]),

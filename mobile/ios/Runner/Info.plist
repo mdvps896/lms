@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>God of Graphics</string>
+	<string>MD Consultancy</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>God of Graphics</string>
+	<string>MD Consultancy</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -47,5 +47,11 @@
 	<string>We need access to your photo library to save payment receipts.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need access to your photo library to save payment receipts.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to capture selfies during course enrollment and PDF viewing for attendance verification.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to verify your attendance while viewing course materials.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to verify your attendance while viewing course materials.</string>
 </dict>
 </plist>

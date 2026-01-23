@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
 import '../../../services/api_service.dart';
 import '../widgets/free_materials_skeleton.dart';
@@ -37,20 +37,32 @@ class _VideosTabState extends State<VideosTab> {
   Future<void> _fetchVideos() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
       final materials = await _apiService.getFreeMaterials();
       List<Map<String, dynamic>> videoItems = [];
-      
+
       for (var material in materials) {
         if (material['files'] != null) {
           for (var file in material['files']) {
             final url = file['url'].toString().toLowerCase();
             final type = file['type']?.toString().toLowerCase() ?? '';
-            final vidExts = ['.mp4', '.mkv', '.avi', '.webm', '.mov', '.3gp', '.flv', '.m4v'];
-            final isVideo = vidExts.any((ext) => url.endsWith(ext)) || 
-                          type == 'video' || url.contains('youtube.com') || url.contains('youtu.be');
-            
+            final vidExts = [
+              '.mp4',
+              '.mkv',
+              '.avi',
+              '.webm',
+              '.mov',
+              '.3gp',
+              '.flv',
+              '.m4v',
+            ];
+            final isVideo =
+                vidExts.any((ext) => url.endsWith(ext)) ||
+                type == 'video' ||
+                url.contains('youtube.com') ||
+                url.contains('youtu.be');
+
             if (isVideo) {
               videoItems.add({
                 'id': material['_id'],
@@ -69,31 +81,44 @@ class _VideosTabState extends State<VideosTab> {
 
       // Filter by search query
       if (widget.searchQuery.isNotEmpty) {
-        videoItems = videoItems.where((v) => 
-          v['title'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase()) ||
-          v['category'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase())
-        ).toList();
+        videoItems =
+            videoItems
+                .where(
+                  (v) =>
+                      v['title'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ) ||
+                      v['category'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ),
+                )
+                .toList();
       }
 
       _applySorting(videoItems);
       _groupByCategory(videoItems);
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Fetch Videos Error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _applySorting(List<Map<String, dynamic>> videos) {
     if (_sortBy == 'newest') {
-      videos.sort((a, b) => b['createdAt'].toString().compareTo(a['createdAt'].toString()));
+      videos.sort(
+        (a, b) =>
+            b['createdAt'].toString().compareTo(a['createdAt'].toString()),
+      );
     } else {
-      videos.sort((a, b) => a['createdAt'].toString().compareTo(b['createdAt'].toString()));
+      videos.sort(
+        (a, b) =>
+            a['createdAt'].toString().compareTo(b['createdAt'].toString()),
+      );
     }
   }
 
@@ -157,38 +182,47 @@ class _VideosTabState extends State<VideosTab> {
 
           // Videos list grouped by category
           Expanded(
-            child: _videosByCategory.isEmpty
-                ? ListView(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.2),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.video_library_outlined, size: 80, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No videos found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[600],
+            child:
+                _videosByCategory.isEmpty
+                    ? ListView(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).size.height * 0.2,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.video_library_outlined,
+                                size: 80,
+                                color: Colors.grey[300],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'No videos found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _videosByCategory.length,
-                    itemBuilder: (context, index) {
-                      final category = _videosByCategory.keys.elementAt(index);
-                      final videos = _videosByCategory[category]!;
-                      return _buildCategorySection(category, videos);
-                    },
-                  ),
+                      ],
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _videosByCategory.length,
+                      itemBuilder: (context, index) {
+                        final category = _videosByCategory.keys.elementAt(
+                          index,
+                        );
+                        final videos = _videosByCategory[category]!;
+                        return _buildCategorySection(category, videos);
+                      },
+                    ),
           ),
         ],
       ),
@@ -217,7 +251,10 @@ class _VideosTabState extends State<VideosTab> {
     );
   }
 
-  Widget _buildCategorySection(String category, List<Map<String, dynamic>> videos) {
+  Widget _buildCategorySection(
+    String category,
+    List<Map<String, dynamic>> videos,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -240,7 +277,7 @@ class _VideosTabState extends State<VideosTab> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -255,10 +292,10 @@ class _VideosTabState extends State<VideosTab> {
             ],
           ),
         ),
-        
+
         // Videos in this category
-        ...videos.map((video) => _buildVideoItem(video)).toList(),
-        
+        ...videos.map((video) => _buildVideoItem(video)),
+
         const SizedBox(height: 16),
       ],
     );
@@ -273,7 +310,7 @@ class _VideosTabState extends State<VideosTab> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -283,7 +320,7 @@ class _VideosTabState extends State<VideosTab> {
       child: InkWell(
         onTap: () async {
           final url = _formatImageUrl(video['videoUrl']);
-          
+
           if (url.contains('youtube.com') || url.contains('youtu.be')) {
             final Uri youtubeUri = Uri.parse(url);
             if (await canLaunchUrl(youtubeUri)) {
@@ -293,13 +330,15 @@ class _VideosTabState extends State<VideosTab> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => LecturePlayerScreen(
-                  lecture: {
-                    'title': video['title'],
-                    'content': video['videoUrl'],
-                  },
-                  courseTitle: video['category'],
-                ),
+                builder:
+                    (context) => LecturePlayerScreen(
+                      lecture: {
+                        'title': video['title'],
+                        'content': url,
+                      },
+                      courseTitle: video['category'],
+                      courseId: '',
+                    ),
               ),
             );
           }
@@ -319,9 +358,9 @@ class _VideosTabState extends State<VideosTab> {
                 size: 28,
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // Video info
             Expanded(
               child: Column(
@@ -340,14 +379,15 @@ class _VideosTabState extends State<VideosTab> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.video_library, size: 14, color: Colors.grey[600]),
+                      Icon(
+                        Icons.video_library,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         video['duration'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Spacer(),
                       Text(

@@ -4,11 +4,7 @@ class ExpandableText extends StatefulWidget {
   final String text;
   final int trimLines;
 
-  const ExpandableText({
-    super.key,
-    required this.text,
-    this.trimLines = 4,
-  });
+  const ExpandableText({super.key, required this.text, this.trimLines = 4});
 
   @override
   State<ExpandableText> createState() => _ExpandableTextState();
@@ -24,14 +20,14 @@ class _ExpandableTextState extends State<ExpandableText> {
       color: Colors.grey,
       height: 1.5,
     );
-    
+
     final TextSpan span = TextSpan(text: widget.text, style: textStyle);
     final TextPainter tp = TextPainter(
       text: span,
       textDirection: TextDirection.ltr,
       maxLines: widget.trimLines,
     );
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         tp.layout(maxWidth: constraints.maxWidth);

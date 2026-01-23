@@ -35,7 +35,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
         });
       }
     } catch (e) {
-      print('Error fetching attempts: $e');
+
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -45,43 +45,56 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
   void _groupAttemptsByExam() {
     // Group attempts by exam
     Map<String, List<Map<String, dynamic>>> examGroups = {};
-    
+
     for (var attempt in _attempts) {
       final examData = attempt['exam'];
       final examId = examData is Map ? examData['_id'] : 'unknown';
-      final examName = examData is Map ? (examData['name'] ?? 'Unknown Test') : 'Unknown Test';
-      
+      final examName =
+          examData is Map
+              ? (examData['name'] ?? 'Unknown Test')
+              : 'Unknown Test';
+
       if (!examGroups.containsKey(examId)) {
         examGroups[examId] = [];
       }
       examGroups[examId]!.add(attempt);
     }
-    
+
     // Convert to list and sort each group's attempts
-    _groupedExams = examGroups.entries.map((entry) {
-      final examData = entry.value.first['exam'];
-      final attempts = List<Map<String, dynamic>>.from(entry.value);
-      
-      // Sort attempts based on selected order
-      attempts.sort((a, b) {
-        final dateA = DateTime.tryParse(a['submittedAt'] ?? '') ?? DateTime.now();
-        final dateB = DateTime.tryParse(b['submittedAt'] ?? '') ?? DateTime.now();
-        return _sortOrder == 'newest' 
-            ? dateB.compareTo(dateA) 
-            : dateA.compareTo(dateB);
-      });
-      
-      return {
-        'examId': entry.key,
-        'examName': examData is Map ? (examData['name'] ?? 'Unknown Test') : 'Unknown Test',
-        'attempts': attempts,
-      };
-    }).toList();
-    
+    _groupedExams =
+        examGroups.entries.map((entry) {
+          final examData = entry.value.first['exam'];
+          final attempts = List<Map<String, dynamic>>.from(entry.value);
+
+          // Sort attempts based on selected order
+          attempts.sort((a, b) {
+            final dateA =
+                DateTime.tryParse(a['submittedAt'] ?? '') ?? DateTime.now();
+            final dateB =
+                DateTime.tryParse(b['submittedAt'] ?? '') ?? DateTime.now();
+            return _sortOrder == 'newest'
+                ? dateB.compareTo(dateA)
+                : dateA.compareTo(dateB);
+          });
+
+          return {
+            'examId': entry.key,
+            'examName':
+                examData is Map
+                    ? (examData['name'] ?? 'Unknown Test')
+                    : 'Unknown Test',
+            'attempts': attempts,
+          };
+        }).toList();
+
     // Sort exams by latest attempt
     _groupedExams.sort((a, b) {
-      final latestA = DateTime.tryParse(a['attempts'][0]['submittedAt'] ?? '') ?? DateTime.now();
-      final latestB = DateTime.tryParse(b['attempts'][0]['submittedAt'] ?? '') ?? DateTime.now();
+      final latestA =
+          DateTime.tryParse(a['attempts'][0]['submittedAt'] ?? '') ??
+          DateTime.now();
+      final latestB =
+          DateTime.tryParse(b['attempts'][0]['submittedAt'] ?? '') ??
+          DateTime.now();
       return _sortOrder == 'newest'
           ? latestB.compareTo(latestA)
           : latestA.compareTo(latestB);
@@ -114,64 +127,84 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
                 _toggleSortOrder();
               }
             },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'newest',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.arrow_downward,
-                      color: _sortOrder == 'newest' ? AppConstants.primaryColor : Colors.grey,
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(
+                    value: 'newest',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.arrow_downward,
+                          color:
+                              _sortOrder == 'newest'
+                                  ? AppConstants.primaryColor
+                                  : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Newest First',
+                          style: TextStyle(
+                            color:
+                                _sortOrder == 'newest'
+                                    ? AppConstants.primaryColor
+                                    : Colors.black,
+                            fontWeight:
+                                _sortOrder == 'newest'
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Newest First',
-                      style: TextStyle(
-                        color: _sortOrder == 'newest' ? AppConstants.primaryColor : Colors.black,
-                        fontWeight: _sortOrder == 'newest' ? FontWeight.bold : FontWeight.normal,
-                      ),
+                  ),
+                  PopupMenuItem(
+                    value: 'oldest',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.arrow_upward,
+                          color:
+                              _sortOrder == 'oldest'
+                                  ? AppConstants.primaryColor
+                                  : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Oldest First',
+                          style: TextStyle(
+                            color:
+                                _sortOrder == 'oldest'
+                                    ? AppConstants.primaryColor
+                                    : Colors.black,
+                            fontWeight:
+                                _sortOrder == 'oldest'
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'oldest',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.arrow_upward,
-                      color: _sortOrder == 'oldest' ? AppConstants.primaryColor : Colors.grey,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Oldest First',
-                      style: TextStyle(
-                        color: _sortOrder == 'oldest' ? AppConstants.primaryColor : Colors.black,
-                        fontWeight: _sortOrder == 'oldest' ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _groupedExams.isEmpty
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _groupedExams.isEmpty
               ? _buildEmptyState()
               : RefreshIndicator(
-                  onRefresh: _fetchAttempts,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _groupedExams.length,
-                    itemBuilder: (context, index) {
-                      final examGroup = _groupedExams[index];
-                      return _buildExamGroupCard(examGroup);
-                    },
-                  ),
+                onRefresh: _fetchAttempts,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _groupedExams.length,
+                  itemBuilder: (context, index) {
+                    final examGroup = _groupedExams[index];
+                    return _buildExamGroupCard(examGroup);
+                  },
                 ),
+              ),
     );
   }
 
@@ -180,11 +213,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.assessment_outlined,
-            size: 100,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.assessment_outlined, size: 100, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             'No exam attempts yet',
@@ -197,10 +226,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
           const SizedBox(height: 8),
           Text(
             'Take a test to see your results here',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -218,9 +244,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
@@ -230,7 +254,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppConstants.primaryColor.withOpacity(0.1),
+              color: AppConstants.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -252,7 +276,10 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppConstants.primaryColor,
                     borderRadius: BorderRadius.circular(10),
@@ -271,14 +298,14 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
                 const SizedBox(width: 2),
                 Text(
                   'Latest: $latestScore/$latestTotalMarks',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: latestPassed ? Colors.green : Colors.red,
                     borderRadius: BorderRadius.circular(8),
@@ -339,7 +366,11 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
     );
   }
 
-  Widget _buildAttemptItem(Map<String, dynamic> attempt, int attemptNumber, bool isLast) {
+  Widget _buildAttemptItem(
+    Map<String, dynamic> attempt,
+    int attemptNumber,
+    bool isLast,
+  ) {
     final score = attempt['score'] ?? 0;
     final totalMarks = attempt['totalMarks'] ?? 100;
     final percentage = totalMarks > 0 ? (score / totalMarks * 100) : 0;
@@ -350,9 +381,8 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          bottom: isLast 
-              ? BorderSide.none 
-              : BorderSide(color: Colors.grey[300]!),
+          bottom:
+              isLast ? BorderSide.none : BorderSide(color: Colors.grey[300]!),
         ),
       ),
       child: ListTile(
@@ -361,7 +391,10 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: passed ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+            color:
+                passed
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -392,18 +425,12 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
             const SizedBox(width: 4),
             Text(
               '$score/$totalMarks',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
             Text(
               '(${percentage.toStringAsFixed(1)}%)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -411,10 +438,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
           children: [
             Icon(Icons.timer, size: 14, color: Colors.blue),
             const SizedBox(width: 4),
-            Text(
-              _formatTime(timeTaken),
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(_formatTime(timeTaken), style: const TextStyle(fontSize: 12)),
             const SizedBox(width: 12),
             if (submittedAt != null) ...[
               Icon(Icons.calendar_today, size: 14, color: Colors.purple),

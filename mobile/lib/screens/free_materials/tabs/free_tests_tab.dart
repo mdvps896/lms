@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
 import '../../../services/api_service.dart';
 import '../widgets/free_materials_skeleton.dart';
@@ -36,49 +36,58 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
   Future<void> _fetchTests() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
-      // Fetch regular exams as "Free Tests"
-      final exams = await _apiService.getExams(type: 'regular');
+      print('Starting _fetchTests...');
+      // Fetch specifically Free Materials of type 'test'
+      final materials = await _apiService.getFreeMaterials();
+      print('Received materials in FreeTestsTab: ${materials.length}');
+      
       List<Map<String, dynamic>> testItems = [];
-      
-      final now = DateTime.now();
-      
-      for (var exam in exams) {
-        // Check if exam is LIVE (current time is between start and end date)
-        final startDate = DateTime.tryParse(exam['startDate'] ?? '');
-        final endDate = DateTime.tryParse(exam['endDate'] ?? '');
+
+      for (var material in materials) {
+        print('Checking material: ${material['title']}, type: ${material['type']}, testId: ${material['testId']}');
         
-        bool isLive = false;
-        if (startDate != null && endDate != null) {
-          isLive = now.isAfter(startDate) && now.isBefore(endDate);
-        }
-        
-        // Only add LIVE exams
-        if (isLive) {
-          testItems.add({
-            'id': exam['_id'],
-            'title': exam['name'],
-            'questions': '${exam['questionGroups']?.length ?? 0} groups',
-            'duration': '${exam['duration']} min',
-            'difficulty': exam['duration'] > 90 ? 'Advanced' : exam['duration'] > 45 ? 'Intermediate' : 'Beginner',
-            'category': exam['category']?['name'] ?? 'General',
-            'createdAt': exam['createdAt'],
-            'status': 'LIVE',
-          });
+        if (material['type'] == 'test' && material['testId'] != null) {
+          final test = material['testId'];
+          // Handle case where testId might be a String ID (if populate failed) or Map (if populated)
+          if (test is Map) {
+             print('Adding test: ${test['title'] ?? material['title']}');
+             testItems.add({
+              'id': test['_id'],
+              'title': test['title'] ?? material['title'], 
+              'questions': '${test['questions']?.length ?? 0} questions',
+              'duration': '${test['duration'] ?? 60} min',
+              'difficulty': 'Intermediate', 
+              'category': material['category']?['name'] ?? 'General',
+              'createdAt': material['createdAt'],
+              'status': 'Free',
+            });
+          } else {
+             print('Skipping test because testId is not a Map: $test');
+          }
         }
       }
 
       // Filter by search query
       if (widget.searchQuery.isNotEmpty) {
-        testItems = testItems.where((t) => 
-          t['title'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase()) ||
-          t['category'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase())
-        ).toList();
+        testItems =
+            testItems
+                .where(
+                  (t) =>
+                      t['title'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ) ||
+                      t['category'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ),
+                )
+                .toList();
       }
 
+      print('Final testItems count: ${testItems.length}');
       _applySorting(testItems);
-      
+
       if (mounted) {
         setState(() {
           _tests = testItems;
@@ -86,16 +95,22 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
         });
       }
     } catch (e) {
-      print('Fetch Tests Error: $e');
       if (mounted) setState(() => _isLoading = false);
+      print('Error loading free tests: $e');
     }
   }
 
   void _applySorting(List<Map<String, dynamic>> tests) {
     if (_sortBy == 'newest') {
-      tests.sort((a, b) => b['createdAt'].toString().compareTo(a['createdAt'].toString()));
+      tests.sort(
+        (a, b) =>
+            b['createdAt'].toString().compareTo(a['createdAt'].toString()),
+      );
     } else {
-      tests.sort((a, b) => a['createdAt'].toString().compareTo(b['createdAt'].toString()));
+      tests.sort(
+        (a, b) =>
+            a['createdAt'].toString().compareTo(b['createdAt'].toString()),
+      );
     }
   }
 
@@ -140,37 +155,44 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
 
           // Tests list
           Expanded(
-            child: _tests.isEmpty
-                ? ListView(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.2),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.quiz_outlined, size: 80, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No tests found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[600],
+            child:
+                _tests.isEmpty
+                    ? ListView(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).size.height * 0.2,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.quiz_outlined,
+                                size: 80,
+                                color: Colors.grey[300],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'No tests found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _tests.length,
-                    itemBuilder: (context, index) {
-                      final test = _tests[index];
-                      return _buildTestItem(test);
-                    },
-                  ),
+                      ],
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _tests.length,
+                      itemBuilder: (context, index) {
+                        final test = _tests[index];
+                        return _buildTestItem(test);
+                      },
+                    ),
           ),
         ],
       ),
@@ -223,7 +245,7 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -236,17 +258,22 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ExamDetailScreen(
-                exam: {
-                  'title': test['title'],
-                  'name': test['title'],
-                  'category': test['category'],
-                  'duration': int.tryParse(test['duration'].toString().replaceAll(' min', '')) ?? 60,
-                  'maxAttempts': 3,
-                  '_id': test['id'],
-                },
-                examId: test['id'],
-              ),
+              builder:
+                  (context) => ExamDetailScreen(
+                    exam: {
+                      'title': test['title'],
+                      'name': test['title'],
+                      'category': test['category'],
+                      'duration':
+                          int.tryParse(
+                            test['duration'].toString().replaceAll(' min', ''),
+                          ) ??
+                          60,
+                      'maxAttempts': 3,
+                      '_id': test['id'],
+                    },
+                    examId: test['id'],
+                  ),
             ),
           );
         },
@@ -256,7 +283,7 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppConstants.primaryColor.withOpacity(0.1),
+                color: AppConstants.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -265,9 +292,9 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
                 size: 28,
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // Test info
             Expanded(
               child: Column(
@@ -289,14 +316,17 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: test['status'] == 'LIVE' ? Colors.green : Colors.blue,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          'LIVE',
-                          style: TextStyle(
+                        child: Text(
+                          test['status'],
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -309,9 +339,12 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: difficultyColor.withOpacity(0.1),
+                          color: difficultyColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -326,20 +359,18 @@ class _FreeTestsTabState extends State<FreeTestsTab> {
                       const SizedBox(width: 8),
                       Text(
                         test['category'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Spacer(),
-                      const Icon(Icons.timer_outlined, size: 14, color: Colors.grey),
+                      const Icon(
+                        Icons.timer_outlined,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         test['duration'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),

@@ -21,7 +21,6 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
   List<Map<String, dynamic>> _meetings = [];
   String _sortBy = 'newest';
 
-
   @override
   void initState() {
     super.initState();
@@ -39,18 +38,21 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
   Future<void> _fetchMeetings() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
       final meetings = await _apiService.getMeetings();
       final user = await _apiService.getSavedUser();
-      
+
       List<Map<String, dynamic>> meetingItems = [];
-      
+
+      print('Received ${meetings.length} meetings in FreeMeetingsTab');
       for (var meeting in meetings) {
-        final startTime = DateTime.tryParse(meeting['startTime'] ?? '') ?? DateTime.now();
-        final endTime = DateTime.tryParse(meeting['endTime'] ?? '') ?? DateTime.now();
+        final startTime =
+            DateTime.tryParse(meeting['startTime'] ?? '') ?? DateTime.now();
+        final endTime =
+            DateTime.tryParse(meeting['endTime'] ?? '') ?? DateTime.now();
         final now = DateTime.now();
-        
+
         // Determine meeting status
         String status;
         if (now.isBefore(startTime)) {
@@ -60,7 +62,7 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
         } else {
           status = 'LIVE';
         }
-        
+
         // Extract meeting link
         String meetingLink = '';
         if (meeting['links'] != null && (meeting['links'] as List).isNotEmpty) {
@@ -71,28 +73,41 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
             meetingLink = firstLink;
           }
         }
-        
+
         final meetingCategory = meeting['category'];
         final meetingCategoryId = meetingCategory?['_id'];
         final meetingCategoryName = meetingCategory?['name'] ?? 'General';
         
+        print('Checking meeting: ${meeting['title']}, Category: $meetingCategoryName ($meetingCategoryId)');
+
         // Filter by user category (students see ONLY their category meetings)
         if (user != null && user.role == 'student') {
           final userCategoryId = user.category; // This is the category ID
-          
+          print('User Role: Student, Category: $userCategoryId');
+
           if (userCategoryId != null && userCategoryId.toString().isNotEmpty) {
-            // Compare category IDs
-            if (meetingCategoryId != userCategoryId) {
+            // Compare category IDs OR Names to handle inconsistent data storage
+            bool matches = false;
+            
+            // Check exact ID match
+            if (meetingCategoryId == userCategoryId) matches = true;
+            
+            // Check Name match (case insensitive)
+            if (meetingCategoryName.toLowerCase() == userCategoryId.toString().toLowerCase()) matches = true;
+            
+            if (!matches) {
+              print('Skipping meeting due to category mismatch: $meetingCategoryId != $userCategoryId AND $meetingCategoryName != $userCategoryId');
               continue; // Skip this meeting
             }
           }
         }
-        
+
         meetingItems.add({
           'id': meeting['_id'],
           'title': meeting['title'],
           'date': DateFormat('MMM dd, yyyy').format(startTime),
-          'time': '${DateFormat('hh:mm a').format(startTime)} - ${DateFormat('hh:mm a').format(endTime)}',
+          'time':
+              '${DateFormat('hh:mm a').format(startTime)} - ${DateFormat('hh:mm a').format(endTime)}',
           'duration': '${endTime.difference(startTime).inMinutes} mins',
           'host': 'Admin',
           'meetingLink': meetingLink,
@@ -106,14 +121,22 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
 
       // Filter by search query
       if (widget.searchQuery.isNotEmpty) {
-        meetingItems = meetingItems.where((m) => 
-          m['title'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase()) ||
-          m['category'].toString().toLowerCase().contains(widget.searchQuery.toLowerCase())
-        ).toList();
+        meetingItems =
+            meetingItems
+                .where(
+                  (m) =>
+                      m['title'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ) ||
+                      m['category'].toString().toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ),
+                )
+                .toList();
       }
 
       _applySorting(meetingItems);
-      
+
       if (mounted) {
         setState(() {
           _meetings = meetingItems;
@@ -127,9 +150,15 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
 
   void _applySorting(List<Map<String, dynamic>> meetings) {
     if (_sortBy == 'newest') {
-      meetings.sort((a, b) => b['createdAt'].toString().compareTo(a['createdAt'].toString()));
+      meetings.sort(
+        (a, b) =>
+            b['createdAt'].toString().compareTo(a['createdAt'].toString()),
+      );
     } else {
-      meetings.sort((a, b) => a['createdAt'].toString().compareTo(b['createdAt'].toString()));
+      meetings.sort(
+        (a, b) =>
+            a['createdAt'].toString().compareTo(b['createdAt'].toString()),
+      );
     }
   }
 
@@ -152,69 +181,79 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
           onRefresh: _fetchMeetings,
           color: AppConstants.primaryColor,
           child: Column(
-        children: [
-          // Sort options
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Text(
-                  'Sort by:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
+            children: [
+              // Sort options
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 12),
-                _buildSortChip('Newest', 'newest'),
-                const SizedBox(width: 8),
-                _buildSortChip('Oldest', 'oldest'),
-              ],
-            ),
-          ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Sort by:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildSortChip('Newest', 'newest'),
+                    const SizedBox(width: 8),
+                    _buildSortChip('Oldest', 'oldest'),
+                  ],
+                ),
+              ),
 
-          // Meetings list
-          Expanded(
-            child: _meetings.isEmpty
-                ? ListView(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.2),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+              // Meetings list
+              Expanded(
+                child:
+                    _meetings.isEmpty
+                        ? ListView(
                           children: [
-                            Icon(Icons.video_call_outlined, size: 80, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No meetings found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[600],
+                            Padding(
+                              padding: EdgeInsets.only(
+                                top: MediaQuery.of(context).size.height * 0.2,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.video_call_outlined,
+                                    size: 80,
+                                    color: Colors.grey[300],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No meetings found',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
+                        )
+                        : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _meetings.length,
+                          itemBuilder: (context, index) {
+                            final meeting = _meetings[index];
+                            return _buildMeetingItem(meeting);
+                          },
                         ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _meetings.length,
-                    itemBuilder: (context, index) {
-                      final meeting = _meetings[index];
-                      return _buildMeetingItem(meeting);
-                    },
-                  ),
+              ),
+            ],
           ),
-        ],
-      ),
         ),
         // Loading overlay
         if (_isOpeningMeeting)
           Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             child: const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -250,7 +289,7 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
   Widget _buildMeetingItem(Map<String, dynamic> meeting) {
     final status = meeting['status'] ?? 'UPCOMING';
     final isLive = status == 'LIVE';
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -259,7 +298,7 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -267,65 +306,65 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
         border: Border.all(color: Colors.grey[100]!),
       ),
       child: InkWell(
-        onTap: isLive ? () async {
-          final meetingLink = meeting['meetingLink'] ?? '';
-          
-          if (meetingLink.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No meeting link available'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
+        onTap:
+            isLive
+                ? () async {
+                  final meetingLink = meeting['meetingLink'] ?? '';
 
-          // Show loading indicator
-          setState(() => _isOpeningMeeting = true);
+                  if (meetingLink.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No meeting link available'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
 
-          try {
-            final uri = Uri.parse(meetingLink);
-            
-            // Use platformDefault to let user choose browser
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(
-                uri,
-                mode: LaunchMode.platformDefault,
-              );
-            } else {
-              throw 'Could not launch meeting link';
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to open meeting: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          } finally {
-            // Hide loading indicator
-            if (mounted) {
-              setState(() => _isOpeningMeeting = false);
-            }
-          }
-        } : () {
-          // Show message for non-live meetings
-          String message;
-          if (status == 'UPCOMING') {
-            message = 'This meeting hasn\'t started yet';
-          } else {
-            message = 'This meeting has ended';
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
+                  // Show loading indicator
+                  setState(() => _isOpeningMeeting = true);
+
+                  try {
+                    final uri = Uri.parse(meetingLink);
+
+                    // Use platformDefault to let user choose browser
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.platformDefault);
+                    } else {
+                      throw 'Could not launch meeting link';
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to open meeting: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } finally {
+                    // Hide loading indicator
+                    if (mounted) {
+                      setState(() => _isOpeningMeeting = false);
+                    }
+                  }
+                }
+                : () {
+                  // Show message for non-live meetings
+                  String message;
+                  if (status == 'UPCOMING') {
+                    message = 'This meeting hasn\'t started yet';
+                  } else {
+                    message = 'This meeting has ended';
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
         child: Row(
           children: [
             // Google Meet logo
@@ -355,9 +394,9 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
                 ),
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // Meeting info
             Expanded(
               child: Column(
@@ -379,11 +418,15 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: status == 'LIVE' 
-                              ? Colors.red[50] 
-                              : status == 'UPCOMING'
+                          color:
+                              status == 'LIVE'
+                                  ? Colors.red[50]
+                                  : status == 'UPCOMING'
                                   ? Colors.blue[50]
                                   : Colors.grey[200],
                           borderRadius: BorderRadius.circular(4),
@@ -393,9 +436,10 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: status == 'LIVE'
-                                ? Colors.red
-                                : status == 'UPCOMING'
+                            color:
+                                status == 'LIVE'
+                                    ? Colors.red
+                                    : status == 'UPCOMING'
                                     ? Colors.blue
                                     : Colors.grey[600],
                           ),
@@ -406,21 +450,26 @@ class _FreeMeetingsTabState extends State<FreeMeetingsTab> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.category_outlined, size: 14, color: Colors.grey[600]),
+                      Icon(
+                        Icons.category_outlined,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         meeting['category'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(

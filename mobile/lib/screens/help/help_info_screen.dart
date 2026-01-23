@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/constants.dart';
 import '../help_support_screen.dart';
@@ -34,93 +34,119 @@ class _HelpInfoScreenState extends State<HelpInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final contactEmail = _settings?['general']?['contactEmail'] ?? 'support@godofgraphics.in';
-    final phoneNumber = _settings?['general']?['phoneNumber'] ?? '+91 91523 09282';
+    final contactEmail =
+        _settings?['general']?['contactEmail'] ?? 'support@godofgraphics.in';
+    final phoneNumber =
+        _settings?['general']?['phoneNumber'] ?? '+91 91523 09282';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Help & Support', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Help & Support',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppConstants.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Color(0xFFE8F5E9),
-                  child: Icon(Icons.support_agent, size: 60, color: AppConstants.primaryColor),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'How can we help you?',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'We are available to assist you with any queries or issues you might have regarding our courses.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                const SizedBox(height: 40),
-                
-                _buildContactCard(
-                  context,
-                  Icons.phone_in_talk_outlined,
-                  'Call Us',
-                  phoneNumber,
-                  Colors.green,
-                  () => _launchURL('tel:${phoneNumber.replaceAll(' ', '')}'),
-                ),
-                const SizedBox(height: 16),
-                _buildContactCard(
-                  context,
-                  Icons.email_outlined,
-                  'Email Us',
-                  contactEmail,
-                  Colors.blue,
-                  () => _launchURL('mailto:$contactEmail'),
-                ),
-                const SizedBox(height: 16),
-                _buildContactCard(
-                  context,
-                  Icons.chat_bubble_outline,
-                  'Live Chat',
-                  'Chat with our support team',
-                  Colors.orange,
-                  () {
-                    Navigator.push(
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Color(0xFFE8F5E9),
+                      child: Icon(
+                        Icons.support_agent,
+                        size: 60,
+                        color: AppConstants.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'How can we help you?',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'We are available to assist you with any queries or issues you might have regarding our courses.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 40),
+
+                    _buildContactCard(
                       context,
-                      MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
-                    );
-                  },
+                      Icons.phone_in_talk_outlined,
+                      'Call Us',
+                      phoneNumber,
+                      Colors.green,
+                      () =>
+                          _launchURL('tel:${phoneNumber.replaceAll(' ', '')}'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildContactCard(
+                      context,
+                      Icons.email_outlined,
+                      'Email Us',
+                      contactEmail,
+                      Colors.blue,
+                      () => _launchURL('mailto:$contactEmail'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildContactCard(
+                      context,
+                      Icons.chat_bubble_outline,
+                      'Live Chat',
+                      'Chat with our support team',
+                      Colors.orange,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HelpSupportScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 40),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Frequently Asked Questions',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildFAQTile('How to buy a course?'),
+                    _buildFAQTile('Where can I see my enrolled courses?'),
+                    _buildFAQTile('How to access free materials?'),
+                    _buildFAQTile('Payment success but course not showing?'),
+                  ],
                 ),
-                
-                const SizedBox(height: 40),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Frequently Asked Questions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _buildFAQTile('How to buy a course?'),
-                _buildFAQTile('Where can I see my enrolled courses?'),
-                _buildFAQTile('How to access free materials?'),
-                _buildFAQTile('Payment success but course not showing?'),
-              ],
-            ),
-          ),
+              ),
     );
   }
 
-  Widget _buildContactCard(BuildContext context, IconData icon, String title, String value, Color color, VoidCallback onTap) {
+  Widget _buildContactCard(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
@@ -135,7 +161,7 @@ class _HelpInfoScreenState extends State<HelpInfoScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color),
@@ -145,8 +171,18 @@ class _HelpInfoScreenState extends State<HelpInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text(value, style: TextStyle(color: Colors.grey[600], fontSize: 15), overflow: TextOverflow.ellipsis),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -172,8 +208,6 @@ class _HelpInfoScreenState extends State<HelpInfoScreen> {
         await launchUrl(Uri.parse(url));
       }
     } catch (e) {
-      print('Could not launch $url');
     }
   }
 }
-
