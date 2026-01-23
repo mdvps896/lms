@@ -58,16 +58,29 @@ export async function GET(request, { params }) {
             .limit(100)
             .lean();
 
-        const pdfViews = pdfSessions.map(session => ({
-            id: session._id,
-            title: session.pdfName || session.lectureName || 'Untitled PDF',
-            startTime: session.startTime,
-            duration: session.duration || 0, // seconds
-            lastViewed: session.lastActiveTime || session.endTime || session.startTime,
-            latitude: session.latitude,
-            longitude: session.longitude,
-            locationName: session.locationName
-        }));
+        const pdfViews = pdfSessions.map(session => {
+            const durationInSeconds = session.duration || 0;
+            const startTime = new Date(session.startTime);
+
+            // Calculate end time based on duration if available, otherwise fallback
+            let endTime;
+            if (durationInSeconds > 0) {
+                endTime = new Date(startTime.getTime() + (durationInSeconds * 1000));
+            } else {
+                endTime = session.lastActiveTime || session.endTime || session.startTime;
+            }
+
+            return {
+                id: session._id,
+                title: session.pdfName || session.lectureName || 'Untitled PDF',
+                startTime: session.startTime,
+                duration: durationInSeconds, // seconds
+                lastViewed: endTime,
+                latitude: session.latitude,
+                longitude: session.longitude,
+                locationName: session.locationName
+            };
+        });
 
         const courseViews = activities.map(a => ({
             id: a._id,

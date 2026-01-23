@@ -14,7 +14,7 @@ export async function POST(request) {
         await connectDB();
 
         const body = await request.json();
-        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude, locationName } = body;
+        const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude, locationName, activeDuration } = body;
 
         if (!userId || !courseId || !lectureId) {
             return NextResponse.json({
@@ -83,7 +83,12 @@ export async function POST(request) {
                 }
 
                 // Calculate duration
-                session.calculateDuration();
+                if (activeDuration !== undefined) {
+                    session.duration = activeDuration;
+                } else {
+                    session.calculateDuration();
+                }
+
                 await session.save();
 
                 return NextResponse.json({
@@ -111,7 +116,13 @@ export async function POST(request) {
 
                 endSession.endTime = new Date();
                 endSession.isActive = false;
-                endSession.calculateDuration();
+
+                if (activeDuration !== undefined) {
+                    endSession.duration = activeDuration;
+                } else {
+                    endSession.calculateDuration();
+                }
+
                 await endSession.save();
 
                 return NextResponse.json({
