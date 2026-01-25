@@ -8,6 +8,8 @@ import CourseFormModal from './CourseFormModal'
 import LectureManagerModal from './LectureManagerModal'
 import CourseViewModal from './CourseViewModal'
 import CourseExamManagerModal from './CourseExamManagerModal'
+import ReviewManagerModal from './ReviewManagerModal'
+import { FiMessageSquare } from 'react-icons/fi'
 
 const CourseList = () => {
     const [courses, setCourses] = useState([])
@@ -22,6 +24,7 @@ const CourseList = () => {
     const [isLectureOpen, setIsLectureOpen] = useState(false)
     const [isExamManagerOpen, setIsExamManagerOpen] = useState(false)
     const [isViewOpen, setIsViewOpen] = useState(false) // New State
+    const [isReviewOpen, setIsReviewOpen] = useState(false)
     const [selectedCourse, setSelectedCourse] = useState(null)
 
     useEffect(() => {
@@ -113,6 +116,7 @@ const CourseList = () => {
     const handleEdit = (course) => { setSelectedCourse(course); setIsFormOpen(true); }
     const handleLectures = (course) => { setSelectedCourse(course); setIsLectureOpen(true); }
     const handleExams = (course) => { setSelectedCourse(course); setIsExamManagerOpen(true); }
+    const handleReviews = (course) => { setSelectedCourse(course); setIsReviewOpen(true); }
     const handleView = (course) => { setSelectedCourse(course); setIsViewOpen(true); }
     const handleFormSave = () => { setIsFormOpen(false); fetchCourses(); }
 
@@ -241,8 +245,16 @@ const CourseList = () => {
                                                         className="btn btn-light text-warning"
                                                         onClick={() => handleExams(course)}
                                                         title="Manage Exams"
+                                                        style={{ color: '#f39c12 !important' }}
                                                     >
                                                         <FiCheckSquare />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-light text-secondary"
+                                                        onClick={() => handleReviews(course)}
+                                                        title="Manage Reviews"
+                                                    >
+                                                        <FiMessageSquare />
                                                     </button>
                                                     <button
                                                         className="btn btn-light"
@@ -344,6 +356,15 @@ const CourseList = () => {
                     <CourseViewModal
                         course={selectedCourse}
                         onClose={() => setIsViewOpen(false)}
+                    />
+                )
+            }
+
+            {
+                isReviewOpen && selectedCourse && (
+                    <ReviewManagerModal
+                        course={selectedCourse}
+                        onClose={() => setIsReviewOpen(false)}
                     />
                 )
             }

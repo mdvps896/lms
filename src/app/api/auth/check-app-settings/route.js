@@ -29,10 +29,10 @@ export async function GET() {
         }
 
         const appSettings = {
-            enableRegistration: settings.authSettings.app.enableRegistration ?? true,
-            enableMobileOTP: settings.authSettings.app.enableMobileOTP ?? false,
-            allowEmailAuth: settings.authSettings.app.allowEmailAuth ?? true,
-            allowGoogleAuth: settings.authSettings.app.allowGoogleAuth ?? true
+            enableRegistration: settings.authSettings?.app?.enableRegistration ?? true,
+            enableMobileOTP: settings.authSettings?.app?.enableMobileOTP ?? false,
+            allowEmailAuth: settings.authSettings?.app?.allowEmailAuth ?? true,
+            allowGoogleAuth: settings.authSettings?.app?.allowGoogleAuth ?? true
         };
 
         return NextResponse.json({

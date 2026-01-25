@@ -3,6 +3,8 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
+import Course from '@/models/Course';
+import Meeting from '@/models/Meeting';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,22 +19,26 @@ export async function GET() {
             totalExams,
             activeExams,
             completedExams,
-            totalQuestions
+            totalQuestions,
+            totalCourses,
+            totalMeetings
         ] = await Promise.all([
             User.countDocuments({ role: 'teacher', status: 'active' }),
             User.countDocuments({ role: 'student', status: 'active' }),
             Exam.countDocuments(),
             Exam.countDocuments({ status: 'active' }),
-            Exam.countDocuments({ 
+            Exam.countDocuments({
                 endDate: { $lt: new Date() },
                 status: 'active'
             }),
-            Question.countDocuments()
+            Question.countDocuments(),
+            Course.countDocuments(),
+            Meeting.countDocuments()
         ]);
 
         // Calculate completion rate
-        const completionRate = totalExams > 0 
-            ? Math.round((completedExams / totalExams) * 100) 
+        const completionRate = totalExams > 0
+            ? Math.round((completedExams / totalExams) * 100)
             : 0;
 
         const stats = [
@@ -71,6 +77,24 @@ export async function GET() {
                 progress: "100%",
                 progress_info: `${totalQuestions} Questions`,
                 icon: "feather-help-circle"
+            },
+            {
+                id: 5,
+                title: "Total Courses",
+                total_number: totalCourses.toString(),
+                completed_number: "",
+                progress: "100%",
+                progress_info: `${totalCourses} Courses`,
+                icon: "feather-book"
+            },
+            {
+                id: 6,
+                title: "Total Meetings",
+                total_number: totalMeetings.toString(),
+                completed_number: "",
+                progress: "100%",
+                progress_info: `${totalMeetings} Meetings`,
+                icon: "feather-video"
             }
         ];
 

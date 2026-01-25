@@ -1,5 +1,4 @@
 'use client'
-
 import React, { useState, useEffect } from 'react'
 import PageHeader from '@/components/shared/pageHeader/PageHeader'
 import MediaGrid from '@/components/storage/MediaGrid'
@@ -11,6 +10,7 @@ import Header from '@/components/shared/header/Header'
 import NavigationManu from '@/components/shared/navigationMenu/NavigationMenu'
 import SupportDetails from '@/components/supportDetails'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
+import UserMediaGrid from '@/components/storage/UserMediaGrid'
 
 const StoragePage = () => {
     const [files, setFiles] = useState([])
@@ -26,6 +26,7 @@ const StoragePage = () => {
         sort: 'date-new'
     })
     const [deleting, setDeleting] = useState(false)
+    const [storageMode, setStorageMode] = useState('files') // 'files' or 'users'
 
     // Fetch files from API
     const fetchFiles = async () => {
@@ -52,8 +53,10 @@ const StoragePage = () => {
     }
 
     useEffect(() => {
-        fetchFiles()
-    }, [])
+        if (storageMode === 'files') {
+            fetchFiles()
+        }
+    }, [storageMode])
 
     // Apply filters
     useEffect(() => {
@@ -211,136 +214,160 @@ const StoragePage = () => {
                             { name: 'Media & Storage' }
                         ]}
                     >
-                        <button
-                            className="btn btn-primary d-flex align-items-center gap-2"
-                            onClick={fetchFiles}
-                            disabled={loading}
-                        >
-                            <i className={`fas fa-sync ${loading ? 'fa-spin' : ''}`}></i>
-                            <span>Clear Cache</span>
-                        </button>
+                        <div className="d-flex gap-2">
+                            <div className="btn-group" role="group">
+                                <button
+                                    type="button"
+                                    className={`btn ${storageMode === 'files' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => setStorageMode('files')}
+                                >
+                                    <i className="fas fa-folder me-2"></i>All Files
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn ${storageMode === 'users' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => setStorageMode('users')}
+                                >
+                                    <i className="fas fa-users me-2"></i>User View
+                                </button>
+                            </div>
+
+                            {storageMode === 'files' && (
+                                <button
+                                    className="btn btn-light d-flex align-items-center gap-2"
+                                    onClick={fetchFiles}
+                                    disabled={loading}
+                                >
+                                    <i className={`fas fa-sync ${loading ? 'fa-spin' : ''}`}></i>
+                                </button>
+                            )}
+                        </div>
                     </PageHeader>
 
-                    <div className="row">
-                        {/* Sidebar Column */}
-                        <div className="col-lg-3 col-xl-2 d-none d-lg-block">
-                            <StorageSidebar
-                                filters={filters}
-                                setFilters={setFilters}
-                                totalFiles={files.length}
-                            />
-                        </div>
+                    {storageMode === 'files' ? (
+                        <div className="row">
+                            {/* Sidebar Column */}
+                            <div className="col-lg-3 col-xl-2 d-none d-lg-block">
+                                <StorageSidebar
+                                    filters={filters}
+                                    setFilters={setFilters}
+                                    totalFiles={files.length}
+                                />
+                            </div>
 
-                        {/* Main Content Column */}
-                        <div className="col-lg-9 col-xl-10">
-                            <div className="card">
-                                <div className="card-body">
-                                    <FileUpload onUploadComplete={fetchFiles} />
+                            {/* Main Content Column */}
+                            <div className="col-lg-9 col-xl-10">
+                                <div className="card">
+                                    <div className="card-body">
+                                        <FileUpload onUploadComplete={fetchFiles} />
 
-                                    {/* Exam Recording Info Banner - Only show if not filtering or specific exam recording filter */}
-                                    {(filters.type === 'all' || filters.type === 'exam-recording') && files.some(file => file.category?.includes('exam')) && (
-                                        <div className="alert alert-info border-0 mb-4">
-                                            <div className="d-flex align-items-start">
-                                                <div className="me-3">
-                                                    <i className="fas fa-info-circle fa-lg text-primary"></i>
+                                        {/* Exam Recording Info Banner - Only show if not filtering or specific exam recording filter */}
+                                        {(filters.type === 'all' || filters.type === 'exam-recording') && files.some(file => file.category?.includes('exam')) && (
+                                            <div className="alert alert-info border-0 mb-4">
+                                                <div className="d-flex align-items-start">
+                                                    <div className="me-3">
+                                                        <i className="fas fa-info-circle fa-lg text-primary"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 className="alert-heading mb-2">📹 Exam Recording Information</h6>
+                                                        <p className="mb-2">
+                                                            Each exam creates <strong>2 separate recordings</strong> for comprehensive proctoring:
+                                                        </p>
+                                                        <ul className="mb-2 ps-3">
+                                                            <li><strong>📹 Camera Recording</strong> - Records your face and voice for identity verification</li>
+                                                            <li><strong>🖥️ Screen Recording</strong> - Records your screen activity during the exam</li>
+                                                        </ul>
+                                                        <small className="text-muted">
+                                                            This dual recording system ensures exam integrity and security. Both recordings are automatically saved to local storage.
+                                                        </small>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h6 className="alert-heading mb-2">📹 Exam Recording Information</h6>
-                                                    <p className="mb-2">
-                                                        Each exam creates <strong>2 separate recordings</strong> for comprehensive proctoring:
-                                                    </p>
-                                                    <ul className="mb-2 ps-3">
-                                                        <li><strong>📹 Camera Recording</strong> - Records your face and voice for identity verification</li>
-                                                        <li><strong>🖥️ Screen Recording</strong> - Records your screen activity during the exam</li>
+                                            </div>
+                                        )}
+
+                                        <RecordingStats files={files} />
+
+                                        <FileFilter
+                                            filters={filters}
+                                            setFilters={setFilters}
+                                            totalFiles={files.length}
+                                            filteredCount={filteredFiles.length}
+                                            viewMode={viewMode}
+                                            setViewMode={setViewMode}
+                                        />
+
+                                        <MediaGrid
+                                            files={currentFiles}
+                                            loading={loading}
+                                            onDelete={handleDelete}
+                                            onRefresh={fetchFiles}
+                                            viewMode={viewMode}
+                                        />
+
+                                        {/* Pagination */}
+                                        {!loading && filteredFiles.length > itemsPerPage && (
+                                            <div className="d-flex justify-content-between align-items-center mt-4">
+                                                <div className="text-muted">
+                                                    Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredFiles.length)} of {filteredFiles.length} files
+                                                </div>
+                                                <nav>
+                                                    <ul className="pagination mb-0">
+                                                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                            <button
+                                                                className="page-link"
+                                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                                disabled={currentPage === 1}
+                                                            >
+                                                                Previous
+                                                            </button>
+                                                        </li>
+
+                                                        {[...Array(totalPages)].map((_, index) => {
+                                                            const pageNumber = index + 1
+                                                            if (
+                                                                pageNumber === 1 ||
+                                                                pageNumber === totalPages ||
+                                                                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                                                            ) {
+                                                                return (
+                                                                    <li key={pageNumber} className={`page-item ${currentPage === pageNumber ? 'active' : ''}`}>
+                                                                        <button
+                                                                            className="page-link"
+                                                                            onClick={() => handlePageChange(pageNumber)}
+                                                                        >
+                                                                            {pageNumber}
+                                                                        </button>
+                                                                    </li>
+                                                                )
+                                                            } else if (
+                                                                pageNumber === currentPage - 2 ||
+                                                                pageNumber === currentPage + 2
+                                                            ) {
+                                                                return <li key={pageNumber} className="page-item disabled"><span className="page-link">...</span></li>
+                                                            }
+                                                            return null
+                                                        })}
+
+                                                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                            <button
+                                                                className="page-link"
+                                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                                disabled={currentPage === totalPages}
+                                                            >
+                                                                Next
+                                                            </button>
+                                                        </li>
                                                     </ul>
-                                                    <small className="text-muted">
-                                                        This dual recording system ensures exam integrity and security. Both recordings are automatically saved to local storage.
-                                                    </small>
-                                                </div>
+                                                </nav>
                                             </div>
-                                        </div>
-                                    )}
-
-                                    <RecordingStats files={files} />
-
-                                    <FileFilter
-                                        filters={filters}
-                                        setFilters={setFilters}
-                                        totalFiles={files.length}
-                                        filteredCount={filteredFiles.length}
-                                        viewMode={viewMode}
-                                        setViewMode={setViewMode}
-                                    />
-
-                                    <MediaGrid
-                                        files={currentFiles}
-                                        loading={loading}
-                                        onDelete={handleDelete}
-                                        onRefresh={fetchFiles}
-                                        viewMode={viewMode}
-                                    />
-
-                                    {/* Pagination */}
-                                    {!loading && filteredFiles.length > itemsPerPage && (
-                                        <div className="d-flex justify-content-between align-items-center mt-4">
-                                            <div className="text-muted">
-                                                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredFiles.length)} of {filteredFiles.length} files
-                                            </div>
-                                            <nav>
-                                                <ul className="pagination mb-0">
-                                                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                                        <button
-                                                            className="page-link"
-                                                            onClick={() => handlePageChange(currentPage - 1)}
-                                                            disabled={currentPage === 1}
-                                                        >
-                                                            Previous
-                                                        </button>
-                                                    </li>
-
-                                                    {[...Array(totalPages)].map((_, index) => {
-                                                        const pageNumber = index + 1
-                                                        if (
-                                                            pageNumber === 1 ||
-                                                            pageNumber === totalPages ||
-                                                            (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-                                                        ) {
-                                                            return (
-                                                                <li key={pageNumber} className={`page-item ${currentPage === pageNumber ? 'active' : ''}`}>
-                                                                    <button
-                                                                        className="page-link"
-                                                                        onClick={() => handlePageChange(pageNumber)}
-                                                                    >
-                                                                        {pageNumber}
-                                                                    </button>
-                                                                </li>
-                                                            )
-                                                        } else if (
-                                                            pageNumber === currentPage - 2 ||
-                                                            pageNumber === currentPage + 2
-                                                        ) {
-                                                            return <li key={pageNumber} className="page-item disabled"><span className="page-link">...</span></li>
-                                                        }
-                                                        return null
-                                                    })}
-
-                                                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                                        <button
-                                                            className="page-link"
-                                                            onClick={() => handlePageChange(currentPage + 1)}
-                                                            disabled={currentPage === totalPages}
-                                                        >
-                                                            Next
-                                                        </button>
-                                                    </li>
-                                                </ul>
-                                            </nav>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <UserMediaGrid />
+                    )}
                 </div>
             </main>
             <SupportDetails />
@@ -349,3 +376,4 @@ const StoragePage = () => {
 }
 
 export default StoragePage
+

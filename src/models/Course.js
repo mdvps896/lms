@@ -115,6 +115,7 @@ const courseSchema = new mongoose.Schema({
     },
     ratings: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        userName: { type: String, default: '' }, // For custom/manual reviews
         rating: { type: Number, required: true, min: 1, max: 5 },
         review: { type: String, default: '' },
         createdAt: { type: Date, default: Date.now }
@@ -126,6 +127,11 @@ const courseSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true,
+    },
+    status: {
+        type: String,
+        enum: ['active', 'draft', 'archived', 'published'],
+        default: 'draft'
     },
     language: {
         type: String,

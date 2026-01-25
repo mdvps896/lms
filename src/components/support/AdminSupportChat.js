@@ -367,10 +367,11 @@ const AdminSupportChat = () => {
     }, {})
 
     // Filter conversations
-    const filteredConversations = conversations.filter(conv => {
+    const filteredConversations = (conversations || []).filter(conv => {
+        if (!conv) return false;
         const user = conv.userDetails || { name: '', email: '' };
         const query = chatSearchQuery.toLowerCase();
-        return user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query);
+        return (user.name || '').toLowerCase().includes(query) || (user.email || '').toLowerCase().includes(query);
     });
 
     return (

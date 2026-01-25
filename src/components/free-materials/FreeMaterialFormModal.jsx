@@ -42,9 +42,14 @@ const FreeMaterialFormModal = ({ isOpen, onClose, material, onSave }) => {
         if (material) {
             setFormData({
                 title: material.title,
+                type: material.type || 'document',
                 category: material.category ? { value: material.category._id, label: material.category.name } : null,
                 subject: material.subject ? { value: material.subject._id, label: material.subject.name } : null,
-                files: material.files ? material.files.map(f => ({ ...f, fileData: null })) : []
+                files: material.files ? material.files.map(f => ({ ...f, fileData: null })) : [],
+                selectedTest: material.testId ? {
+                    value: material.testId._id,
+                    label: `${material.testId.title || material.testId.name} (${material.testId.questions?.length || 0} questions)`
+                } : null
             })
         }
     }, [material])

@@ -116,9 +116,9 @@ const Header = () => {
     };
     const fullScreenMinimize = () => {
         // Check if document is actually in fullscreen mode
-        if (!document.fullscreenElement && 
-            !document.mozFullScreenElement && 
-            !document.webkitFullscreenElement && 
+        if (!document.fullscreenElement &&
+            !document.mozFullScreenElement &&
+            !document.webkitFullscreenElement &&
             !document.msFullscreenElement) {
             return; // Not in fullscreen, so don't try to exit
         }
@@ -126,7 +126,7 @@ const Header = () => {
         try {
             if (document.exitFullscreen) {
                 document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) { 
+            } else if (document.mozCancelFullScreen) {
                 document.mozCancelFullScreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
@@ -147,7 +147,7 @@ const Header = () => {
                 {/* <!--! [Start] Header Left !--> */}
                 <div className="header-left d-flex align-items-center gap-4">
                     {/* <!--! [Start] nxl-head-mobile-toggler !--> */}
-                    <a href="#" className="nxl-head-mobile-toggler" onClick={(e) => {e.preventDefault(), setNavigationOpen(true)}} id="mobile-collapse">
+                    <a href="#" className="nxl-head-mobile-toggler" onClick={(e) => { e.preventDefault(), setNavigationOpen(true) }} id="mobile-collapse">
                         <div className={`hamburger hamburger--arrowturn ${navigationOpen ? "is-active" : ""}`}>
                             <div className="hamburger-box">
                                 <div className="hamburger-inner"></div>

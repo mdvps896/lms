@@ -154,6 +154,12 @@ export async function PUT(request, { params }) {
             }, { status: 400 });
         }
 
+
+        // Sync isActive with status if status is present
+        if (body.status) {
+            body.isActive = (body.status === 'active' || body.status === 'published');
+        }
+
         const course = await Course.findByIdAndUpdate(id, body, {
             new: true,
             runValidators: true,

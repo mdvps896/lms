@@ -4,6 +4,8 @@ import SupportMessage from '@/models/SupportMessage';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
     try {
         await connectDB();
