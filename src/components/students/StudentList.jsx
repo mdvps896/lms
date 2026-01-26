@@ -169,19 +169,22 @@ const StudentList = () => {
         ]
 
         const csvData = dataToExport.map(s => {
-            const courseTitles = s.enrolledCourses?.map(c => c.courseId?.title).filter(Boolean).join('; ') || 'No Courses';
+            // Safely handle enrolledCourses - ensure it's an array before mapping
+            const courseTitles = (Array.isArray(s.enrolledCourses) && s.enrolledCourses.length > 0)
+                ? s.enrolledCourses.map(c => c.courseId?.title || c.title).filter(Boolean).join('; ')
+                : 'No Courses';
             const fullAddress = [s.address, s.city, s.state, s.pincode].filter(Boolean).join(', ') || 'N/A';
 
             return [
                 s.id,
-                `"${s.rollNumber}"`,
-                `"${s.name}"`,
-                s.email,
-                s.phone,
-                s.registerSource,
+                `"${s.rollNumber || 'N/A'}"`,
+                `"${s.name || 'N/A'}"`,
+                s.email || 'N/A',
+                s.phone || 'N/A',
+                s.registerSource || 'N/A',
                 s.isGoogleAuth ? 'Google' : 'Local/Email',
-                s.enrollmentDate,
-                s.status,
+                s.enrollmentDate || 'N/A',
+                s.status || 'N/A',
                 `"${courseTitles}"`,
                 `"${fullAddress}"`
             ]
