@@ -129,23 +129,33 @@ export async function GET(request) {
             yPos += 7;
         };
 
-        const drawImage = (label, imagePath) => {
+        const drawImage = (label, imagePath, x, y, w, h) => {
             if (!imagePath) return;
 
-            if (yPos > pageHeight - 80) {
-                doc.addPage();
-                yPos = 25;
-            }
+            // Check if we need a new page (only if using dynamic yPos, but here we might pass explicit coordinates)
+            // For grid, we control coordinates.
 
             doc.setFontSize(10);
             doc.setTextColor(textLight[0], textLight[1], textLight[2]);
             doc.setFont('helvetica', 'bold');
-            doc.text(label.toUpperCase(), margin, yPos);
+            doc.text(label.toUpperCase(), x, y - 2);
+
+            doc.setDrawColor(textLight[0], textLight[1], textLight[2]);
+            doc.setLineWidth(0.1);
+            doc.rect(x, y, w, h); // Draw border for the box
 
             try {
-                // Construct absolute path. stored path is like '/uploads/...' or 'uploads/...'
-                // Remove leading slash if present to join correctly
-                const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+                // Construct absolute path. 
+                // Stored path example: /api/storage/file/uploads/images/file.jpg
+                // We need: public/uploads/images/file.jpg
+
+                let cleanPath = imagePath;
+                if (cleanPath.startsWith('/api/storage/file/')) {
+                    cleanPath = cleanPath.replace('/api/storage/file/', '');
+                } else if (cleanPath.startsWith('/')) {
+                    cleanPath = cleanPath.substring(1);
+                }
+
                 const absolutePath = path.join(process.cwd(), 'public', cleanPath);
 
                 if (fs.existsSync(absolutePath)) {
@@ -153,20 +163,17 @@ export async function GET(request) {
                     const imgBase64 = imgBuffer.toString('base64');
                     const ext = path.extname(absolutePath).substring(1).toUpperCase();
 
-                    // Simple aspect ratio handling: fix width to 80, scale height
-                    // For passport (landscape) vs selfie (portrait)
-                    // Let's just use a fixed box for now to fit layout
-                    doc.addImage(imgBase64, ext === 'JPG' ? 'JPEG' : ext, margin, yPos + 5, 80, 50);
-                    yPos += 60;
+                    doc.addImage(imgBase64, ext === 'JPG' ? 'JPEG' : ext, x + 1, y + 1, w - 2, h - 2);
                 } else {
                     doc.setFont('helvetica', 'italic');
-                    doc.text('[Image Not Found]', margin, yPos + 10);
-                    yPos += 15;
+                    doc.text('[Image Not Found]', x + 5, y + 15);
+                    // Debug text to help user see what path failed
+                    doc.setFontSize(6);
+                    // doc.text(cleanPath, x + 5, y + 25); 
                 }
             } catch (e) {
                 console.error(`Error drawing image ${label}:`, e);
-                doc.text('[Error Loading Image]', margin, yPos + 10);
-                yPos += 15;
+                doc.text('[Error Loading Image]', x + 5, y + 10);
             }
         };
 
@@ -187,17 +194,35 @@ export async function GET(request) {
         drawField('Current Address', p.currentAddress);
 
         yPos += 10;
-        yPos += 10;
         drawSectionTitle('Uploaded Documents');
         const d = submission.documents || {};
 
-        // We'll put images in a grid or sequence
-        // For simplicity in PDF, sequence is safer
+        // 2x2 Grid Layout
+        // Page width is typically ~210mm. Margin 20. Content width ~170.
+        // Box width ~80. Box height ~50.
 
-        if (d.passportFront) drawImage('Passport Copy (Front)', d.passportFront);
-        if (d.passportBack) drawImage('Passport Copy (Back)', d.passportBack);
-        if (d.passportPhoto) drawImage('Passport Size Photo', d.passportPhoto);
-        if (d.selfiePhoto) drawImage('Identity Verification (Selfie)', d.selfiePhoto);
+        const boxW = 80;
+        const boxH = 55;
+        const gap = 10;
+        const startX = margin;
+
+        // Check space
+        if (yPos + (boxH * 2) + gap > pageHeight - 20) {
+            doc.addPage();
+            yPos = 25;
+        }
+
+        // Row 1
+        let currentY = yPos + 5;
+        drawImage('Passport Front', d.passportFront, startX, currentY, boxW, boxH);
+        drawImage('Passport Back', d.passportBack, startX + boxW + gap, currentY, boxW, boxH);
+
+        // Row 2
+        currentY += boxH + 15;
+        drawImage('Passport Photo', d.passportPhoto, startX, currentY, boxW, boxH);
+        drawImage('Selfie / Human Check', d.selfiePhoto, startX + boxW + gap, currentY, boxW, boxH);
+
+        yPos = currentY + boxH + 10;
 
         // --- PAGE 2: Services selections ---
         doc.addPage();
@@ -308,7 +333,13 @@ export async function GET(request) {
         // Draw Client Signature Image
         if (sig.signatureImage) {
             try {
-                const cleanSigPath = sig.signatureImage.startsWith('/') ? sig.signatureImage.substring(1) : sig.signatureImage;
+                let cleanSigPath = sig.signatureImage;
+                if (cleanSigPath.startsWith('/api/storage/file/')) {
+                    cleanSigPath = cleanSigPath.replace('/api/storage/file/', '');
+                } else if (cleanSigPath.startsWith('/')) {
+                    cleanSigPath = cleanSigPath.substring(1);
+                }
+
                 const absSigPath = path.join(process.cwd(), 'public', cleanSigPath);
 
                 if (fs.existsSync(absSigPath)) {
