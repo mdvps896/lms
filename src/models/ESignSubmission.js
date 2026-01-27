@@ -26,14 +26,8 @@ const ESignSubmissionSchema = new mongoose.Schema({
         selfiePhoto: String
     },
     selections: {
-        gulfLicenseCourse: [String], // Array of selected courses/exams
-        coursePackageType: [String], // Array of selected package types
-        servicesSelected: [String], // Multi-select services
-        otherService: String, // Text for "Other (Write)"
-        paymentTermsAccepted: Boolean,
-        paymentMethod: String,
-        legalDisclaimerAccepted: Boolean,
-        finalConfirmationAccepted: Boolean
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     signature: {
         clientName: String,

@@ -130,11 +130,7 @@ export async function GET(request) {
         };
 
         const drawImage = (label, imagePath, x, y, w, h) => {
-            if (!imagePath) return;
-
-            // Check if we need a new page (only if using dynamic yPos, but here we might pass explicit coordinates)
-            // For grid, we control coordinates.
-
+            // Always draw label and box frame
             doc.setFontSize(10);
             doc.setTextColor(textLight[0], textLight[1], textLight[2]);
             doc.setFont('helvetica', 'bold');
@@ -143,6 +139,14 @@ export async function GET(request) {
             doc.setDrawColor(textLight[0], textLight[1], textLight[2]);
             doc.setLineWidth(0.1);
             doc.rect(x, y, w, h); // Draw border for the box
+
+            if (!imagePath) {
+                // Draw placeholder text
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(200, 200, 200);
+                doc.text('Pending Upload', x + 5, y + (h / 2));
+                return;
+            }
 
             try {
                 // Construct absolute path. 
@@ -166,20 +170,20 @@ export async function GET(request) {
                     doc.addImage(imgBase64, ext === 'JPG' ? 'JPEG' : ext, x + 1, y + 1, w - 2, h - 2);
                 } else {
                     doc.setFont('helvetica', 'italic');
-                    doc.text('[Image Not Found]', x + 5, y + 15);
-                    // Debug text to help user see what path failed
-                    doc.setFontSize(6);
-                    // doc.text(cleanPath, x + 5, y + 25); 
+                    doc.setTextColor(200, 200, 200);
+                    doc.text('Image File Missing', x + 5, y + (h / 2));
                 }
             } catch (e) {
                 console.error(`Error drawing image ${label}:`, e);
-                doc.text('[Error Loading Image]', x + 5, y + 10);
+                doc.text('[Error]', x + 5, y + 10);
             }
         };
 
         // --- PAGE 1: Personal Details & Documents ---
         drawHeader('SERVICE APPLICATION');
-        drawFooter(1);
+        // --- PAGE 1: Personal Details & Documents ---
+        drawHeader('SERVICE APPLICATION');
+        // Footers will be added at the end
 
         drawSectionTitle('Student Personal Information');
         const p = submission.personalDetails || {};
@@ -224,16 +228,8 @@ export async function GET(request) {
 
         yPos = currentY + boxH + 10;
 
-        // --- PAGE 2: Services selections ---
-        doc.addPage();
-        yPos = 25;
-        doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.rect(0, 0, pageWidth, 20, 'F');
-        doc.setTextColor(255);
-        doc.setFontSize(12);
-        doc.text('SERVICE SELECTION DETAILS', pageWidth / 2, 13, { align: 'center' });
-        yPos = 35;
-        drawFooter(2);
+        // --- Service Selections ---
+        drawSectionTitle('Service Selection Details');
 
         const s = submission.selections || {};
 
@@ -261,7 +257,7 @@ export async function GET(request) {
         }
 
         if (s.confirmedPaymentServices && s.confirmedPaymentServices.length > 0) {
-            yPos += 10;
+            yPos += 5;
             drawSectionTitle('Payment Based on Selected Services');
             s.confirmedPaymentServices.forEach(ps => drawSelectedItem(ps));
             if (s.otherPayment) drawField('Other Payment Details', s.otherPayment);
@@ -282,18 +278,109 @@ export async function GET(request) {
             yPos += 5;
         }
 
-        // --- PAGE 3: Authorization ---
-        doc.addPage();
-        yPos = 25;
-        doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.rect(0, 0, pageWidth, 20, 'F');
-        doc.setTextColor(255);
-        doc.setFontSize(12);
-        doc.text('AUTHORIZATION & DISCLAIMER', pageWidth / 2, 13, { align: 'center' });
-        yPos = 35;
-        drawFooter(3);
+        // --- Declarations & Consents ---
+        yPos += 5;
+        // Check if there are declarations to show
+        const declarations = s.declarations || {};
+        const ca = s.clientAcceptance || {};
 
-        drawSectionTitle('Acknowledgement of Terms');
+        const drawWrappedText = (text, indent = 0) => {
+            if (yPos > pageHeight - 15) {
+                doc.addPage();
+                yPos = 25;
+            }
+            doc.setFontSize(10);
+            doc.setTextColor(textMain[0], textMain[1], textMain[2]);
+            doc.setFont('helvetica', 'normal');
+
+            const lines = doc.splitTextToSize(text, pageWidth - margin - margin - indent);
+            doc.text(lines, margin + indent, yPos);
+            yPos += (lines.length * 5) + 3;
+        };
+
+        // 1. IMPORTANT NOTE (Static)
+        doc.setFontSize(11);
+        doc.setTextColor(255, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        drawWrappedText('IMPORTANT NOTE');
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(textMain[0], textMain[1], textMain[2]);
+        drawWrappedText('Work/process will start only after MD Consultancy approval and payment confirmation as per selected services.');
+        yPos += 5;
+
+        // 2. LEGAL DISCLAIMER (Static)
+        drawSectionTitle('LEGAL DISCLAIMER (INDIA COMPLIANCE)');
+        drawWrappedText('MD Consultancy is a private consultancy / coaching & documentation support service provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
+        drawWrappedText('All services are provided on the client\'s request and depend on official rules, portal systems, authority verification, and timelines.');
+        yPos += 5;
+
+        if (declarations.declarationAccepted || ca.paymentAccordingToWork || ca.thirdPartyFeesSeparate) {
+            drawSectionTitle('CLIENT DECLARATION & TERMS (MANDATORY)');
+
+            if (declarations.declarationAccepted) {
+                doc.setFont('helvetica', 'bold');
+                drawWrappedText(`I, ${submission.personalDetails?.fullName || '___________________________________________'} (Client Name), confirm that I am voluntarily taking services from MD Consultancy.`);
+                doc.setFont('helvetica', 'normal');
+
+                drawWrappedText('Terms & Conditions:', 0);
+
+                const terms = [
+                    '1. I have provided true and genuine documents/information to MD Consultancy.',
+                    '2. I understand DHA / Prometric / DataFlow / PSV processes are controlled by official authorities, and outcomes depend on authority verification and my performance.',
+                    '3. MD Consultancy provides professional guidance, coaching, documentation support, and process assistance only.',
+                    '4. I clearly understand that PASS / JOB / VISA is NOT guaranteed by MD Consultancy.',
+                    '5. Any delay or rejection due to authority timelines, wrong/incomplete documents, eligibility issues, technical portal problems, or third-party policies is not the direct responsibility of MD Consultancy.',
+                    '6. I authorize MD Consultancy to submit my information/documents wherever required for official processing, booking, verification, and consultation purposes.',
+                    '7. I understand third-party charges (authority fees, exam fees, visa fees, ticket/courier charges, etc.) are separate and payable by me as per actuals.',
+                    '8. I understand service fees are charged for work done. Once work has started (Booking, DataFlow, documentation, coaching, etc.), fees may be non-refundable as per policy.',
+                    '9. I agree that all communication on WhatsApp / Email will be treated as valid proof of consent and updates.',
+                    '10. MD Consultancy will maintain confidentiality of my documents and will share them only when required for official processing.',
+                ];
+
+                terms.forEach(term => drawWrappedText(term, 5));
+                yPos += 5;
+            }
+
+            if (ca.paymentAccordingToWork) drawSelectedItem('Accepted: Payment is strictly according to work progress.');
+            if (ca.thirdPartyFeesSeparate) drawSelectedItem('Accepted: Third-party fees (embassy, etc.) are separate.');
+            // Removed redundant summary line
+            yPos += 5;
+        }
+
+        if (declarations.dataPrivacy) {
+            drawSectionTitle('Data Privacy & Digital Consent');
+            if (declarations.digitalConsent?.confirmed) drawSelectedItem('Confirmed: Digital Signature is valid.');
+            if (declarations.digitalConsent?.validTreat) drawSelectedItem('Accepted: E-Sign treated as physical signature.');
+            if (declarations.dataPrivacy?.collectionAuth) drawSelectedItem('Authorized: Data collection for processing.');
+            if (declarations.dataPrivacy?.shareAuth) drawSelectedItem('Authorized: Sharing data with relevant authorities.');
+            yPos += 5;
+        }
+
+        if (declarations.refundPolicy) {
+            drawSectionTitle('Refund Policy Acknowledgement');
+            if (declarations.refundPolicy.startedNonRefundable) drawSelectedItem('Understood: Fees non-refundable once work starts.');
+            if (declarations.refundPolicy.cancelNoRefund) drawSelectedItem('Understood: No refund on cancellation.');
+            if (declarations.refundPolicy.thirdPartyNonRefundable) drawSelectedItem('Understood: Third-party fees are non-refundable.');
+            yPos += 5;
+        }
+
+        if (declarations.thirdPartyDisclaimer) {
+            drawSectionTitle('Third-Party Disclaimer');
+            if (declarations.thirdPartyDisclaimer.govtDecision) drawSelectedItem('Understood: Authority decisions are final.');
+            if (declarations.thirdPartyDisclaimer.consultancyLiability) drawSelectedItem('Understood: Consultancy not liable for delays.');
+            yPos += 5;
+        }
+
+        if (declarations.finalConfirmation) {
+            drawSectionTitle('Final Confirmation');
+            if (declarations.finalConfirmation['readAll ']) drawSelectedItem('Confirmed: I have read all terms and conditions.'); // Note space key
+            if (declarations.finalConfirmation.authorizeStart) drawSelectedItem('Authorized: Start processing application.');
+            yPos += 5;
+        }
+        yPos += 5;
+        yPos += 5;
+        drawSectionTitle('Payment Authorization');
+
         doc.setFontSize(10);
         doc.setTextColor(textMain[0], textMain[1], textMain[2]);
         drawSelectedItem('I acknowledge that MD Consultancy does not accept any advance payment.');
@@ -301,14 +388,6 @@ export async function GET(request) {
         drawField('Payment Mode', s.paymentMethod || 'Selected by Consultant');
 
         yPos += 10;
-        drawSectionTitle('Legal Disclaimer');
-        doc.setFontSize(9);
-        doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-        doc.setFont('helvetica', 'normal');
-        const disclaimer = "MD Consultancy is a private professional consultancy, coaching, and documentation support provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with any official healthcare authorities (DHA, DOH, MOH, etc.) or DataFlow/Prometric. Timeline and verification results depend entirely on the respective authority portals and official rules.";
-        const splitDisc = doc.splitTextToSize(disclaimer, pageWidth - (margin * 2));
-        doc.text(splitDisc, margin, yPos);
-        yPos += (splitDisc.length * 5) + 15;
 
         // Stamp and Signature Area
         drawSectionTitle('Digital Verification & Approval');
@@ -373,7 +452,15 @@ export async function GET(request) {
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
+
         doc.text('CERTIFIED DIGITAL AUTHENTICATION BY MD CONSULTANCY', pageWidth / 2, yPos + 74, { align: 'center' });
+
+        // --- Finalize: Add Footers to All Pages ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            drawFooter(i);
+        }
 
         const pdfOutput = doc.output('arraybuffer');
 
