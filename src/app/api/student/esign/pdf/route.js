@@ -36,28 +36,34 @@ export async function GET(request) {
 
         // --- Helper Functions ---
         const drawHeader = (title) => {
-            // Background Header
-            doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-
-            // Logo
             try {
-                const logoPath = path.join(process.cwd(), 'public', 'images', 'logo-lite.webp');
-                if (fs.existsSync(logoPath)) {
-                    const logoBuffer = fs.readFileSync(logoPath);
-                    const logoBase64 = logoBuffer.toString('base64');
-                    // Note: jsPDF might need the correct format string
-                    doc.addImage(logoBase64, 'WEBP', 10, 5, 30, 30);
+                // Background Header Image (Full Width)
+                const headerPath = path.join(process.cwd(), 'public', 'images', 'head.jpeg');
+                if (fs.existsSync(headerPath)) {
+                    const headerBuffer = fs.readFileSync(headerPath);
+                    const headerBase64 = headerBuffer.toString('base64');
+                    // Header Image: Full Width, Fixed Height approx 40-50 units or proportionate?
+                    // Let's use a fixed height of 35-40 to leave room, or calculate ratio if possible which is hard without reading dimensions.
+                    // User want full width. Let's say 40 height.
+                    doc.addImage(headerBase64, 'JPEG', 0, 0, pageWidth, 40);
+                } else {
+                    // Fallback
+                    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+                    doc.rect(0, 0, pageWidth, 40, 'F');
+                    doc.setFontSize(22);
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(title || 'SERVICE APPLICATION', pageWidth / 2, 25, { align: 'center' });
                 }
             } catch (e) {
-                console.error('Logo embed error:', e);
+                console.error('Header image error:', e);
+                doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+                doc.rect(0, 0, pageWidth, 40, 'F');
+                doc.setFontSize(22);
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.text(title || 'SERVICE APPLICATION', pageWidth / 2, 25, { align: 'center' });
             }
-
-            doc.setFontSize(22);
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('helvetica', 'bold');
-            doc.text(title, pageWidth / 2 + 15, 25, { align: 'center' });
-
             yPos = 55;
         };
 
@@ -123,6 +129,47 @@ export async function GET(request) {
             yPos += 7;
         };
 
+        const drawImage = (label, imagePath) => {
+            if (!imagePath) return;
+
+            if (yPos > pageHeight - 80) {
+                doc.addPage();
+                yPos = 25;
+            }
+
+            doc.setFontSize(10);
+            doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+            doc.setFont('helvetica', 'bold');
+            doc.text(label.toUpperCase(), margin, yPos);
+
+            try {
+                // Construct absolute path. stored path is like '/uploads/...' or 'uploads/...'
+                // Remove leading slash if present to join correctly
+                const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+                const absolutePath = path.join(process.cwd(), 'public', cleanPath);
+
+                if (fs.existsSync(absolutePath)) {
+                    const imgBuffer = fs.readFileSync(absolutePath);
+                    const imgBase64 = imgBuffer.toString('base64');
+                    const ext = path.extname(absolutePath).substring(1).toUpperCase();
+
+                    // Simple aspect ratio handling: fix width to 80, scale height
+                    // For passport (landscape) vs selfie (portrait)
+                    // Let's just use a fixed box for now to fit layout
+                    doc.addImage(imgBase64, ext === 'JPG' ? 'JPEG' : ext, margin, yPos + 5, 80, 50);
+                    yPos += 60;
+                } else {
+                    doc.setFont('helvetica', 'italic');
+                    doc.text('[Image Not Found]', margin, yPos + 10);
+                    yPos += 15;
+                }
+            } catch (e) {
+                console.error(`Error drawing image ${label}:`, e);
+                doc.text('[Error Loading Image]', margin, yPos + 10);
+                yPos += 15;
+            }
+        };
+
         // --- PAGE 1: Personal Details & Documents ---
         drawHeader('SERVICE APPLICATION');
         drawFooter(1);
@@ -135,19 +182,22 @@ export async function GET(request) {
         drawField('Date of Birth', p.dob);
         drawField('Nationality', p.nationality);
         drawField('Passport Number', p.passportNumber);
-        drawField('Aadhaar Number', p.aadhaarNumber);
         drawField('Education', p.education);
         drawField('Experience', p.workExperience + ' Years');
         drawField('Current Address', p.currentAddress);
 
         yPos += 10;
-        drawSectionTitle('Documents Verification Status');
+        yPos += 10;
+        drawSectionTitle('Uploaded Documents');
         const d = submission.documents || {};
-        const getStatus = (val) => val ? 'VERIFIED' : 'PENDING';
-        drawField('Passport Copy (Front)', getStatus(d.passportFront));
-        drawField('Passport Copy (Back)', getStatus(d.passportBack));
-        drawField('Passport Size Photo', getStatus(d.passportPhoto));
-        drawField('Identity Verification (Selfie)', getStatus(d.selfiePhoto));
+
+        // We'll put images in a grid or sequence
+        // For simplicity in PDF, sequence is safer
+
+        if (d.passportFront) drawImage('Passport Copy (Front)', d.passportFront);
+        if (d.passportBack) drawImage('Passport Copy (Back)', d.passportBack);
+        if (d.passportPhoto) drawImage('Passport Size Photo', d.passportPhoto);
+        if (d.selfiePhoto) drawImage('Identity Verification (Selfie)', d.selfiePhoto);
 
         // --- PAGE 2: Services selections ---
         doc.addPage();
@@ -183,6 +233,28 @@ export async function GET(request) {
         if (s.otherService && s.otherService.trim() !== '') {
             drawSectionTitle('Special Requests / Remarks');
             drawField('Other Details', s.otherService);
+        }
+
+        if (s.confirmedPaymentServices && s.confirmedPaymentServices.length > 0) {
+            yPos += 10;
+            drawSectionTitle('Payment Based on Selected Services');
+            s.confirmedPaymentServices.forEach(ps => drawSelectedItem(ps));
+            if (s.otherPayment) drawField('Other Payment Details', s.otherPayment);
+            yPos += 5;
+        }
+
+        if (s.paymentMethods && s.paymentMethods.length > 0) {
+            drawSectionTitle('Payment Confirmation Method');
+            s.paymentMethods.forEach(pm => drawSelectedItem(pm));
+            yPos += 5;
+        }
+
+        // Service-Wise Payment Terms Declarations
+        if (s.paymentTerms) {
+            drawSectionTitle('Service-Wise Payment Terms');
+            if (s.paymentTerms.noAdvanceAccepted) drawSelectedItem('I understand that MD Consultancy does NOT take advance payment.');
+            if (s.paymentTerms.payAsWorkAccepted) drawSelectedItem('I will pay fees only for selected services and work started/completed.');
+            yPos += 5;
         }
 
         // --- PAGE 3: Authorization ---
@@ -233,10 +305,27 @@ export async function GET(request) {
         doc.setTextColor(textLight[0], textLight[1], textLight[2]);
         doc.text('CLIENT DIGITAL SIGNATURE:', margin, yPos + 10);
 
+        // Draw Client Signature Image
+        if (sig.signatureImage) {
+            try {
+                const cleanSigPath = sig.signatureImage.startsWith('/') ? sig.signatureImage.substring(1) : sig.signatureImage;
+                const absSigPath = path.join(process.cwd(), 'public', cleanSigPath);
+
+                if (fs.existsSync(absSigPath)) {
+                    const sigBuffer = fs.readFileSync(absSigPath);
+                    const sigBase64 = sigBuffer.toString('base64');
+                    const sigExt = path.extname(absSigPath).substring(1).toUpperCase();
+                    doc.addImage(sigBase64, sigExt === 'JPG' ? 'JPEG' : sigExt, margin, yPos + 15, 60, 30);
+                }
+            } catch (e) {
+                console.error('Signature embed error:', e);
+            }
+        }
+
         doc.setFont('courier', 'bolditalic');
-        doc.setFontSize(18);
+        doc.setFontSize(12);
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.text(sig.clientName || 'AUTHORIZED SIGNATORY', margin, yPos + 22);
+        doc.text(sig.clientName || 'AUTHORIZED SIGNATORY', margin, yPos + 50);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);

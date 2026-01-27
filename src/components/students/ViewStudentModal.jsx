@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react'
 import {
     FiX, FiUser, FiBookOpen, FiFileText,
-    FiMail, FiDownload, FiXCircle
+    FiMail, FiDownload, FiXCircle, FiPenTool
 } from 'react-icons/fi'
 import StudentOverviewTab from './tabs/StudentOverviewTab'
 import StudentExamsTab from './tabs/StudentExamsTab'
 import StudentActivityLog from './tabs/StudentActivityLog'
+import StudentESignTab from './tabs/StudentESignTab'
 import { generateStudentReport } from '@/utils/studentReportGenerator'
 import StudentReportModal from './StudentReportModal'
 import { useSettings } from '@/contexts/SettingsContext'
@@ -126,6 +127,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 <li className="nav-item">
                                     <TabButton id="courses" label="Course Views" icon={FiBookOpen} />
                                 </li>
+                                <li className="nav-item">
+                                    <TabButton id="esign" label="E-Sign" icon={FiPenTool} />
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -164,6 +168,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                         data={details.courseViews}
                                         formatDate={formatDate}
                                     />
+                                )}
+                                {activeTab === 'esign' && (
+                                    <StudentESignTab studentId={student.id} />
                                 )}
                             </div>
                         ) : null}
