@@ -233,9 +233,14 @@ export async function GET(request) {
 
         const s = submission.selections || {};
 
-        if (s.gulfLicenseCourse && s.gulfLicenseCourse.length > 0) {
+        // Normalize gulfLicenseCourse to array (it might be a string from Radio button)
+        const gulfCourses = Array.isArray(s.gulfLicenseCourse)
+            ? s.gulfLicenseCourse
+            : (s.gulfLicenseCourse ? [s.gulfLicenseCourse] : []);
+
+        if (gulfCourses.length > 0) {
             drawSectionTitle('Gulf Specialized Courses / Exams');
-            s.gulfLicenseCourse.forEach(ex => drawSelectedItem(ex));
+            gulfCourses.forEach(ex => drawSelectedItem(ex));
             yPos += 5;
         }
 
