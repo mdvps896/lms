@@ -135,8 +135,8 @@ export async function POST(request) {
     }
 
     // Check email verification for students with local auth
-    // Skip verification check for Google auth users and admins
-    if (user.role === 'student' && user.authProvider === 'local' && !user.emailVerified) {
+    // Skip verification check for Google auth users, admins, and students with 'active' status
+    if (user.role === 'student' && user.authProvider === 'local' && !user.emailVerified && user.status !== 'active') {
       return NextResponse.json(
         {
           success: false,

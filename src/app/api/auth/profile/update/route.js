@@ -9,9 +9,11 @@ export async function POST(request) {
     try {
         await connectDB();
         const body = await request.json();
+        console.log('📝 Profile Update Request Body:', body);
         const { userId, name, phone, address, city, state, pincode, profileImage, category } = body;
 
         if (!userId) {
+            console.warn('⚠️ Profile Update failed: Missing User ID');
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
@@ -58,6 +60,8 @@ export async function POST(request) {
             }
         }
 
+        console.log('🔄 Updating User:', userId, 'with data:', updateData);
+
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $set: updateData },
@@ -68,8 +72,11 @@ export async function POST(request) {
             .lean();
 
         if (!updatedUser) {
+            console.warn('❌ User not found for update:', userId);
             return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
         }
+
+        console.log('✅ User updated successfully:', updatedUser.name);
 
         return NextResponse.json({
             success: true,

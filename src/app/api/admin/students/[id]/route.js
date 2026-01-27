@@ -130,6 +130,11 @@ export async function PUT(request, { params }) {
             updateData.password = await bcrypt.hash(updateData.password, 10);
         }
 
+        // 🔄 AUTO-VERIFY: If admin sets account to 'active', automatically verify email
+        if (updateData.status === 'active') {
+            updateData.emailVerified = true;
+        }
+
         const student = await User.findOneAndUpdate(
             { _id: id, role: 'student' },
             { $set: updateData },

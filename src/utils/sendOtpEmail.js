@@ -6,45 +6,68 @@ export const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Get site name from database using existing mongodb connection
-const getSiteName = async () => {
+// Helper to get SMTP settings from database
+const getSMTPSettings = async () => {
     try {
         const connectDB = await import('@/lib/mongodb');
         await connectDB.default();
-        
-        // Use mongoose to get settings like other parts of the app
+
         const mongoose = require('mongoose');
-        const settingsCollection = mongoose.connection.db.collection('settings');
-        const settings = await settingsCollection.findOne({});
-        
-        if (settings?.general?.siteName) {
-            return settings.general.siteName;
-        }
-        return 'my exam'; // Fallback to your current site name
+        const settings = await mongoose.connection.db.collection('settings').findOne({});
+
+        const siteName = settings?.general?.siteName || 'my exam';
+        const smtp = settings?.securitySMTP?.smtp || {};
+
+        return {
+            siteName,
+            host: smtp.smtpHost || process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: smtp.smtpPort || process.env.SMTP_PORT || 465,
+            secure: smtp.smtpSecure !== undefined ? smtp.smtpSecure : true,
+            user: smtp.smtpUsername || process.env.SMTP_EMAIL,
+            pass: smtp.smtpPassword || process.env.SMTP_PASSWORD,
+            fromEmail: smtp.fromEmail || process.env.SMTP_EMAIL,
+            fromName: smtp.fromName || siteName
+        };
     } catch (error) {
-        console.warn('Could not fetch site name from database:', error.message);
-        return 'my exam'; // Fallback to your current site name
+        console.warn('Could not fetch SMTP settings from database:', error.message);
+        return {
+            siteName: 'my exam',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD,
+            fromEmail: process.env.SMTP_EMAIL,
+            fromName: 'my exam'
+        };
     }
 };
 
-// Send OTP email using Gmail SMTP
+// Send OTP email using Dynamic SMTP Credentials
 export const sendOtpEmail = async (recipientEmail, recipientName, otp, emailType = 'registration') => {
     try {
-        // Get site name from database
-        const siteName = await getSiteName();
+        // Get dynamic settings
+        const settings = await getSMTPSettings();
 
-        // Create transporter with Gmail SMTP
+        // Create transporter with Dynamic SMTP settings
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: settings.host,
+            port: settings.port,
+            secure: settings.secure,
             auth: {
-                user: process.env.SMTP_EMAIL,
-                pass: process.env.SMTP_PASSWORD
+                user: settings.user,
+                pass: settings.pass
+            },
+            tls: {
+                rejectUnauthorized: false
             }
         });
 
+        const siteName = settings.siteName;
+
         // Determine email content based on type
         let subject, bodyContent, headerTitle;
-        
+
         if (emailType === 'Password Reset' || emailType === 'reset') {
             subject = `Password Reset - ${siteName}`;
             headerTitle = `🔑 Password Reset - ${siteName}`;
@@ -112,7 +135,7 @@ export const sendOtpEmail = async (recipientEmail, recipientName, otp, emailType
 
         // Email template
         const mailOptions = {
-            from: `"${siteName}" <${process.env.SMTP_EMAIL}>`,
+            from: `"${settings.fromName}" <${settings.fromEmail}>`,
             to: recipientEmail,
             subject: subject,
             html: `
@@ -213,12 +236,19 @@ export const sendOtpEmail = async (recipientEmail, recipientName, otp, emailType
         };
 
         // Send email
-        await transporter.sendMail(mailOptions);
-        return { success: true, message: 'OTP sent successfully' };
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully:', info.messageId);
+        return { success: true, message: 'OTP sent successfully', messageId: info.messageId };
 
     } catch (error) {
-        console.error('Email sending error:', error);
-        return { success: false, message: 'Failed to send OTP email', error: error.message };
+        console.error('❌ Email sending error details:', error);
+
+        if (error.code === 'EAUTH') {
+            console.error('💡 TIP: Use a "Gmail App Password" instead of your regular password. Security blocks direct login.');
+        }
+
+        // Throwing error instead of returning success:false so the API route catches it
+        throw new Error(error.message || 'Failed to send OTP email');
     }
 };
 
@@ -230,7 +260,7 @@ export const isValidEmailProvider = (email) => {
         'outlook.com', 'hotmail.com', 'live.com', // Microsoft/Bing
         'icloud.com', 'me.com', 'mac.com' // Apple
     ];
-    
+
     const domain = email.split('@')[1]?.toLowerCase();
     return validProviders.includes(domain);
 };
