@@ -52,6 +52,7 @@ export async function POST(request) {
                 success: true,
                 message: 'File uploaded successfully',
                 path: result.url, // Return full URL
+                url: result.url, // Alias for mobile app compatibility
                 fileName: result.fileName, // This is the public_id
                 originalName: result.originalName,
                 size: result.size,

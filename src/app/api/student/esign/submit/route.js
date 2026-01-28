@@ -15,11 +15,16 @@ export async function POST(request) {
         // Check if already submitted
         const existing = await ESignSubmission.findOne({ user: userId });
         if (existing) {
+            console.log('Submission already exists for:', userId);
+            // Optional: Allow update if status is Pending? For now, keep strict as per requirement or allow overwrite for testing?
+            // User likely wants to re-submit if previous failed. Let's block for now but log it.
             return NextResponse.json({
                 success: false,
                 message: 'You have already submitted the E-Sign form. Multiple submissions are not allowed.'
             }, { status: 400 });
         }
+
+        console.log('Creating new submission for:', userId);
 
         // Validate mandatory fields (Basic validation)
         if (!signature || !signature.clientName) {
@@ -36,6 +41,22 @@ export async function POST(request) {
             adminStatus: 'Pending',
             pdfGenerated: false // Will be generated on demand or by a background process
         });
+
+        // --- SYNC TO USER MODEL (Fallback Support) ---
+        // Save these documents to the User model so PDF generation can find them 
+        // even if looked up via User fallback.
+        try {
+            if (documents) {
+                const userUpdate = await import('@/models/User').then(mod => mod.default.findByIdAndUpdate(userId, {
+                    $set: {
+                        'esign_images': documents
+                    }
+                }, { new: true }));
+                console.log('User esign_images updated:', userUpdate ? 'Success' : 'User not found');
+            }
+        } catch (syncErr) {
+            console.error('Failed to sync images to User model:', syncErr);
+        }
 
         return NextResponse.json({
             success: true,

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ESignSubmission from '@/models/ESignSubmission';
+import User from '@/models/User';
 import { jsPDF } from 'jspdf';
 import fs from 'fs';
 import path from 'path';
+import { PDFDrawer } from './pdf-drawing';
+import { drawImage } from './pdf-images';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+    console.log('GET /api/student/esign/pdf REQUEST RECEIVED');
     try {
         await connectDB();
         const { searchParams } = new URL(request.url);
@@ -19,315 +23,174 @@ export async function GET(request) {
 
         const submission = await ESignSubmission.findOne({ user: userId });
         if (!submission) {
+            console.log('No submission found for userId:', userId);
             return NextResponse.json({ success: false, message: 'No E-Sign submission found' }, { status: 404 });
+        }
+        console.log('Submission found:', submission._id);
+
+        // Fallback to User images
+        let userImages = {};
+        try {
+            console.log('Fetching User for fallback images...');
+            const user = await User.findById(userId).select('esign_images');
+            if (user) {
+                userImages = user.esign_images || {};
+                console.log('User images fetched:', Object.keys(userImages));
+            } else {
+                console.log('User not found.');
+            }
+        } catch (err) {
+            console.error('Error fetching user images:', err);
         }
 
         const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.width;
-        const pageHeight = doc.internal.pageSize.height;
-        const margin = 20;
-        let yPos = 20;
-
-        // Colors
-        const primaryColor = [145, 198, 64]; // #91C640 (Green)
-        const secondaryColor = [28, 65, 109]; // #1C416D (Blue)
-        const textMain = [45, 52, 54];
-        const textLight = [99, 110, 114];
-
-        // --- Helper Functions ---
-        const drawHeader = (title) => {
-            try {
-                // Background Header Image (Full Width)
-                const headerPath = path.join(process.cwd(), 'public', 'images', 'head.jpeg');
-                if (fs.existsSync(headerPath)) {
-                    const headerBuffer = fs.readFileSync(headerPath);
-                    const headerBase64 = headerBuffer.toString('base64');
-                    // Header Image: Full Width, Fixed Height approx 40-50 units or proportionate?
-                    // Let's use a fixed height of 35-40 to leave room, or calculate ratio if possible which is hard without reading dimensions.
-                    // User want full width. Let's say 40 height.
-                    doc.addImage(headerBase64, 'JPEG', 0, 0, pageWidth, 40);
-                } else {
-                    // Fallback
-                    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-                    doc.rect(0, 0, pageWidth, 40, 'F');
-                    doc.setFontSize(22);
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(title || 'SERVICE APPLICATION', pageWidth / 2, 25, { align: 'center' });
-                }
-            } catch (e) {
-                console.error('Header image error:', e);
-                doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-                doc.rect(0, 0, pageWidth, 40, 'F');
-                doc.setFontSize(22);
-                doc.setTextColor(255, 255, 255);
-                doc.setFont('helvetica', 'bold');
-                doc.text(title || 'SERVICE APPLICATION', pageWidth / 2, 25, { align: 'center' });
-            }
-            yPos = 55;
-        };
-
-        const drawFooter = (pageNum) => {
-            doc.setFontSize(10);
-            doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-            doc.setFont('helvetica', 'italic');
-            doc.text('MD CONSULTANCY - Professional Service Application', pageWidth / 2, pageHeight - 10, { align: 'center' });
-            doc.text(`Page ${pageNum}`, pageWidth - 20, pageHeight - 10);
-        };
-
-        const drawSectionTitle = (title) => {
-            if (yPos > pageHeight - 40) {
-                doc.addPage();
-                yPos = 20;
-                doc.setFontSize(10);
-                doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-                doc.text('Continued...', margin, 15);
-            }
-            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.rect(margin, yPos - 5, 3, 8, 'F');
-
-            doc.setFontSize(14);
-            doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-            doc.setFont('helvetica', 'bold');
-            doc.text(title, margin + 5, yPos + 1);
-
-            doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos + 4, pageWidth - margin, yPos + 4);
-            yPos += 15;
-        };
-
-        const drawField = (label, value) => {
-            if (yPos > pageHeight - 20) {
-                doc.addPage();
-                yPos = 25;
-            }
-            doc.setFontSize(10);
-            doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-            doc.setFont('helvetica', 'bold');
-            doc.text(label.toUpperCase(), margin, yPos);
-
-            doc.setTextColor(textMain[0], textMain[1], textMain[2]);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(11);
-
-            const splitValue = doc.splitTextToSize(value || 'N/A', pageWidth - margin - 75);
-            doc.text(splitValue, margin + 65, yPos);
-
-            yPos += (splitValue.length * 6) + 3;
-        };
-
-        const drawSelectedItem = (item) => {
-            if (yPos > pageHeight - 15) {
-                doc.addPage();
-                yPos = 25;
-            }
-            doc.setFontSize(11);
-            doc.setTextColor(textMain[0], textMain[1], textMain[2]);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`\u2022 ${item}`, margin + 5, yPos);
-            yPos += 7;
-        };
-
-        const drawImage = (label, imagePath, x, y, w, h) => {
-            // Always draw label and box frame
-            doc.setFontSize(10);
-            doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-            doc.setFont('helvetica', 'bold');
-            doc.text(label.toUpperCase(), x, y - 2);
-
-            doc.setDrawColor(textLight[0], textLight[1], textLight[2]);
-            doc.setLineWidth(0.1);
-            doc.rect(x, y, w, h); // Draw border for the box
-
-            if (!imagePath) {
-                // Draw placeholder text
-                doc.setFont('helvetica', 'italic');
-                doc.setTextColor(200, 200, 200);
-                doc.text('Pending Upload', x + 5, y + (h / 2));
-                return;
-            }
-
-            try {
-                // Construct absolute path. 
-                // Stored path example: /api/storage/file/uploads/images/file.jpg
-                // We need: public/uploads/images/file.jpg
-
-                let cleanPath = imagePath;
-                if (cleanPath.startsWith('/api/storage/file/')) {
-                    cleanPath = cleanPath.replace('/api/storage/file/', '');
-                } else if (cleanPath.startsWith('/')) {
-                    cleanPath = cleanPath.substring(1);
-                }
-
-                const absolutePath = path.join(process.cwd(), 'public', cleanPath);
-
-                if (fs.existsSync(absolutePath)) {
-                    const imgBuffer = fs.readFileSync(absolutePath);
-                    const imgBase64 = imgBuffer.toString('base64');
-                    const ext = path.extname(absolutePath).substring(1).toUpperCase();
-
-                    doc.addImage(imgBase64, ext === 'JPG' ? 'JPEG' : ext, x + 1, y + 1, w - 2, h - 2);
-                } else {
-                    doc.setFont('helvetica', 'italic');
-                    doc.setTextColor(200, 200, 200);
-                    doc.text('Image File Missing', x + 5, y + (h / 2));
-                }
-            } catch (e) {
-                console.error(`Error drawing image ${label}:`, e);
-                doc.text('[Error]', x + 5, y + 10);
-            }
-        };
+        const drawer = new PDFDrawer(doc);
 
         // --- PAGE 1: Personal Details & Documents ---
-        drawHeader('SERVICE APPLICATION');
-        // --- PAGE 1: Personal Details & Documents ---
-        drawHeader('SERVICE APPLICATION');
-        // Footers will be added at the end
+        drawer.drawHeader('SERVICE APPLICATION');
 
-        drawSectionTitle('Student Personal Information');
+        drawer.drawSectionTitle('Student Personal Information');
         const p = submission.personalDetails || {};
-        drawField('Full Name', p.fullName);
-        drawField('Email Address', p.email);
-        drawField('Mobile / WhatsApp', p.mobile);
-        drawField('Date of Birth', p.dob);
-        drawField('Nationality', p.nationality);
-        drawField('Passport Number', p.passportNumber);
-        drawField('Education', p.education);
-        drawField('Experience', p.workExperience + ' Years');
-        drawField('Current Address', p.currentAddress);
+        drawer.drawField('Full Name', p.fullName);
+        drawer.drawField('Email Address', p.email);
+        drawer.drawField('Mobile / WhatsApp', p.mobile);
+        drawer.drawField('Date of Birth', p.dob);
+        drawer.drawField('Nationality', p.nationality);
+        drawer.drawField('Passport Number', p.passportNumber);
+        drawer.drawField('Education', p.education);
+        drawer.drawField('Experience', p.workExperience + ' Years');
+        drawer.drawField('Current Address', p.currentAddress);
 
-        yPos += 10;
-        drawSectionTitle('Uploaded Documents');
-        const d = submission.documents || {};
+        drawer.yPos += 10;
 
-        // 2x2 Grid Layout
-        // Page width is typically ~210mm. Margin 20. Content width ~170.
-        // Box width ~80. Box height ~50.
+        // --- Uploaded Documents ---
+        // Compact layout: Smaller boxes, tighter gaps
+        const boxW = 75;
+        const boxH = 45;
+        const gap = 5;
 
-        const boxW = 80;
-        const boxH = 55;
-        const gap = 10;
-        const startX = margin;
-
-        // Check space
-        if (yPos + (boxH * 2) + gap > pageHeight - 20) {
+        // Space check for Title + Row 1
+        if (drawer.yPos + 15 + boxH > drawer.pageHeight - 20) {
             doc.addPage();
-            yPos = 25;
+            drawer.yPos = 25;
         }
 
+        drawer.drawSectionTitle('Uploaded Documents');
+        const d = submission.documents || {};
+        const startX = drawer.margin;
+
+        let currentY = drawer.yPos + 5;
+
+        // Draw Images (Fallback to User Model if submission doc is missing)
         // Row 1
-        let currentY = yPos + 5;
-        drawImage('Passport Front', d.passportFront, startX, currentY, boxW, boxH);
-        drawImage('Passport Back', d.passportBack, startX + boxW + gap, currentY, boxW, boxH);
+        await drawImage(doc, 'Passport Front', d.passportFront || userImages.passportFront, startX, currentY, boxW, boxH, drawer.colors);
+        await drawImage(doc, 'Passport Back', d.passportBack || userImages.passportBack, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
+
+        // Row 2 (No page break check - force together)
+        // Draw adjacent to row 1 if width allows? No, stick to 2x2 grid but keep close.
+        // Actually, user said "1 page me hi dekhe". If we want ALL 4 on one line, we need smaller boxes.
+        // 75*4 > PageWidth. 
+        // Let's stick to 2 rows but remove gap between rows.
+
+        // Check if Row 2 fits on same page?
+        // Ideally we just continue drawing.
+
+        // If we really want to fit on same page, we can try to draw Row 2 immediately below.
+        // If it doesn't fit, it will naturally overflow or cut. 
+        // But user asked to "see in 1 page". 
+        // Let's try to fit closely.
 
         // Row 2
-        currentY += boxH + 15;
-        drawImage('Passport Photo', d.passportPhoto, startX, currentY, boxW, boxH);
-        drawImage('Selfie / Human Check', d.selfiePhoto, startX + boxW + gap, currentY, boxW, boxH);
+        currentY += boxH + 5; // minimal vertical gap
 
-        yPos = currentY + boxH + 10;
+        await drawImage(doc, 'Passport Photo', d.passportPhoto || userImages.passportPhoto, startX, currentY, boxW, boxH, drawer.colors);
+        await drawImage(doc, 'Selfie / Human Check', d.selfiePhoto || userImages.selfiePhoto, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
+
+        drawer.yPos = currentY + boxH + 10;
 
         // --- Service Selections ---
-        drawSectionTitle('Service Selection Details');
+        drawer.drawSectionTitle('Service Selection Details');
 
         const s = submission.selections || {};
 
-        // Normalize gulfLicenseCourse to array (it might be a string from Radio button)
         const gulfCourses = Array.isArray(s.gulfLicenseCourse)
             ? s.gulfLicenseCourse
             : (s.gulfLicenseCourse ? [s.gulfLicenseCourse] : []);
 
         if (gulfCourses.length > 0) {
-            drawSectionTitle('Gulf Specialized Courses / Exams');
-            gulfCourses.forEach(ex => drawSelectedItem(ex));
-            yPos += 5;
+            drawer.drawSectionTitle('Gulf Specialized Courses / Exams');
+            gulfCourses.forEach(ex => drawer.drawSelectedItem(ex));
+            drawer.yPos += 5;
         }
 
         if (s.coursePackageType && s.coursePackageType.length > 0) {
-            drawSectionTitle('Selected Package Category');
-            s.coursePackageType.forEach(pk => drawSelectedItem(pk));
-            yPos += 5;
+            drawer.drawSectionTitle('Selected Package Category');
+            s.coursePackageType.forEach(pk => drawer.drawSelectedItem(pk));
+            drawer.yPos += 5;
         }
 
         if (s.servicesSelected && s.servicesSelected.length > 0) {
-            drawSectionTitle('Included Support Services');
-            s.servicesSelected.forEach(sv => drawSelectedItem(sv));
-            yPos += 5;
+            drawer.drawSectionTitle('Included Support Services');
+            s.servicesSelected.forEach(sv => drawer.drawSelectedItem(sv));
+            drawer.yPos += 5;
         }
 
         if (s.otherService && s.otherService.trim() !== '') {
-            drawSectionTitle('Special Requests / Remarks');
-            drawField('Other Details', s.otherService);
+            drawer.drawSectionTitle('Special Requests / Remarks');
+            drawer.drawField('Other Details', s.otherService);
         }
 
         if (s.confirmedPaymentServices && s.confirmedPaymentServices.length > 0) {
-            yPos += 5;
-            drawSectionTitle('Payment Based on Selected Services');
-            s.confirmedPaymentServices.forEach(ps => drawSelectedItem(ps));
-            if (s.otherPayment) drawField('Other Payment Details', s.otherPayment);
-            yPos += 5;
+            drawer.yPos += 5;
+            drawer.drawSectionTitle('Payment Based on Selected Services');
+            s.confirmedPaymentServices.forEach(ps => drawer.drawSelectedItem(ps));
+            if (s.otherPayment) drawer.drawField('Other Payment Details', s.otherPayment);
+            drawer.yPos += 5;
         }
 
         if (s.paymentMethods && s.paymentMethods.length > 0) {
-            drawSectionTitle('Payment Confirmation Method');
-            s.paymentMethods.forEach(pm => drawSelectedItem(pm));
-            yPos += 5;
+            drawer.drawSectionTitle('Payment Confirmation Method');
+            s.paymentMethods.forEach(pm => drawer.drawSelectedItem(pm));
+            drawer.yPos += 5;
         }
 
-        // Service-Wise Payment Terms Declarations
         if (s.paymentTerms) {
-            drawSectionTitle('Service-Wise Payment Terms');
-            if (s.paymentTerms.noAdvanceAccepted) drawSelectedItem('I understand that MD Consultancy does NOT take advance payment.');
-            if (s.paymentTerms.payAsWorkAccepted) drawSelectedItem('I will pay fees only for selected services and work started/completed.');
-            yPos += 5;
+            drawer.drawSectionTitle('Service-Wise Payment Terms');
+            if (s.paymentTerms.noAdvanceAccepted) drawer.drawSelectedItem('I understand that MD Consultancy does NOT take advance payment.');
+            if (s.paymentTerms.payAsWorkAccepted) drawer.drawSelectedItem('I will pay fees only for selected services and work started/completed.');
+            drawer.yPos += 5;
         }
 
         // --- Declarations & Consents ---
-        yPos += 5;
-        // Check if there are declarations to show
+        drawer.yPos += 5;
         const declarations = s.declarations || {};
         const ca = s.clientAcceptance || {};
-
-        const drawWrappedText = (text, indent = 0) => {
-            if (yPos > pageHeight - 15) {
-                doc.addPage();
-                yPos = 25;
-            }
-            doc.setFontSize(10);
-            doc.setTextColor(textMain[0], textMain[1], textMain[2]);
-            doc.setFont('helvetica', 'normal');
-
-            const lines = doc.splitTextToSize(text, pageWidth - margin - margin - indent);
-            doc.text(lines, margin + indent, yPos);
-            yPos += (lines.length * 5) + 3;
-        };
 
         // 1. IMPORTANT NOTE (Static)
         doc.setFontSize(11);
         doc.setTextColor(255, 0, 0);
         doc.setFont('helvetica', 'bold');
-        drawWrappedText('IMPORTANT NOTE');
+        drawer.drawWrappedText('IMPORTANT NOTE');
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(textMain[0], textMain[1], textMain[2]);
-        drawWrappedText('Work/process will start only after MD Consultancy approval and payment confirmation as per selected services.');
-        yPos += 5;
+        doc.setTextColor(drawer.colors.textMain[0], drawer.colors.textMain[1], drawer.colors.textMain[2]);
+        drawer.drawWrappedText('Work/process will start only after MD Consultancy approval and payment confirmation as per selected services.');
+        drawer.yPos += 5;
 
-        // 2. LEGAL DISCLAIMER (Static)
-        drawSectionTitle('LEGAL DISCLAIMER (INDIA COMPLIANCE)');
-        drawWrappedText('MD Consultancy is a private consultancy / coaching & documentation support service provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
-        drawWrappedText('All services are provided on the client\'s request and depend on official rules, portal systems, authority verification, and timelines.');
-        yPos += 5;
+        // 2. LEGAL DISCLAIMER
+        drawer.drawSectionTitle('LEGAL DISCLAIMER (INDIA COMPLIANCE)');
+        drawer.drawWrappedText('MD Consultancy is a private consultancy / coaching & documentation support service provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
+        drawer.drawWrappedText('All services are provided on the client\'s request and depend on official rules, portal systems, authority verification, and timelines.');
+        drawer.yPos += 5;
 
         if (declarations.declarationAccepted || ca.paymentAccordingToWork || ca.thirdPartyFeesSeparate) {
-            drawSectionTitle('CLIENT DECLARATION & TERMS (MANDATORY)');
+            drawer.drawSectionTitle('CLIENT DECLARATION & TERMS (MANDATORY)');
 
             if (declarations.declarationAccepted) {
                 doc.setFont('helvetica', 'bold');
-                drawWrappedText(`I, ${submission.personalDetails?.fullName || '___________________________________________'} (Client Name), confirm that I am voluntarily taking services from MD Consultancy.`);
+                drawer.drawWrappedText(`I, ${submission.personalDetails?.fullName || '___________________________________________'} (Client Name), confirm that I am voluntarily taking services from MD Consultancy.`);
                 doc.setFont('helvetica', 'normal');
 
-                drawWrappedText('Terms & Conditions:', 0);
+                drawer.drawWrappedText('Terms & Conditions:', 0);
 
                 const terms = [
                     '1. I have provided true and genuine documents/information to MD Consultancy.',
@@ -342,60 +205,59 @@ export async function GET(request) {
                     '10. MD Consultancy will maintain confidentiality of my documents and will share them only when required for official processing.',
                 ];
 
-                terms.forEach(term => drawWrappedText(term, 5));
-                yPos += 5;
+                terms.forEach(term => drawer.drawWrappedText(term, 5));
+                drawer.yPos += 5;
             }
 
-            if (ca.paymentAccordingToWork) drawSelectedItem('Accepted: Payment is strictly according to work progress.');
-            if (ca.thirdPartyFeesSeparate) drawSelectedItem('Accepted: Third-party fees (embassy, etc.) are separate.');
-            // Removed redundant summary line
-            yPos += 5;
+            if (ca.paymentAccordingToWork) drawer.drawSelectedItem('Accepted: Payment is strictly according to work progress.');
+            if (ca.thirdPartyFeesSeparate) drawer.drawSelectedItem('Accepted: Third-party fees (embassy, etc.) are separate.');
+            drawer.yPos += 5;
         }
 
         if (declarations.dataPrivacy) {
-            drawSectionTitle('Data Privacy & Digital Consent');
-            if (declarations.digitalConsent?.confirmed) drawSelectedItem('Confirmed: Digital Signature is valid.');
-            if (declarations.digitalConsent?.validTreat) drawSelectedItem('Accepted: E-Sign treated as physical signature.');
-            if (declarations.dataPrivacy?.collectionAuth) drawSelectedItem('Authorized: Data collection for processing.');
-            if (declarations.dataPrivacy?.shareAuth) drawSelectedItem('Authorized: Sharing data with relevant authorities.');
-            yPos += 5;
+            drawer.drawSectionTitle('Data Privacy & Digital Consent');
+            if (declarations.digitalConsent?.confirmed) drawer.drawSelectedItem('Confirmed: Digital Signature is valid.');
+            if (declarations.digitalConsent?.validTreat) drawer.drawSelectedItem('Accepted: E-Sign treated as physical signature.');
+            if (declarations.dataPrivacy?.collectionAuth) drawer.drawSelectedItem('Authorized: Data collection for processing.');
+            if (declarations.dataPrivacy?.shareAuth) drawer.drawSelectedItem('Authorized: Sharing data with relevant authorities.');
+            drawer.yPos += 5;
         }
 
         if (declarations.refundPolicy) {
-            drawSectionTitle('Refund Policy Acknowledgement');
-            if (declarations.refundPolicy.startedNonRefundable) drawSelectedItem('Understood: Fees non-refundable once work starts.');
-            if (declarations.refundPolicy.cancelNoRefund) drawSelectedItem('Understood: No refund on cancellation.');
-            if (declarations.refundPolicy.thirdPartyNonRefundable) drawSelectedItem('Understood: Third-party fees are non-refundable.');
-            yPos += 5;
+            drawer.drawSectionTitle('Refund Policy Acknowledgement');
+            if (declarations.refundPolicy.startedNonRefundable) drawer.drawSelectedItem('Understood: Fees non-refundable once work starts.');
+            if (declarations.refundPolicy.cancelNoRefund) drawer.drawSelectedItem('Understood: No refund on cancellation.');
+            if (declarations.refundPolicy.thirdPartyNonRefundable) drawer.drawSelectedItem('Understood: Third-party fees are non-refundable.');
+            drawer.yPos += 5;
         }
 
         if (declarations.thirdPartyDisclaimer) {
-            drawSectionTitle('Third-Party Disclaimer');
-            if (declarations.thirdPartyDisclaimer.govtDecision) drawSelectedItem('Understood: Authority decisions are final.');
-            if (declarations.thirdPartyDisclaimer.consultancyLiability) drawSelectedItem('Understood: Consultancy not liable for delays.');
-            yPos += 5;
+            drawer.drawSectionTitle('Third-Party Disclaimer');
+            if (declarations.thirdPartyDisclaimer.govtDecision) drawer.drawSelectedItem('Understood: Authority decisions are final.');
+            if (declarations.thirdPartyDisclaimer.consultancyLiability) drawer.drawSelectedItem('Understood: Consultancy not liable for delays.');
+            drawer.yPos += 5;
         }
 
         if (declarations.finalConfirmation) {
-            drawSectionTitle('Final Confirmation');
-            if (declarations.finalConfirmation['readAll ']) drawSelectedItem('Confirmed: I have read all terms and conditions.'); // Note space key
-            if (declarations.finalConfirmation.authorizeStart) drawSelectedItem('Authorized: Start processing application.');
-            yPos += 5;
+            drawer.drawSectionTitle('Final Confirmation');
+            if (declarations.finalConfirmation['readAll ']) drawer.drawSelectedItem('Confirmed: I have read all terms and conditions.');
+            if (declarations.finalConfirmation.authorizeStart) drawer.drawSelectedItem('Authorized: Start processing application.');
+            drawer.yPos += 5;
         }
-        yPos += 5;
-        yPos += 5;
-        drawSectionTitle('Payment Authorization');
+        drawer.yPos += 5;
+        drawer.yPos += 5;
+        drawer.drawSectionTitle('Payment Authorization');
 
         doc.setFontSize(10);
-        doc.setTextColor(textMain[0], textMain[1], textMain[2]);
-        drawSelectedItem('I acknowledge that MD Consultancy does not accept any advance payment.');
-        drawSelectedItem('I agree to proceed with the services as per the discussed milestones.');
-        drawField('Payment Mode', s.paymentMethod || 'Selected by Consultant');
+        doc.setTextColor(drawer.colors.textMain[0], drawer.colors.textMain[1], drawer.colors.textMain[2]);
+        drawer.drawSelectedItem('I acknowledge that MD Consultancy does not accept any advance payment.');
+        drawer.drawSelectedItem('I agree to proceed with the services as per the discussed milestones.');
+        drawer.drawField('Payment Mode', s.paymentMethod || 'Selected by Consultant');
 
-        yPos += 10;
+        drawer.yPos += 10;
 
         // Stamp and Signature Area
-        drawSectionTitle('Digital Verification & Approval');
+        drawer.drawSectionTitle('Digital Verification & Approval');
         const sig = submission.signature || {};
 
         // Draw Stamp
@@ -404,67 +266,43 @@ export async function GET(request) {
             if (fs.existsSync(stampPath)) {
                 const stampBuffer = fs.readFileSync(stampPath);
                 const stampBase64 = stampBuffer.toString('base64');
-                doc.addImage(stampBase64, 'JPEG', pageWidth - 70, yPos, 45, 45);
+                doc.addImage(stampBase64, 'JPEG', drawer.pageWidth - 70, drawer.yPos, 45, 45);
             }
         } catch (e) {
             console.error('Stamp embed error:', e);
         }
 
         doc.setFontSize(11);
-        doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-        doc.text('CLIENT DIGITAL SIGNATURE:', margin, yPos + 10);
+        doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
+        doc.setFontSize(11);
+        doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
+        doc.text('CLIENT DIGITAL SIGNATURE:', drawer.margin, drawer.yPos + 10);
 
-        // Draw Client Signature Image
-        if (sig.signatureImage) {
-            try {
-                let cleanSigPath = sig.signatureImage;
-                if (cleanSigPath.startsWith('/api/storage/file/')) {
-                    cleanSigPath = cleanSigPath.replace('/api/storage/file/', '');
-                } else if (cleanSigPath.startsWith('/')) {
-                    cleanSigPath = cleanSigPath.substring(1);
-                }
-
-                const absSigPath = path.join(process.cwd(), 'public', cleanSigPath);
-
-                if (fs.existsSync(absSigPath)) {
-                    const sigBuffer = fs.readFileSync(absSigPath);
-                    const sigBase64 = sigBuffer.toString('base64');
-                    const sigExt = path.extname(absSigPath).substring(1).toUpperCase();
-                    doc.addImage(sigBase64, sigExt === 'JPG' ? 'JPEG' : sigExt, margin, yPos + 15, 60, 30);
-                }
-            } catch (e) {
-                console.error('Signature embed error:', e);
-            }
+        // Draw Client Signature Image (Async)
+        const signatureToUse = sig.signatureImage || userImages.signatureImage;
+        if (signatureToUse) {
+            // Moved down to +25 for more gap from label
+            await drawImage(doc, 'Client Signature', signatureToUse, drawer.margin, drawer.yPos + 25, 60, 30, drawer.colors);
         }
 
         doc.setFont('courier', 'bolditalic');
         doc.setFontSize(12);
-        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.text(sig.clientName || 'AUTHORIZED SIGNATORY', margin, yPos + 50);
+        doc.setTextColor(drawer.colors.secondary[0], drawer.colors.secondary[1], drawer.colors.secondary[2]);
+        // Increased gap: Image ends at +55, Name at +70 (15 units gap)
+        doc.text(sig.clientName || 'AUTHORIZED SIGNATORY', drawer.margin, drawer.yPos + 70);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-        doc.text(`Submission Date: ${sig.date ? new Date(sig.date).toLocaleDateString('en-GB') : 'N/A'}`, margin, yPos + 35);
-        doc.text(`Filing Location: ${sig.place || 'Registered Address'}`, margin, yPos + 42);
-
-        // Verification Badge
-        doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.setLineWidth(0.8);
-        doc.setFillColor(245, 255, 235); // Very light green
-        doc.rect(margin, yPos + 60, pageWidth - (margin * 2), 22, 'FD');
-
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.setFontSize(13);
-        doc.setFont('helvetica', 'bold');
-
-        doc.text('CERTIFIED DIGITAL AUTHENTICATION BY MD CONSULTANCY', pageWidth / 2, yPos + 74, { align: 'center' });
+        doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
+        // Moved Date and Location below the name
+        doc.text(`Submission Date: ${sig.date ? new Date(sig.date).toLocaleDateString('en-GB') : 'N/A'}`, drawer.margin, drawer.yPos + 78);
+        doc.text(`Filing Location: ${sig.place || 'Registered Address'}`, drawer.margin, drawer.yPos + 85);
 
         // --- Finalize: Add Footers to All Pages ---
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
-            drawFooter(i);
+            drawer.drawFooter(i);
         }
 
         const pdfOutput = doc.output('arraybuffer');

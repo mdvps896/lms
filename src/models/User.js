@@ -175,6 +175,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // E-Sign Images (Fallback/Storage)
+  esign_images: {
+    passportFront: { type: String, default: null },
+    passportBack: { type: String, default: null },
+    passportPhoto: { type: String, default: null },
+    selfiePhoto: { type: String, default: null },
+    signatureImage: { type: String, default: null }
+  },
 }, {
   timestamps: true,
   strict: false  // Allow additional fields
