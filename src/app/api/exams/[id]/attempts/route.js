@@ -25,9 +25,12 @@ export async function GET(request, { params }) {
 
         // Format the attempts
         const formattedAttempts = allAttempts.map(attempt => {
-            const duration = attempt.submittedAt && attempt.startedAt
-                ? Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 60000)
-                : 0;
+            let duration = 0;
+            if (attempt.timeTaken) {
+                duration = Math.floor(attempt.timeTaken / 60);
+            } else if (attempt.submittedAt && attempt.startedAt) {
+                duration = Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 60000);
+            }
 
             // Get recording paths - handle both array and object format
             let cameraVideo = null;

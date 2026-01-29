@@ -98,7 +98,7 @@ export async function POST(request) {
             if (activeExamAttempt) {
                 // Update the attempt to active status
                 activeExamAttempt.status = 'active'
-                activeExamAttempt.startTime = now
+                activeExamAttempt.startedAt = now
                 activeExamAttempt.endTime = new Date(now.getTime() + exam.duration * 60 * 1000)
                 await activeExamAttempt.save()
             }
@@ -109,7 +109,7 @@ export async function POST(request) {
             return NextResponse.json({
                 session: {
                     token: activeExamAttempt.sessionToken,
-                    startTime: activeExamAttempt.startTime,
+                    startedAt: activeExamAttempt.startedAt,
                     examId: exam._id
                 },
                 attemptId: activeExamAttempt._id,
@@ -135,7 +135,7 @@ export async function POST(request) {
             exam: examId,
             user: userId,
             sessionToken,
-            startTime: now,
+            startedAt: now,
             endTime,
             status: 'active',
             answers: []
@@ -147,7 +147,7 @@ export async function POST(request) {
         const newAttempt = {
             userId,
             sessionToken,
-            startTime: now,
+            startedAt: now,
             endTime,
             status: 'active',
             ipAddress,
@@ -176,7 +176,7 @@ export async function POST(request) {
         return NextResponse.json({
             session: {
                 token: sessionToken,
-                startTime: now,
+                startedAt: now,
                 examId
             },
             attemptId: examAttempt._id,

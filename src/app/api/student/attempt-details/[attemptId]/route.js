@@ -191,8 +191,8 @@ export async function GET(request, { params }) {
         });
 
         // Calculate time taken
-        let timeTaken = null;
-        if (attempt.submittedAt && attempt.startedAt) {
+        let timeTaken = attempt.timeTaken || null;
+        if (!timeTaken && attempt.submittedAt && attempt.startedAt) {
             try {
                 timeTaken = Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 1000);
             } catch (e) {

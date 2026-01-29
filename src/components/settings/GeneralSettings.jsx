@@ -1,11 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiRefreshCw, FiUpload, FiUser, FiMail, FiPhone, FiGlobe, FiBell, FiImage, FiEdit3, FiType, FiSettings, FiBarChart } from 'react-icons/fi';
+import { FiSave, FiRefreshCw, FiUpload, FiUser, FiMail, FiPhone, FiGlobe, FiBell, FiImage, FiEdit3, FiType, FiSettings, FiBarChart, FiLink } from 'react-icons/fi';
 import { useAuth } from '@/contexts/AuthContext';
 
 const GeneralSettings = ({ settings, onUpdate, saving }) => {
     const { user } = useAuth();
-    
+
     const [formData, setFormData] = useState({
         adminName: '',
         contactEmail: '',
@@ -48,7 +48,7 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
             }));
         }
     }, [settings, user]);
-    
+
     // Update form data when user changes
     useEffect(() => {
         if (user) {
@@ -185,6 +185,21 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
                 </div>
 
                 <div className="col-12">
+                    <label className="form-label">
+                        <FiLink className="me-1" /> Mobile App Link (For Sharing)
+                    </label>
+                    <input
+                        type="url"
+                        name="appLink"
+                        className="form-control"
+                        value={formData.appLink || ''}
+                        onChange={handleInputChange}
+                        placeholder="https://play.google.com/store/apps/details?id=..."
+                    />
+                    <small className="text-muted">This link will be appended to course shares.</small>
+                </div>
+
+                <div className="col-12">
                     <div className="form-check">
                         <input
                             type="checkbox"
@@ -267,8 +282,8 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
                                 src={formData.siteLogo}
                                 alt="Site Logo Preview"
                                 className="img-thumbnail"
-                                style={{ 
-                                    width: `${formData.siteLogoWidth}px`, 
+                                style={{
+                                    width: `${formData.siteLogoWidth}px`,
                                     height: `${formData.siteLogoHeight}px`,
                                     objectFit: 'contain'
                                 }}
@@ -337,8 +352,8 @@ const GeneralSettings = ({ settings, onUpdate, saving }) => {
                                 src={formData.siteSmallLogo}
                                 alt="Small Logo Preview"
                                 className="img-thumbnail"
-                                style={{ 
-                                    width: `${formData.siteSmallLogoWidth}px`, 
+                                style={{
+                                    width: `${formData.siteSmallLogoWidth}px`,
                                     height: `${formData.siteSmallLogoHeight}px`,
                                     objectFit: 'contain'
                                 }}

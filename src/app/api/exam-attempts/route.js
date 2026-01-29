@@ -126,6 +126,11 @@ export async function POST(req) {
 
         // Create exam attempt
         try {
+            const submittedAt = new Date();
+            const timeTakenSec = Number(timeTaken) || 0;
+            // Subtract time taken from submission time to get approximate start time
+            const startedAt = new Date(submittedAt.getTime() - (timeTakenSec * 1000));
+
             const examAttempt = await ExamAttempt.create({
                 user: currentUserId,
                 exam: examId,
@@ -134,10 +139,11 @@ export async function POST(req) {
                 score: calculatedScore,
                 totalMarks: totalExamMarks,
                 percentage,
-                timeTaken: Number(timeTaken) || 0,
+                timeTaken: timeTakenSec,
                 passed: passed,
                 status: 'submitted',
-                submittedAt: new Date(),
+                startedAt: startedAt,
+                submittedAt: submittedAt,
             });
 
             return NextResponse.json({

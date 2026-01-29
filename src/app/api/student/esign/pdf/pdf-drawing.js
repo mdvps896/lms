@@ -48,7 +48,14 @@ export class PDFDrawer {
             this.doc.rect(0, 0, this.pageWidth, 40, 'F');
             this.doc.text(title || 'SERVICE APPLICATION', this.pageWidth / 2, 25, { align: 'center' });
         }
-        this.yPos = 55;
+
+        // Add Subtitle
+        this.doc.setFontSize(16);
+        this.doc.setTextColor(this.colors.secondary[0], this.colors.secondary[1], this.colors.secondary[2]);
+        this.doc.setFont('helvetica', 'bold');
+        this.doc.text('DIGITAL CONSENT & AUTHORIZATION FORM', this.pageWidth / 2, 50, { align: 'center' });
+
+        this.yPos = 65;
     }
 
     drawFooter(pageNum) {
@@ -99,10 +106,27 @@ export class PDFDrawer {
             this.doc.addPage();
             this.yPos = 25;
         }
+
+        // Draw Green Checkbox
+        const boxSize = 4;
+        const x = this.margin + 5;
+        const y = this.yPos - boxSize + 1; // Align box with text baseline approx
+
+        this.doc.setFillColor(this.colors.primary[0], this.colors.primary[1], this.colors.primary[2]);
+        this.doc.rect(x, y, boxSize, boxSize, 'F'); // Filled green square
+
+        // Draw White Checkmark
+        this.doc.setDrawColor(255, 255, 255);
+        this.doc.setLineWidth(0.4);
+        this.doc.line(x + 0.8, y + 2, x + 1.6, y + 2.8); // Short leg
+        this.doc.line(x + 1.6, y + 2.8, x + 3.2, y + 0.8); // Long leg
+
+        // Draw Text
         this.doc.setFontSize(11);
         this.doc.setTextColor(this.colors.textMain[0], this.colors.textMain[1], this.colors.textMain[2]);
-        this.doc.setFont('helvetica', 'normal');
-        this.doc.text(`\u2022 ${item}`, this.margin + 5, this.yPos);
+        this.doc.setFont('helvetica', 'bold');
+
+        this.doc.text(item, x + boxSize + 3, this.yPos);
         this.yPos += 7;
     }
 

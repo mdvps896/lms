@@ -59,6 +59,7 @@ const settingsSchema = new mongoose.Schema({
         adminName: { type: String, default: 'Administrator' },
         contactEmail: { type: String, default: '' },
         phoneNumber: { type: String, default: '' },
+        appLink: { type: String, default: '' }, // Added App Link
         timeZone: { type: String, default: 'UTC' },
         emailNotifications: { type: Boolean, default: true },
         siteLogo: { type: String, default: '/images/logo-full.png' },

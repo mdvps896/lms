@@ -17,7 +17,8 @@ const ESignSubmissionSchema = new mongoose.Schema({
         aadhaarNumber: String,
         education: String,
         workExperience: String,
-        currentAddress: String
+        currentAddress: String,
+        rollNumber: String
     },
     documents: {
         passportFront: String,

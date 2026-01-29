@@ -60,6 +60,7 @@ export async function GET(request) {
         drawer.drawField('Education', p.education);
         drawer.drawField('Experience', p.workExperience + ' Years');
         drawer.drawField('Current Address', p.currentAddress);
+        drawer.drawField('Roll Number', p.rollNumber || 'N/A');
 
         drawer.yPos += 10;
 
@@ -297,6 +298,23 @@ export async function GET(request) {
         // Moved Date and Location below the name
         doc.text(`Submission Date: ${sig.date ? new Date(sig.date).toLocaleDateString('en-GB') : 'N/A'}`, drawer.margin, drawer.yPos + 78);
         doc.text(`Filing Location: ${sig.place || 'Registered Address'}`, drawer.margin, drawer.yPos + 85);
+
+        // Add Approval Footer Text
+        // Draw Disclaimer Text below Stamp (No Box, Black Text)
+        const boxX = drawer.pageWidth - 70;
+        const boxY = drawer.yPos + 55;
+        const footerBoxW = 50;
+
+        // Removed Red Box
+        // doc.setDrawColor(255, 0, 0); 
+        // doc.rect(boxX, boxY, footerBoxW, footerBoxH);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 0, 0); // Black Text
+
+        const footerText = "This document is electronically signed and approved by MD Consultancy and does not require a physical signature.";
+        doc.text(footerText, boxX + 2, boxY + 5, { maxWidth: footerBoxW - 4, align: 'left' });
 
         // --- Finalize: Add Footers to All Pages ---
         const totalPages = doc.internal.getNumberOfPages();

@@ -55,10 +55,10 @@ export async function GET(request, { params }) {
         }
 
         // Calculate time taken
-        let timeTaken = null;
-        if (attempt.startTime && attempt.endTime) {
+        let timeTaken = attempt.timeTaken; // Using stored value (seconds)
+        if (!timeTaken && attempt.startTime && attempt.endTime) {
             const timeDiff = new Date(attempt.endTime) - new Date(attempt.startTime);
-            timeTaken = Math.floor(timeDiff / 1000 / 60); // in minutes
+            timeTaken = Math.floor(timeDiff / 1000); // in seconds
         }
 
         // Build result object
@@ -66,8 +66,8 @@ export async function GET(request, { params }) {
             attemptId: attempt._id,
             score: attempt.score || 0,
             totalMarks: attempt.totalMarks || 0,
-            percentage: attempt.totalMarks > 0 
-                ? ((attempt.score || 0) / attempt.totalMarks) * 100 
+            percentage: attempt.totalMarks > 0
+                ? ((attempt.score || 0) / attempt.totalMarks) * 100
                 : 0,
             status: attempt.status,
             submittedAt: attempt.submittedAt,

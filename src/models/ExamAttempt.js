@@ -26,6 +26,10 @@ const examAttemptSchema = new mongoose.Schema({
     submittedAt: {
         type: Date
     },
+    timeTaken: {
+        type: Number, // in seconds
+        default: 0
+    },
     status: {
         type: String,
         enum: ['active', 'submitted', 'expired', 'terminated'],
