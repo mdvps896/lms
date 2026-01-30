@@ -30,8 +30,7 @@ export default function CourseFormModal({ course, onClose, onSave }) {
         language: 'English',
         readingDurationValue: 0,
         readingDurationUnit: 'hours',
-        status: 'draft',
-        isActive: true
+        status: 'active'
     });
 
     useEffect(() => {
@@ -66,8 +65,7 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                         language: course.language || 'English',
                         readingDurationValue: course.readingDuration?.value || 0,
                         readingDurationUnit: course.readingDuration?.unit || 'hours',
-                        status: course.status || 'draft',
-                        isActive: course.isActive !== undefined ? course.isActive : true
+                        status: course.status || 'active'
                     });
                 }
             } catch (err) {
@@ -462,32 +460,17 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                             </div>
 
                             <div className="row">
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label">Publication Status</label>
+                                <div className="col-md-12 mb-3">
+                                    <label className="form-label">Course Status</label>
                                     <select
                                         className="form-select"
                                         value={formData.status}
                                         onChange={e => setFormData({ ...formData, status: e.target.value })}
                                     >
-                                        <option value="draft">Draft</option>
-                                        <option value="published">Published</option>
-                                        <option value="archived">Archived</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
                                     </select>
-                                    <small className="text-muted">Only 'Published' courses appear in the app</small>
-                                </div>
-                                <div className="col-md-6 mb-3 d-flex align-items-end">
-                                    <div className="form-check form-switch mb-2">
-                                        <input
-                                            className="form-check-input"
-                                            type="checkbox"
-                                            id="isActiveSwitch"
-                                            checked={formData.isActive}
-                                            onChange={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                                        />
-                                        <label className="form-check-label" htmlFor="isActiveSwitch">
-                                            {formData.isActive ? 'Active' : 'Inactive'}
-                                        </label>
-                                    </div>
+                                    <small className="text-muted">Only 'Active' courses appear in the app</small>
                                 </div>
                             </div>
 

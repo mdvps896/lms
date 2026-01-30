@@ -11,7 +11,7 @@ import AddStudentModal from './AddStudentModal'
 import EditStudentModal from './EditStudentModal'
 import ViewStudentModal from './ViewStudentModal'
 
-const StudentList = () => {
+const StudentList = ({ onDelete }) => {
     const [students, setStudents] = useState([])
     const [filteredStudents, setFilteredStudents] = useState([])
     const [loading, setLoading] = useState(true)
@@ -236,6 +236,7 @@ const StudentList = () => {
                 }
 
                 loadStudents()
+                if (onDelete) onDelete()
                 setSelectedStudentsList([])
                 Swal.fire('Deleted!', `${successCount} students removed.`, 'success')
             } catch (error) {
@@ -336,6 +337,7 @@ const StudentList = () => {
 
                 if (data.success) {
                     loadStudents()
+                    if (onDelete) onDelete()
 
                     Swal.fire({
                         icon: 'success',

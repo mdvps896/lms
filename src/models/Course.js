@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+if (process.env.NODE_ENV !== 'production') {
+    delete mongoose.models.Course;
+}
+
 const lectureSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -124,14 +128,10 @@ const courseSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    isActive: {
-        type: Boolean,
-        default: true,
-    },
     status: {
         type: String,
-        enum: ['active', 'draft', 'archived', 'published'],
-        default: 'draft'
+        enum: ['active', 'inactive'],
+        default: 'active'
     },
     language: {
         type: String,
@@ -158,10 +158,5 @@ courseSchema.virtual('rating').get(function () {
     const sum = this.ratings.reduce((acc, r) => acc + r.rating, 0);
     return (sum / this.ratings.length).toFixed(1);
 });
-
-// Force model rebuild in dev to handle schema changes (like adding 'subjects')
-if (process.env.NODE_ENV !== 'production') {
-    delete mongoose.models.Course;
-}
 
 export default mongoose.models.Course || mongoose.model('Course', courseSchema);

@@ -14,9 +14,15 @@ export async function GET(request) {
         // Fetch courses with populated data
         let query = {};
         if (format !== 'admin') {
-            query.status = 'published';
-            query.isActive = true;
+            // Only show courses that are explicitly 'active'
+            query.status = 'active';
         }
+
+        // Migration/Sanitization: Consolidate legacy status/isActive to new status system
+        await Course.updateMany({ $or: [{ status: 'published' }, { status: 'draft' }, { isActive: true }] }, { $set: { status: 'active' } });
+        await Course.updateMany({ status: 'archived' }, { $set: { status: 'inactive' } });
+        // Clean up: Remove isActive field from all documents as it's no longer in schema
+        await Course.updateMany({}, { $unset: { isActive: "" } });
 
         const courses = await Course.find(query)
             .populate('category', 'name')

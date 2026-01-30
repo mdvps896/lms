@@ -15,18 +15,23 @@ export async function GET(request) {
         const isPublished = searchParams.get('isPublished')
 
         let query = {}
-        if (status && status !== 'all') {
-            query.status = status
+
+        if (format === 'admin') {
+            // Admin filtering
+            if (status && status !== 'all') {
+                query.status = status
+            }
+            if (isPublished !== null) {
+                query.isPublished = isPublished === 'true'
+            }
+        } else {
+            // Student filtering - only show live content
+            // Be more lenient to handle legacy records where fields might be missing
+            query.status = { $ne: 'inactive' }
+            query.isPublished = { $ne: false }
         }
 
-        if (format !== 'admin') {
-            query.isPublished = true
-            query.status = 'active'
-        } else if (isPublished !== null) {
-            query.isPublished = isPublished === 'true'
-        }
-
-        const categories = await Category.find(query).sort({ createdAt: -1 })
+        const categories = await Category.find(query).sort({ name: 1 })
 
         return NextResponse.json({
             success: true,

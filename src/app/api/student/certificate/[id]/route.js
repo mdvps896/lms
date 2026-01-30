@@ -89,20 +89,7 @@ export async function GET(request, { params }) {
         drawCorner(12, height - 12, 1, -1); // Bottom Left
         drawCorner(width - 12, height - 12, -1, -1); // Bottom Right
 
-        // --- WATERMARK (Added) ---
-        // Text Watermark: "MD CONSULTANCY"
-        try {
-            doc.saveGraphicsState();
-            doc.setGState(new doc.GState({ opacity: 0.2 })); // 10% opacity
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(110);
-            doc.setTextColor(220, 220, 220);
-            // Corrected Y from 300 to 110 (center of A4 page)
-            doc.text("MD CONSULTANCY", width / 2, 110, { align: "center", angle: 45 });
-            doc.restoreGraphicsState();
-        } catch (e) {
-            console.error("Error adding watermark:", e);
-        }
+
 
 
         // --- HEADER SECTION ---
@@ -122,8 +109,8 @@ export async function GET(request, { params }) {
             const ext = logoPath.split('.').pop().toUpperCase();
             const fmt = (ext === 'PNG' || ext === 'WEBP') ? ext : 'JPEG';
 
-            // Top Logo - Scale down
-            const logoSize = 20; // Increased from 14
+            // Top Logo - Scale up
+            const logoSize = 28; // Reduced from 35 as per request
             const logoX = (width / 2) - (logoSize / 2);
             const logoY = y;
             const radius = logoSize / 2;
@@ -137,6 +124,15 @@ export async function GET(request, { params }) {
                     doc.addImage(logoBuffer, fmt, (width / 2) - 25, y, 50, 16);
                 } catch (e2) { }
             }
+            try {
+                // Background Logo Watermark
+                doc.saveGraphicsState();
+                doc.setGState(new doc.GState({ opacity: 0.05 }));
+                const wLogoSize = 80;
+                doc.addImage(logoBuffer, fmt, (width / 2) - (wLogoSize / 2), (height / 2) - (wLogoSize / 2), wLogoSize, wLogoSize, undefined, 'FAST');
+                doc.restoreGraphicsState();
+            } catch (e) { }
+
             y += (logoSize + 5);
         }
 
@@ -150,7 +146,7 @@ export async function GET(request, { params }) {
         // doc.text("MOH DHA COACHING CENTER", width / 2, y, { align: "center" });
 
         // --- CERTIFICATE TITLE (Row 2) ---
-        y += 20;
+        y += 10; // Adjusted for larger logo
         doc.setFontSize(38);
         doc.setFont("times", "bold");
         doc.setTextColor(...colors.gold);
@@ -202,7 +198,7 @@ export async function GET(request, { params }) {
         y += 6;
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(...colors.gold);
+        doc.setTextColor(...colors.navy);
         doc.text("(DHA • HAAD • MOH • PROMETRIC) DUBAI / UAE JOB ASSISTANCE", width / 2, y, { align: "center" });
 
 
@@ -265,7 +261,7 @@ export async function GET(request, { params }) {
         if (sealImageBuffer) {
             const ext = useStamp ? 'JPEG' : logoPath.split('.').pop().toUpperCase();
             const fmt = (ext === 'PNG' || ext === 'WEBP') ? ext : 'JPEG';
-            const sealImgSize = 35; // Increased from 22
+            const sealImgSize = 28; // Reduced from 35 as per request
             const imgX = sealX - (sealImgSize / 2);
             const imgY = optimizedSealY - (sealImgSize / 2);
 

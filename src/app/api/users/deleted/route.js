@@ -9,6 +9,20 @@ export async function GET(request) {
     try {
         await dbConnect();
 
+        const { searchParams } = new URL(request.url);
+        const countOnly = searchParams.get('count') === 'true';
+
+        if (countOnly) {
+            const count = await User.countDocuments({
+                role: 'student',
+                isDeleted: true
+            });
+            return NextResponse.json({
+                success: true,
+                count
+            });
+        }
+
         // Find all users with role 'student' and isDeleted: true
         const deletedStudents = await User.find({
             role: 'student',

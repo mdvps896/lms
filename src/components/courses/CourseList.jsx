@@ -221,8 +221,8 @@ const CourseList = () => {
                                             </td>
                                             <td>{course.duration?.value || '-'} {course.duration?.unit || ''}</td>
                                             <td>
-                                                <span className={`badge ${course.isActive ? 'bg-success' : 'bg-secondary'}`}>
-                                                    {course.isActive ? 'Active' : 'Inactive'}
+                                                <span className={`badge ${course.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                                    {course.status ? (course.status.charAt(0).toUpperCase() + course.status.slice(1)) : 'Inactive'}
                                                 </span>
                                             </td>
                                             <td>

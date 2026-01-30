@@ -11,6 +11,23 @@ import ProtectedRoute from '@/components/shared/ProtectedRoute'
 const StudentsPage = () => {
     const [showDeletedModal, setShowDeletedModal] = React.useState(false);
     const [refreshKey, setRefreshKey] = React.useState(0); // To trigger list refresh
+    const [deletedCount, setDeletedCount] = React.useState(0);
+
+    React.useEffect(() => {
+        fetchDeletedCount();
+    }, [refreshKey]);
+
+    const fetchDeletedCount = async () => {
+        try {
+            const res = await fetch('/api/users/deleted?count=true');
+            const data = await res.json();
+            if (data.success) {
+                setDeletedCount(data.count);
+            }
+        } catch (error) {
+            console.error('Error fetching deleted count:', error);
+        }
+    };
 
     return (
         <ProtectedRoute>
@@ -31,11 +48,16 @@ const StudentsPage = () => {
                         <div className="page-header-right ms-auto">
                             <div className="page-header-right-items">
                                 <button
-                                    className="btn btn-danger d-flex align-items-center gap-2"
+                                    className="btn btn-danger d-flex align-items-center gap-2 position-relative"
                                     onClick={() => setShowDeletedModal(true)}
                                 >
                                     <i className="feather-trash-2"></i>
                                     <span>Recycle Bin</span>
+                                    {deletedCount > 0 && (
+                                        <span className="badge bg-white text-danger rounded-pill ms-1" style={{ fontSize: '10px' }}>
+                                            {deletedCount}
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -44,7 +66,10 @@ const StudentsPage = () => {
                     <div className="main-content">
                         <div className="row">
                             <div className="col-lg-12">
-                                <StudentList key={refreshKey} />
+                                <StudentList
+                                    key={refreshKey}
+                                    onDelete={fetchDeletedCount}
+                                />
                             </div>
                         </div>
                     </div>
