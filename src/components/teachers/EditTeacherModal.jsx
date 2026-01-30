@@ -9,7 +9,9 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
         email: '',
         phone: '',
         status: 'active',
-        category: ''
+        category: '',
+        permissions: [],
+        accessScope: 'own'
     })
     const [loading, setLoading] = useState(false)
     const [categories, setCategories] = useState([])
@@ -48,7 +50,9 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                     email: data.data.email,
                     phone: data.data.phone || '',
                     status: data.data.status || 'active',
-                    category: data.data.category?._id || data.data.category || ''
+                    category: data.data.category?._id || data.data.category || '',
+                    permissions: data.data.permissions || [],
+                    accessScope: data.data.accessScope || 'own'
                 })
             }
         } catch (error) {
@@ -57,14 +61,16 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                 email: teacher.email,
                 phone: teacher.phone || '',
                 status: teacher.status || 'active',
-                category: ''
+                category: '',
+                permissions: [],
+                accessScope: 'own'
             })
         }
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        
+
         if (!formData.name || !formData.email) {
             Swal.fire({
                 icon: 'error',
@@ -86,7 +92,9 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                     email: formData.email,
                     phone: formData.phone,
                     status: formData.status,
-                    category: formData.category || null
+                    category: formData.category || null,
+                    permissions: formData.permissions || [],
+                    accessScope: formData.accessScope
                 }),
             })
 
@@ -189,6 +197,59 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                                     <option value="inactive">Inactive</option>
                                     <option value="suspended">Suspended</option>
                                 </select>
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Access Scope</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.accessScope || 'own'}
+                                    onChange={(e) => setFormData({ ...formData, accessScope: e.target.value })}
+                                >
+                                    <option value="own">Manage Own (Created by me)</option>
+                                    <option value="global">Global Access (Manage All)</option>
+                                </select>
+                                <small className="text-muted">
+                                    'Manage Own' restricts teacher to their own content. 'Global Access' allows managing all content (subject to permissions).
+                                </small>
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label d-block">Permissions</label>
+                                <div className="row g-2">
+                                    {[
+                                        { id: 'manage_students', label: 'Manage Students' },
+                                        { id: 'manage_exams', label: 'Manage Exams' },
+                                        { id: 'manage_courses', label: 'Manage Courses' },
+                                        { id: 'manage_questions', label: 'Manage Question Bank' },
+                                        { id: 'view_analytics', label: 'View Analytics' },
+                                        { id: 'manage_live_exams', label: 'Manage Live Exams' },
+                                        { id: 'manage_content', label: 'Manage Content' },
+                                        { id: 'manage_storage', label: 'Manage Storage' },
+                                    ].map((perm) => (
+                                        <div className="col-md-6" key={perm.id}>
+                                            <div className="form-check">
+                                                <input
+                                                    className="form-check-input"
+                                                    type="checkbox"
+                                                    id={`perm-${perm.id}`}
+                                                    checked={formData.permissions?.includes(perm.id)}
+                                                    onChange={(e) => {
+                                                        const currentPerms = formData.permissions || [];
+                                                        if (e.target.checked) {
+                                                            setFormData({ ...formData, permissions: [...currentPerms, perm.id] });
+                                                        } else {
+                                                            setFormData({ ...formData, permissions: currentPerms.filter(p => p !== perm.id) });
+                                                        }
+                                                    }}
+                                                />
+                                                <label className="form-check-label" htmlFor={`perm-${perm.id}`}>
+                                                    {perm.label}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                         <div className="modal-footer">

@@ -7,7 +7,7 @@ import QuestionGroup from '../../../models/QuestionGroup';
 import Question from '../../../models/Question';
 import { createExamNotification } from '../../../utils/examNotifications';
 import User from '../../../models/User';
-import { requireAdmin, getAuthenticatedUser } from '../../../utils/apiAuth';
+import { requireAdmin, requirePermission, getAuthenticatedUser } from '../../../utils/apiAuth';
 
 export const dynamic = 'force-dynamic'
 
@@ -20,13 +20,22 @@ export async function GET(req) {
         const search = searchParams.get('search');
         const analytics = searchParams.get('analytics');
 
+        const currentUser = await getAuthenticatedUser(req);
+
         // Security: Analytics data is for admins only
         if (analytics === 'true') {
-            const authError = requireAdmin(req);
+            const authError = await requireAdmin(req);
             if (authError) return authError;
         }
 
         let query = {};
+        if (currentUser && currentUser.role === 'teacher') {
+            const accessScope = currentUser.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = currentUser.id;
+            }
+        }
+
         if (type) query.type = type;
         if (status) query.status = status;
         if (search) {
@@ -153,15 +162,22 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+    console.log('POST /api/exams - Started');
+
     // Security check
-    const authError = requireAdmin(req);
-    if (authError) return authError;
+    const authError = await requirePermission(req, 'manage_exams');
+    if (authError) {
+        console.log('POST /api/exams - Auth Failed', authError);
+        return authError;
+    }
 
     try {
         await connectDB();
+        console.log('POST /api/exams - DB Connected');
 
         const currentUser = await getAuthenticatedUser(req);
         const body = await req.json();
+        console.log('POST /api/exams - Payload:', JSON.stringify(body, null, 2));
 
         // Add createdBy field if user is available
         if (currentUser) {
@@ -169,6 +185,7 @@ export async function POST(req) {
         }
 
         const exam = await Exam.create(body);
+        console.log('POST /api/exams - Exam Created:', exam._id);
 
         // Populate the created exam with necessary data for notifications
         const populatedExam = await Exam.findById(exam._id)
@@ -187,11 +204,13 @@ export async function POST(req) {
                 assignedUsers: populatedExam.assignedUsers.map(user => user._id)
             }, currentUser?.id || currentUser?._id);
         } catch (notificationError) {
+            console.error('Notification Error:', notificationError);
             // Don't fail the exam creation if notification fails
         }
 
         return NextResponse.json({ success: true, data: exam }, { status: 201 });
     } catch (error) {
+        console.error('POST /api/exams - Error:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }

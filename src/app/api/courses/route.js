@@ -132,6 +132,7 @@ export async function GET(request) {
                 description: course.description || '',
                 category: categoryName,
                 price: basePrice.toString(),
+                originalPrice: (course.originalPrice || 0).toString(),
                 isFree: course.isFree || false,
                 gstEnabled: course.gstEnabled || false,
                 gstPercentage: course.gstPercentage || 0,

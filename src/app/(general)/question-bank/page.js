@@ -15,7 +15,7 @@ const QuestionsPage = () => {
                         <h4 className="mb-sm-0">Questions Bank</h4>
                         <div className="page-title-right">
                             <ol className="breadcrumb m-0">
-                                <li className="breadcrumb-item"><a href="#">Duralux</a></li>
+                                <li className="breadcrumb-item"><a href="#">Home</a></li>
                                 <li className="breadcrumb-item active">Questions</li>
                             </ol>
                         </div>

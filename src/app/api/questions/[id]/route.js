@@ -24,18 +24,47 @@ export async function GET(request, { params }) {
     }
 }
 
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
+
 export async function PUT(request, { params }) {
     try {
         await connectDB();
         const body = await request.json();
 
-        const question = await Question.findByIdAndUpdate(params.id, body, { new: true, runValidators: true })
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
+        const user = await getAuthenticatedUser(request);
+        let query = { _id: params.id };
+
+        if (user && user.role === 'teacher') {
+            const accessScope = user.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = user.id;
+            }
+        }
+
+        // Handle Restore Action
+        if (body.action === 'restore') {
+            const question = await Question.findOneAndUpdate(
+                query,
+                { isDeleted: false, deletedAt: null, status: 'active' },
+                { new: true }
+            );
+
+            if (!question) {
+                return NextResponse.json({ success: false, message: 'Question not found or unauthorized' }, { status: 404 });
+            }
+            return NextResponse.json({ success: true, message: 'Question restored successfully', data: question });
+        }
+
+        const question = await Question.findOneAndUpdate(query, body, { new: true, runValidators: true })
             .populate('category', 'name')
             .populate('subject', 'name')
             .populate('questionGroup', 'name');
 
         if (!question) {
-            return NextResponse.json({ success: false, message: 'Question not found' }, { status: 404 });
+            return NextResponse.json({ success: false, message: 'Question not found or unauthorized' }, { status: 404 });
         }
 
         return NextResponse.json({ success: true, message: 'Question updated successfully', data: question });
@@ -51,13 +80,46 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
     try {
         await connectDB();
-        const question = await Question.findByIdAndDelete(params.id);
+        const { searchParams } = new URL(request.url);
+        const force = searchParams.get('force') === 'true';
 
-        if (!question) {
-            return NextResponse.json({ success: false, message: 'Question not found' }, { status: 404 });
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
+        const user = await getAuthenticatedUser(request);
+        let query = { _id: params.id };
+
+        if (user && user.role === 'teacher') {
+            const accessScope = user.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = user.id;
+            }
         }
 
-        return NextResponse.json({ success: true, message: 'Question deleted successfully' });
+        let question;
+        if (force) {
+            // Permanent Delete
+            question = await Question.findOneAndDelete(query);
+            console.log('Force Deleted:', question?._id);
+        } else {
+            // Soft Delete (Recycle Bin)
+            console.log('Attempting Soft Delete for:', params.id);
+            question = await Question.findOneAndUpdate(
+                query,
+                { isDeleted: true, deletedAt: new Date(), status: 'inactive' },
+                { new: true, strict: false }
+            );
+            console.log('Soft Deleted Result:', question?._doc, 'isDeleted:', question?.isDeleted);
+        }
+
+        if (!question) {
+            return NextResponse.json({ success: false, message: 'Question not found or unauthorized' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: force ? 'Question permanently deleted' : 'Question moved to recycle bin'
+        });
     } catch (error) {
         console.error('Error deleting question:', error);
         return NextResponse.json(

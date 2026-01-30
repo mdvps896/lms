@@ -5,7 +5,7 @@ import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
 import Question from '@/models/Question';
 import { createExamNotification } from '@/utils/examNotifications';
-import { requireAdmin, getAuthenticatedUser } from '@/utils/apiAuth';
+import { requireAdmin, requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,19 +14,28 @@ export async function GET(req, { params }) {
         await dbConnect();
         const user = await getAuthenticatedUser(req);
         const isAdmin = user && user.role === 'admin';
+        const isTeacher = user && user.role === 'teacher';
 
-        const exam = await Exam.findById(params.id)
+        let query = { _id: params.id };
+        if (isTeacher) {
+            const accessScope = user.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = user.id;
+            }
+        }
+
+        const exam = await Exam.findOne(query)
             .populate('category')
             .populate('subjects')
             .populate('questionGroups')
             .lean();
 
         if (!exam) {
-            return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Exam not found or unauthorized' }, { status: 404 });
         }
 
         // Populate questions for all users (students need them to take the test!)
-        // Only difference: admins might see additional metadata in the future
+        // Only difference: admins/teachers might see additional metadata in the future
         if (exam.questionGroups && exam.questionGroups.length > 0) {
             // Create a new array to store question groups with questions
             const populatedGroups = [];
@@ -35,14 +44,10 @@ export async function GET(req, { params }) {
                 const group = exam.questionGroups[i];
                 const groupId = group._id;
 
+                // Fetch actual questions
                 const questions = await Question.find({
                     questionGroup: groupId,
                     status: 'active'
-                }).lean();
-
-                // Also check how many questions exist WITHOUT status filter
-                const allQuestions = await Question.find({
-                    questionGroup: groupId
                 }).lean();
 
                 // Create a new object with questions included
@@ -56,24 +61,21 @@ export async function GET(req, { params }) {
             exam.questionGroups = populatedGroups;
         }
 
-        // Fetch real attempts - This might be sensitive too. 
-        // If student, maybe only their own attempts?
-        // But the previous code returned ALL attempts. That is a privacy leak.
-        // I will restrict attempts to the current user if not admin.
+        // Fetch attempts
+        // If student, only their own attempts.
+        // If teacher/admin, all attempts (subject to exam visibility which we checked above).
 
         let attemptQuery = {
             exam: params.id,
             status: { $in: ['submitted', 'expired'] }
         };
 
-        if (!isAdmin) {
-            if (!user) {
-                // Public/Unauth access to exam details? Maybe allow basic meta, but NO attempts.
-                attemptQuery = null;
-            } else {
-                attemptQuery.user = user.id || user._id;
-            }
+        if (user && user.role === 'student') {
+            attemptQuery.user = user.id || user._id;
+        } else if (!user) {
+            attemptQuery = null; // Public - no attempts
         }
+        // Admin/Teacher see all attempts for this exam (since we already verified they can see the exam)
 
         let attempts = [];
         if (attemptQuery) {
@@ -105,7 +107,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
     // Security check
-    const authError = await requireAdmin(req);
+    const authError = await requirePermission(req, 'manage_exams');
     if (authError) return authError;
 
     try {
@@ -114,13 +116,21 @@ export async function PUT(req, { params }) {
         const currentUser = await getAuthenticatedUser(req);
         const body = await req.json();
 
-        const exam = await Exam.findByIdAndUpdate(params.id, body, {
+        let query = { _id: params.id };
+        if (currentUser && currentUser.role === 'teacher') {
+            const accessScope = currentUser.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = currentUser.id;
+            }
+        }
+
+        const exam = await Exam.findOneAndUpdate(query, body, {
             new: true,
             runValidators: true,
         }).populate('assignedUsers', '_id name email');
 
         if (!exam) {
-            return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Exam not found or unauthorized' }, { status: 404 });
         }
 
         // Create notification for exam update
@@ -145,14 +155,25 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
     // Security check
-    const authError = await requireAdmin(req);
+    const authError = await requirePermission(req, 'manage_exams');
     if (authError) return authError;
 
     try {
         await dbConnect();
-        const exam = await Exam.findByIdAndDelete(params.id);
+
+        const currentUser = await getAuthenticatedUser(req);
+
+        let query = { _id: params.id };
+        if (currentUser && currentUser.role === 'teacher') {
+            const accessScope = currentUser.accessScope || 'own';
+            if (accessScope === 'own') {
+                query.createdBy = currentUser.id;
+            }
+        }
+
+        const exam = await Exam.findOneAndDelete(query);
         if (!exam) {
-            return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Exam not found or unauthorized' }, { status: 404 });
         }
         return NextResponse.json({ success: true, data: {} });
     } catch (error) {

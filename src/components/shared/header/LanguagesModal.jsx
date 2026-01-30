@@ -1,7 +1,10 @@
 import React from 'react'
 import Link from 'next/link'
-import { headerDropdownLanguagesList } from '@/utils/fackData/headerDropwodnLanguagesList'
 import { FiPlus } from 'react-icons/fi'
+
+const headerDropdownLanguagesList = [
+  { id: 1, language_name: "English", flag: "/images/flags/4x3/us.svg" }
+];
 
 const LanguagesModal = () => {
   return (
@@ -15,7 +18,7 @@ const LanguagesModal = () => {
           <div className="select-language px-4 py-2 hstack justify-content-between gap-4">
             <div className="lh-lg">
               <h6 className="mb-0">Select Language</h6>
-              <p className="fs-11 text-muted mb-0">12 languages avaiable!</p>
+              <p className="fs-11 text-muted mb-0">1 language available!</p>
             </div>
             <span className="avatar-text avatar-md" data-toggle="tooltip" data-title="Add Language">
               <FiPlus />
@@ -24,7 +27,7 @@ const LanguagesModal = () => {
           <div className="dropdown-divider"></div>
           <div className="row px-4 pt-3">
             {
-              headerDropdownLanguagesList.map(({flag, id, language_name}) => {
+              headerDropdownLanguagesList.map(({ flag, id, language_name }) => {
                 return (
                   <div key={id} className="col-sm-4 col-6 language_select">
                     <Link href={"#"} className="d-flex align-items-center gap-2">

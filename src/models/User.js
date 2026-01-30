@@ -35,6 +35,15 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'teacher', 'student'],
     default: 'student',
   },
+  permissions: {
+    type: [String],
+    default: [],
+  },
+  accessScope: {
+    type: String,
+    enum: ['global', 'own'],
+    default: 'own',
+  },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',

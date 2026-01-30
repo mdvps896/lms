@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import connectDB from '@/lib/mongodb'
-import Settings from '@/models/Settings'
+import Settings from '@/models/Settings' // Used in commented code?
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 // Helper function to get all files recursively (Local)
 function getAllFiles(dirPath, arrayOfFiles = []) {
@@ -55,19 +56,29 @@ function getFileType(filename) {
     return 'other'
 }
 
-export async function GET() {
+export async function GET(request) {
     try {
         await connectDB()
+
+        const user = await getAuthenticatedUser(request)
+        console.log('Storage API - User:', user?.email, 'Role:', user?.role);
+
+        const isTeacherOwn = user && user.role === 'teacher' && (user.accessScope || 'own') === 'own';
+        console.log('Storage API - isTeacherOwn:', isTeacherOwn);
 
         // 1. Get local files (Legacy support & backups)
         const publicDir = path.join(process.cwd(), 'public')
         const localFiles = getAllFiles(publicDir)
+        console.log('Storage API - Found local files:', localFiles.length);
 
-        // 2. Get Cloudinary files (Primary storage) - DISABLED for Local Storage Mode
         // 2. Get Cloudinary files - REMOVED
 
         // 3. Get exam recordings (from DB)
-        const examRecordings = await getExamRecordings()
+        // Pass userId if restriction applies (Recordings are still strictly filtered by ownership)
+        const examRecordings = await getExamRecordings(isTeacherOwn ? user.id : null)
+        console.log('Storage API - Found recordings:', examRecordings.length);
+
+        // ... (rest of the merging logic)
 
         // Deduplicate and merge: Prefer examRecordings (rich metadata) but fill size from localFiles
         const localFilesMap = new Map();
@@ -127,7 +138,7 @@ export async function GET() {
 /**
  * Get exam recordings from database
  */
-async function getExamRecordings() {
+async function getExamRecordings(teacherId = null) {
     try {
         // Import models
         const ExamAttempt = (await import('@/models/ExamAttempt')).default
@@ -136,13 +147,21 @@ async function getExamRecordings() {
 
         const recordings = []
 
-        // Get recordings from ExamAttempt collection
-        const attempts = await ExamAttempt.find({
+        let matchQuery = {
             $or: [
                 { 'recordings.cameraVideo': { $exists: true, $ne: null, $ne: '' } },
                 { 'recordings.screenVideo': { $exists: true, $ne: null, $ne: '' } }
             ]
-        })
+        };
+
+        if (teacherId) {
+            const teacherExams = await Exam.find({ createdBy: teacherId }).select('_id');
+            const examIds = teacherExams.map(e => e._id);
+            matchQuery.exam = { $in: examIds };
+        }
+
+        // Get recordings from ExamAttempt collection
+        const attempts = await ExamAttempt.find(matchQuery)
             .populate('user', 'name email')
             .populate('exam', 'name')
             .lean()
@@ -199,9 +218,14 @@ async function getExamRecordings() {
         }
 
         // Also check embedded attempts in Exam collection
-        const examsWithAttempts = await Exam.find({
+        let examQuery = {
             'attempts.recordings': { $exists: true }
-        }).lean()
+        };
+        if (teacherId) {
+            examQuery.createdBy = teacherId;
+        }
+
+        const examsWithAttempts = await Exam.find(examQuery).lean()
 
         for (const exam of examsWithAttempts) {
             if (exam.attempts) {

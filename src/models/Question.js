@@ -56,6 +56,18 @@ const questionSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'inactive'],
         default: 'active'
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: {
+        type: Date,
+        default: null
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }
 }, {
     timestamps: true

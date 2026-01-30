@@ -16,7 +16,7 @@ const TeacherList = () => {
     const [statusFilter, setStatusFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [teachersPerPage] = useState(10)
-    
+
     // Modals
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
@@ -33,7 +33,7 @@ const TeacherList = () => {
         try {
             const response = await fetch('/api/users?role=teacher')
             const data = await response.json()
-            
+
             if (data.success) {
                 const teachersData = data.data.map(user => ({
                     id: user._id,
@@ -45,7 +45,8 @@ const TeacherList = () => {
                     joiningDate: new Date(user.createdAt).toLocaleDateString(),
                     status: user.status || 'active',
                     isGoogleAuth: user.isGoogleAuth || false,
-                    emailVerified: user.emailVerified || false
+                    emailVerified: user.emailVerified || false,
+                    permissions: user.permissions || []
                 }))
                 setTeachers(teachersData)
                 setFilteredTeachers(teachersData)
@@ -123,7 +124,7 @@ const TeacherList = () => {
                 const text = event.target.result
                 const rows = text.split('\n').filter(row => row.trim())
                 const headers = rows[0].split(',')
-                
+
                 const importedTeachers = []
                 for (let i = 1; i < rows.length; i++) {
                     const values = rows[i].split(',')
@@ -142,7 +143,7 @@ const TeacherList = () => {
 
                 if (importedTeachers.length > 0) {
                     let successCount = 0
-                    
+
                     for (const teacher of importedTeachers) {
                         try {
                             const response = await fetch('/api/users', {
@@ -156,9 +157,9 @@ const TeacherList = () => {
                             console.error('Error importing teacher:', error)
                         }
                     }
-                    
+
                     loadTeachers()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Imported!',
@@ -201,7 +202,7 @@ const TeacherList = () => {
 
                 if (data.success) {
                     loadTeachers()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -259,7 +260,7 @@ const TeacherList = () => {
                         </div>
                         <div className="col-md-6 text-end">
                             <div className="btn-group me-2">
-                                <button 
+                                <button
                                     className="btn btn-sm btn-success"
                                     onClick={exportToCSV}
                                     disabled={filteredTeachers.length === 0}
@@ -276,7 +277,7 @@ const TeacherList = () => {
                                     />
                                 </label>
                             </div>
-                            <button 
+                            <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => setShowAddModal(true)}
                             >
@@ -355,11 +356,10 @@ const TeacherList = () => {
                                             </td>
                                             <td>{teacher.joiningDate}</td>
                                             <td>
-                                                <span className={`badge ${
-                                                    teacher.status === 'active' ? 'bg-success' :
-                                                    teacher.status === 'inactive' ? 'bg-secondary' :
-                                                    'bg-danger'
-                                                }`}>
+                                                <span className={`badge ${teacher.status === 'active' ? 'bg-success' :
+                                                        teacher.status === 'inactive' ? 'bg-secondary' :
+                                                            'bg-danger'
+                                                    }`}>
                                                     {teacher.status}
                                                 </span>
                                             </td>

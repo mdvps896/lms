@@ -38,11 +38,12 @@ export async function GET(request, { params }) {
         const settings = await Settings.findOne({});
         const generalSettings = settings?.general || {};
 
-        // 3. Initialize PDF (Landscape A4)
+        // 3. Initialize PDF (Landscape A4) with compression
         const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
 
         const width = doc.internal.pageSize.getWidth();
@@ -94,10 +95,10 @@ export async function GET(request, { params }) {
             doc.saveGraphicsState();
             doc.setGState(new doc.GState({ opacity: 0.2 })); // 10% opacity
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(110); // Even larger for punchy center presence
-            doc.setTextColor(220, 220, 220); // Very light gray
-            // Significantly increasing Y to 135 to pull it down from the 'top'
-            doc.text("MD CONSULTANCY", width / 2, 300, { align: "center", angle: 45 });
+            doc.setFontSize(110);
+            doc.setTextColor(220, 220, 220);
+            // Corrected Y from 300 to 110 (center of A4 page)
+            doc.text("MD CONSULTANCY", width / 2, 110, { align: "center", angle: 45 });
             doc.restoreGraphicsState();
         } catch (e) {
             console.error("Error adding watermark:", e);
@@ -124,16 +125,14 @@ export async function GET(request, { params }) {
             // Top Logo - Scale down
             const logoSize = 14;
             const logoX = (width / 2) - (logoSize / 2);
-            /* ... rest of logo code same, omitting unchanged chunks ... */
             const logoY = y;
             const radius = logoSize / 2;
 
             try {
-                // Revert to simple image draw to fix clipping issues
-                doc.addImage(logoBuffer, fmt, logoX, logoY, logoSize, logoSize);
+                // Add logo with FAST compression
+                doc.addImage(logoBuffer, fmt, logoX, logoY, logoSize, logoSize, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding top logo:", e);
-                // Fallback: draw normally
                 try {
                     doc.addImage(logoBuffer, fmt, (width / 2) - 25, y, 50, 16);
                 } catch (e2) { }
@@ -150,8 +149,8 @@ export async function GET(request, { params }) {
         // doc.setFontSize(10);
         // doc.text("MOH DHA COACHING CENTER", width / 2, y, { align: "center" });
 
-        // --- CERTIFICATE TITLE ---
-        y += 15; // Reduced gap
+        // --- CERTIFICATE TITLE (Row 2) ---
+        y += 20;
         doc.setFontSize(38);
         doc.setFont("times", "bold");
         doc.setTextColor(...colors.gold);
@@ -163,13 +162,13 @@ export async function GET(request, { params }) {
         doc.setTextColor(...colors.textLight);
         doc.text("OF ACHIEVEMENT", width / 2, y, { align: "center", charSpace: 2 });
 
-        // --- RECIPIENT ---
-        y += 18; // Reduced gap
+        // --- RECIPIENT (Row 3) ---
+        y += 12; // Reduced from 20
         doc.setFontSize(12);
         doc.setFont("times", "italic");
         doc.text("This is to certify that", width / 2, y, { align: "center" });
 
-        y += 15;
+        y += 12;
         doc.setFontSize(32); // Reduced from 42
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...colors.navy);
@@ -180,7 +179,7 @@ export async function GET(request, { params }) {
         doc.setLineWidth(0.8);
         doc.line(width / 2 - 100, y + 2, width / 2 + 100, y + 2); // Widened line to 200mm
 
-        y += 12;
+        y += 15;
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(...colors.textMain);
@@ -207,8 +206,8 @@ export async function GET(request, { params }) {
         doc.text("(DHA • HAAD • MOH • PROMETRIC) DUBAI / UAE JOB ASSISTANCE", width / 2, y, { align: "center" });
 
 
-        // --- STATS BOX ---
-        y += 18; // Position stats higher
+        // --- STATS BOX (Row 4 - 4 Columns) ---
+        y += 8; // Further reduced gap from 14 to 8
         const boxW = 230; // Increased width from 180 to 230
         const boxX = (width - boxW) / 2;
         doc.setDrawColor(...colors.gold);
@@ -216,7 +215,7 @@ export async function GET(request, { params }) {
         doc.line(boxX, y, boxX + boxW, y); // Top separator
 
         // Roll No Generation: prefer user's real roll no, else fallback to generated
-        const rollNo = attempt.user.rollNumber || `MDC-${new Date().getFullYear()}-${attempt._id.toString().substr(-4).toUpperCase()}`;
+        const rollNo = attempt.user?.rollNumber || `MDC-${new Date().getFullYear()}-${attempt._id.toString().substr(-4).toUpperCase()}`;
 
         const stats = [
             { label: "SCORE", value: `${attempt.percentage.toFixed(1)}%` },
@@ -226,26 +225,36 @@ export async function GET(request, { params }) {
         ];
 
         stats.forEach((stat, i) => {
-            const x = boxX + (i * (boxW / 4)) + (boxW / 8);
+            // Shift columns outwards to leave more space for the stamp in the center
+            const x = boxX + (i * (boxW / 4)) + (i < 2 ? (boxW / 12) : (boxW / 6));
             doc.setFontSize(10);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(...colors.gold);
             doc.text(stat.label, x, y + 6, { align: "center" }); // Tighter text
 
-            doc.setFontSize(14);
+            // Value
+            let fontSize = stat.label === "ROLL NO" ? 11 : 14;
+            doc.setFontSize(fontSize);
             if (stat.label === "RESULT" && stat.value === "FAILED") {
                 doc.setTextColor(...colors.red);
             } else {
                 doc.setTextColor(...colors.navy);
             }
+
+            // Auto-scale font size to fit width
+            const maxWidth = (boxW / 4) - 4; // ~53mm max width
+            while (doc.getTextWidth(stat.value) > maxWidth && fontSize > 6) {
+                fontSize -= 0.5;
+                doc.setFontSize(fontSize);
+            }
+
             doc.text(stat.value, x, y + 14, { align: "center" });
         });
 
         // --- GOLD SEAL ---
-        // Move seal slightly lower to clear stats, but watch footer
+        // Shift seal further up (height - 35) to increase bottom gap
         const sealX = width / 2;
-        const sealY = height - 42;
-        const optimizedSealY = height - 40; // 170
+        const optimizedSealY = height - 35; // Moved up from -30
 
         // Draw Logo Center in Seal OR Stamp Overlay
         // Try to load stamp.jpeg first
@@ -256,14 +265,14 @@ export async function GET(request, { params }) {
         if (sealImageBuffer) {
             const ext = useStamp ? 'JPEG' : logoPath.split('.').pop().toUpperCase();
             const fmt = (ext === 'PNG' || ext === 'WEBP') ? ext : 'JPEG';
-            const sealImgSize = 25;
+            const sealImgSize = 22; // Increased size from 14 to 22
             const imgX = sealX - (sealImgSize / 2);
             const imgY = optimizedSealY - (sealImgSize / 2);
 
             let sealDrawn = false;
             try {
-                // Revert to simple image draw to fix clipping issues
-                doc.addImage(sealImageBuffer, fmt, imgX, imgY, sealImgSize, sealImgSize);
+                // Add seal with FAST compression
+                doc.addImage(sealImageBuffer, fmt, imgX, imgY, sealImgSize, sealImgSize, undefined, 'FAST');
                 sealDrawn = true;
             } catch (e) {
                 console.error("Error adding seal image:", e);
@@ -277,7 +286,7 @@ export async function GET(request, { params }) {
         }
 
         // --- FOOTER SIGNATURES ---
-        const footerY = height - 20;
+        const footerY = height - 30; // Moved up from -25 to increase bottom gap
 
         // Date
         const dateStr = attempt.submittedAt
@@ -287,12 +296,12 @@ export async function GET(request, { params }) {
         doc.setTextColor(...colors.textMain);
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        doc.text(dateStr, 50, footerY, { align: "center" });
+        doc.text(dateStr, 50, footerY - 8, { align: "center" }); // Moved above the line (baseline was footerY)
         doc.setDrawColor(...colors.textLight);
         doc.setLineWidth(0.5);
         doc.line(30, footerY - 5, 70, footerY - 5);
         doc.setFontSize(8);
-        doc.text("DATE OF ISSUANCE", 50, footerY + 5, { align: "center" });
+        doc.text("DATE OF ISSUANCE", 50, footerY + 3, { align: "center" }); // Slightly adjusted gap below line
 
         // Signature Image
         // Attempt to load signature image
@@ -304,7 +313,7 @@ export async function GET(request, { params }) {
                 // Assuming sig is approx 40 wide
                 const sigW = 40;
                 const sigH = 15; // Aspect ratio guess
-                doc.addImage(signBuffer, 'PNG', (width - 50) - (sigW / 2), footerY - 20, sigW, sigH);
+                doc.addImage(signBuffer, 'PNG', (width - 50) - (sigW / 2), footerY - 20, sigW, sigH, undefined, 'FAST');
             } catch (e) {
                 console.error("Error drawing signature image:", e);
                 // Fallback to text if fail
@@ -319,16 +328,18 @@ export async function GET(request, { params }) {
 
         doc.line(width - 70, footerY - 5, width - 30, footerY - 5);
         doc.setFontSize(8);
-        doc.text("AUTHORIZED SIGNATURE", width - 50, footerY + 5, { align: "center" });
+        doc.text("AUTHORIZED SIGNATURE", width - 50, footerY + 3, { align: "center" });
 
         // --- output ---
         const pdfBuffer = doc.output('arraybuffer');
+        const pdfUint8Array = new Uint8Array(pdfBuffer);
+        const fileName = `Certificate_${(attempt.user?.name || 'Student').replace(/\s+/g, '_')}.pdf`;
 
-        return new NextResponse(pdfBuffer, {
+        return new NextResponse(pdfUint8Array, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="Certificate_${attempt.user.name.replace(/\s+/g, '_')}.pdf"`,
+                'Content-Disposition': `attachment; filename="${fileName}"`,
             },
         });
 

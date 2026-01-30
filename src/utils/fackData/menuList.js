@@ -7,20 +7,21 @@ export const menuList = [
         roles: ['admin', 'teacher', 'student'], // All can see
         dropdownMenu: []
     },
-    // {
-    //     id: 1,
-    //     name: "teachers",
-    //     path: "/teachers",
-    //     icon: 'feather-user-check',
-    //     roles: ['admin'], // Only admin
-    //     dropdownMenu: []
-    // },
+    {
+        id: 1,
+        name: "teachers",
+        path: "/teachers",
+        icon: 'feather-user-check',
+        roles: ['admin'], // Only admin can manage teachers
+        dropdownMenu: []
+    },
     {
         id: 2,
         name: "students",
         path: "/students",
         icon: 'feather-users',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_students',
         dropdownMenu: []
     },
     {
@@ -28,7 +29,8 @@ export const menuList = [
         name: "exam",
         path: "/exam",
         icon: 'feather-file-text',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_exams',
         dropdownMenu: []
     },
     {
@@ -36,7 +38,8 @@ export const menuList = [
         name: "subjects",
         path: "/subjects",
         icon: 'feather-book',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_academic',
         dropdownMenu: []
     },
     {
@@ -44,7 +47,8 @@ export const menuList = [
         name: "categories",
         path: "/categories",
         icon: 'feather-grid',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_academic',
         dropdownMenu: []
     },
     {
@@ -52,7 +56,8 @@ export const menuList = [
         name: "courses",
         path: "/courses",
         icon: 'feather-layers',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_courses',
         dropdownMenu: []
     },
     {
@@ -60,7 +65,8 @@ export const menuList = [
         name: "questions",
         path: "/question-bank",
         icon: 'feather-help-circle',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_questions',
         dropdownMenu: [],
         showModal: true
     },
@@ -69,7 +75,8 @@ export const menuList = [
         name: "Analytics",
         path: "/analytics",
         icon: 'feather-pie-chart',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'view_analytics',
         dropdownMenu: []
     },
     {
@@ -88,21 +95,13 @@ export const menuList = [
         roles: ['admin'],
         dropdownMenu: []
     },
-
-    // {
-    //     id: 7,
-    //     name: "exam analytics",
-    //     path: "/exam-analytics",
-    //     icon: 'feather-bar-chart-2',
-    //     roles: ['admin'], // Only admin
-    //     dropdownMenu: []
-    // },
     {
         id: 8,
         name: "live exam",
         path: "/live-exams",
         icon: 'feather-video',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_live_exams',
         dropdownMenu: []
     },
     {
@@ -110,7 +109,8 @@ export const menuList = [
         name: "recorded exams",
         path: "/recorded-exams",
         icon: 'feather-film',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_content',
         dropdownMenu: []
     },
     {
@@ -119,6 +119,7 @@ export const menuList = [
         path: "/google-meet",
         icon: 'feather-video-off',
         roles: ['admin', 'teacher'],
+        permission: 'manage_live_exams',
         dropdownMenu: []
     },
     {
@@ -127,6 +128,7 @@ export const menuList = [
         path: "/free-materials",
         icon: 'feather-archive',
         roles: ['admin', 'teacher'],
+        permission: 'manage_content',
         dropdownMenu: []
     },
     {
@@ -134,7 +136,8 @@ export const menuList = [
         name: "media & storage",
         path: "/storage",
         icon: 'feather-database',
-        roles: ['admin'], // Only admin
+        roles: ['admin', 'teacher'],
+        permission: 'manage_storage',
         dropdownMenu: []
     },
     {

@@ -18,7 +18,7 @@ const SubjectList = () => {
     const [categoryFilter, setCategoryFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [subjectsPerPage] = useState(10)
-    
+
     // Modals
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
@@ -35,7 +35,7 @@ const SubjectList = () => {
         try {
             const response = await fetch('/api/categories')
             const data = await response.json()
-            
+
             if (data.success) {
                 setCategories(data.data.filter(cat => cat.status === 'active'))
             }
@@ -49,7 +49,7 @@ const SubjectList = () => {
         try {
             const response = await fetch('/api/subjects')
             const data = await response.json()
-            
+
             if (data.success) {
                 const subjectsData = data.data.map(subject => ({
                     id: subject._id,
@@ -57,6 +57,7 @@ const SubjectList = () => {
                     categoryId: subject.category?._id,
                     categoryName: subject.category?.name || 'N/A',
                     description: subject.description || '',
+                    questionCount: subject.questionCount || 0,
                     createdDate: new Date(subject.createdAt).toLocaleDateString(),
                     status: subject.status
                 }))
@@ -111,9 +112,9 @@ const SubjectList = () => {
 
     // Export CSV
     const exportToCSV = () => {
-        const headers = ['ID', 'Name', 'Category', 'Description', 'Created Date', 'Status']
+        const headers = ['ID', 'Name', 'Category', 'Questions', 'Description', 'Created Date', 'Status']
         const csvData = filteredSubjects.map(s => [
-            s.id, s.name, s.categoryName, s.description, s.createdDate, s.status
+            s.id, s.name, s.categoryName, s.questionCount, s.description, s.createdDate, s.status
         ])
 
         let csvContent = headers.join(',') + '\n'
@@ -138,6 +139,8 @@ const SubjectList = () => {
 
     // Delete subject
     const handleDelete = async (subject) => {
+        // ...
+        // (keeping delete logic same, just focusing on render part below)
         const result = await Swal.fire({
             title: 'Delete Subject?',
             text: `Are you sure you want to delete "${subject.name}"?`,
@@ -158,7 +161,7 @@ const SubjectList = () => {
 
                 if (data.success) {
                     loadSubjects()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -215,14 +218,14 @@ const SubjectList = () => {
                             </div>
                         </div>
                         <div className="col-md-6 text-end">
-                            <button 
+                            <button
                                 className="btn btn-sm btn-success me-2"
                                 onClick={exportToCSV}
                                 disabled={filteredSubjects.length === 0}
                             >
                                 <FiDownload className="me-1" /> Export CSV
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => setShowAddModal(true)}
                             >
@@ -271,6 +274,7 @@ const SubjectList = () => {
                                     <th>#</th>
                                     <th>Subject Name</th>
                                     <th>Category</th>
+                                    <th>Questions</th>
                                     <th>Description</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
@@ -296,15 +300,19 @@ const SubjectList = () => {
                                                 <span className="badge bg-info">{subject.categoryName}</span>
                                             </td>
                                             <td>
+                                                <span className="badge bg-light text-dark border">
+                                                    {subject.questionCount}
+                                                </span>
+                                            </td>
+                                            <td>
                                                 <div className="text-muted" style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                     {subject.description || 'N/A'}
                                                 </div>
                                             </td>
                                             <td>{subject.createdDate}</td>
                                             <td>
-                                                <span className={`badge ${
-                                                    subject.status === 'active' ? 'bg-success' : 'bg-secondary'
-                                                }`}>
+                                                <span className={`badge ${subject.status === 'active' ? 'bg-success' : 'bg-secondary'
+                                                    }`}>
                                                     {subject.status}
                                                 </span>
                                             </td>
@@ -337,7 +345,7 @@ const SubjectList = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-4">
+                                        <td colSpan="8" className="text-center py-4">
                                             <p className="text-muted">No subjects found</p>
                                         </td>
                                     </tr>

@@ -8,9 +8,24 @@ import Meeting from '@/models/Meeting';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+import { getAuthenticatedUser } from '@/utils/apiAuth';
+
+export async function GET(request) {
     try {
         await connectDB();
+        const user = await getAuthenticatedUser(request);
+
+        if (!user) {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        let contentFilter = {};
+        if (user.role === 'teacher') {
+            contentFilter = { createdBy: user.id };
+        }
 
         // Get counts from database
         const [
@@ -23,17 +38,18 @@ export async function GET() {
             totalCourses,
             totalMeetings
         ] = await Promise.all([
-            User.countDocuments({ role: 'teacher', status: 'active' }),
-            User.countDocuments({ role: 'student', status: 'active' }),
-            Exam.countDocuments(),
-            Exam.countDocuments({ status: 'active' }),
+            user.role === 'admin' ? User.countDocuments({ role: 'teacher', status: 'active' }) : Promise.resolve(0),
+            User.countDocuments({ role: 'student', status: 'active' }), // Teachers see all active students for now
+            Exam.countDocuments(contentFilter),
+            Exam.countDocuments({ ...contentFilter, status: 'active' }),
             Exam.countDocuments({
+                ...contentFilter,
                 endDate: { $lt: new Date() },
                 status: 'active'
             }),
-            Question.countDocuments(),
-            Course.countDocuments(),
-            Meeting.countDocuments()
+            Question.countDocuments(contentFilter),
+            Course.countDocuments(contentFilter),
+            Meeting.countDocuments(contentFilter)
         ]);
 
         // Calculate completion rate
@@ -41,7 +57,9 @@ export async function GET() {
             ? Math.round((completedExams / totalExams) * 100)
             : 0;
 
-        const stats = [
+
+
+        const allStats = [
             {
                 id: 1,
                 title: "Total Teachers",
@@ -49,7 +67,8 @@ export async function GET() {
                 completed_number: "",
                 progress: "100%",
                 progress_info: `${totalTeachers} Active`,
-                icon: "feather-users"
+                icon: "feather-users",
+                role: 'admin' // Only admin sees teacher analytics
             },
             {
                 id: 2,
@@ -58,7 +77,8 @@ export async function GET() {
                 completed_number: "",
                 progress: "100%",
                 progress_info: `${totalStudents} Active`,
-                icon: "feather-user-check"
+                icon: "feather-user-check",
+                permission: 'manage_students'
             },
             {
                 id: 3,
@@ -67,7 +87,8 @@ export async function GET() {
                 completed_number: completedExams.toString(),
                 progress: `${completionRate}%`,
                 progress_info: `${completedExams} Completed`,
-                icon: "feather-file-text"
+                icon: "feather-file-text",
+                permission: 'manage_exams'
             },
             {
                 id: 4,
@@ -76,7 +97,8 @@ export async function GET() {
                 completed_number: "",
                 progress: "100%",
                 progress_info: `${totalQuestions} Questions`,
-                icon: "feather-help-circle"
+                icon: "feather-help-circle",
+                permission: 'manage_questions'
             },
             {
                 id: 5,
@@ -85,7 +107,8 @@ export async function GET() {
                 completed_number: "",
                 progress: "100%",
                 progress_info: `${totalCourses} Courses`,
-                icon: "feather-book"
+                icon: "feather-book",
+                permission: 'manage_courses'
             },
             {
                 id: 6,
@@ -94,11 +117,29 @@ export async function GET() {
                 completed_number: "",
                 progress: "100%",
                 progress_info: `${totalMeetings} Meetings`,
-                icon: "feather-video"
+                icon: "feather-video",
+                permission: 'manage_live_exams'
             }
         ];
 
-        return NextResponse.json({ success: true, data: stats });
+        let filteredStats = allStats;
+
+        if (user.role === 'teacher') {
+            const permissions = user.permissions || [];
+            filteredStats = allStats.filter(stat => {
+                // Teachers never see "Total Teachers" regardless of permissions, unless explicit 'manage_teachers' exists (which it doesn't)
+                if (stat.role === 'admin') return false;
+
+                // If specific permission is required, check it
+                if (stat.permission) {
+                    return permissions.includes(stat.permission);
+                }
+
+                return true;
+            });
+        }
+
+        return NextResponse.json({ success: true, data: filteredStats });
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
         return NextResponse.json(

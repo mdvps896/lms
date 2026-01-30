@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server'
 import { deleteFromLocalStorage } from '@/utils/localStorage'
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth'
 
 export async function POST(request) {
     try {
         const { filePath, publicId } = await request.json()
 
-        /* */
+        // Security Check
+        const authError = await requirePermission(request, 'manage_storage');
+        if (authError) return authError;
+
+        const user = await getAuthenticatedUser(request);
+        // If teacher has 'own' scope, they cannot delete files as we don't track file ownership explicitly yet.
+        // This prevents them from deleting other people's files.
+        if (user && user.role === 'teacher' && (user.accessScope || 'own') === 'own') {
+            return NextResponse.json({ success: false, message: 'Access Denied: Teachers with "Manage Own" scope cannot delete general files.' }, { status: 403 });
+        }
 
         if (!filePath && !publicId) {
             return NextResponse.json(

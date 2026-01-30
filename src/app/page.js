@@ -25,7 +25,9 @@ const Home = () => {
               </div>
               <div className='row'>
                 <RecentActivityStatistics />
-                <RecentUsersStatistics />
+                {(user?.role === 'admin' || (user?.role === 'teacher' && user?.permissions?.includes('manage_students'))) && (
+                  <RecentUsersStatistics />
+                )}
               </div>
             </>
           )}

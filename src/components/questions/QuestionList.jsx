@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FiPlus, FiSearch, FiEdit2, FiEye, FiTrash2, FiFilter, FiDownload, FiUpload, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit2, FiEye, FiTrash2, FiFilter, FiDownload, FiUpload, FiCheck, FiDatabase } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import AddQuestionModal from './AddQuestionModal';
@@ -9,6 +9,8 @@ import EditQuestionModal from './EditQuestionModal';
 import ViewQuestionModal from './ViewQuestionModal';
 import CSVImportModal from './CSVImportModal';
 import CSVExportModal from './CSVExportModal';
+import JSONImportModal from './JSONImportModal';
+import RecycleBinModal from './RecycleBinModal';
 
 const QuestionList = () => {
     const searchParams = useSearchParams();
@@ -19,28 +21,31 @@ const QuestionList = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showJsonImportModal, setShowJsonImportModal] = useState(false);
     const [showExportModal, setShowExportModal] = useState(false);
+    const [showRecycleBin, setShowRecycleBin] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState(null);
-    
+    const [userRole, setUserRole] = useState(null); // 'admin', 'teacher', etc.
+
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalQuestions, setTotalQuestions] = useState(0);
     const [questionsPerPage, setQuestionsPerPage] = useState(10);
-    
+
     // Bulk Selection
     const [selectedQuestions, setSelectedQuestions] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
-    
+
     // Import/Export
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
-    
+
     // Filters
     const [categories, setCategories] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [questionGroups, setQuestionGroups] = useState([]);
-    
+
     const [filters, setFilters] = useState({
         category: 'all',
         subject: 'all',
@@ -56,10 +61,25 @@ const QuestionList = () => {
         if (urlSearch) {
             setSearchTerm(urlSearch);
         }
-        
+
+        fetchUserInfo();
         fetchQuestions();
         fetchCategories();
     }, [searchParams]);
+
+    const fetchUserInfo = async () => {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    setUserRole(data.data.role);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+        }
+    };
 
     useEffect(() => {
         fetchQuestions();
@@ -109,18 +129,18 @@ const QuestionList = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ questionIds: selectedQuestions })
                 });
-                
+
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
-                
+
                 const text = await res.text();
                 if (!text) {
                     throw new Error('Empty response from server');
                 }
-                
+
                 const data = JSON.parse(text);
-                
+
                 if (data.success) {
                     fetchQuestions();
                     setSelectedQuestions([]);
@@ -171,20 +191,20 @@ const QuestionList = () => {
                 limit: questionsPerPage,
                 search: searchTerm
             }).toString();
-            
+
             const res = await fetch(`/api/questions?${queryParams}`);
-            
+
             if (!res.ok) {
                 throw new Error(`HTTP error! status: ${res.status}`);
             }
-            
+
             const text = await res.text();
             if (!text) {
                 throw new Error('Empty response from server');
             }
-            
+
             const data = JSON.parse(text);
-            
+
             if (data.success) {
                 setQuestions(data.data || []);
                 setTotalPages(data.totalPages || 1);
@@ -215,10 +235,10 @@ const QuestionList = () => {
         try {
             const res = await fetch('/api/categories?status=active');
             if (!res.ok) return;
-            
+
             const text = await res.text();
             if (!text) return;
-            
+
             const data = JSON.parse(text);
             if (data.success) setCategories(data.data || []);
         } catch (error) {
@@ -230,10 +250,10 @@ const QuestionList = () => {
         try {
             const res = await fetch(`/api/subjects?category=${categoryId}&status=active`);
             if (!res.ok) return;
-            
+
             const text = await res.text();
             if (!text) return;
-            
+
             const data = JSON.parse(text);
             if (data.success) setSubjects(data.data || []);
         } catch (error) {
@@ -245,10 +265,10 @@ const QuestionList = () => {
         try {
             const res = await fetch(`/api/question-groups?subject=${subjectId}&status=active`);
             if (!res.ok) return;
-            
+
             const text = await res.text();
             if (!text) return;
-            
+
             const data = JSON.parse(text);
             const groups = Array.isArray(data) ? data : (data.data || []);
             const filteredGroups = groups.filter(g => g.subject?._id === subjectId || g.subject === subjectId);
@@ -287,18 +307,18 @@ const QuestionList = () => {
         if (result.isConfirmed) {
             try {
                 const res = await fetch(`/api/questions/${id}`, { method: 'DELETE' });
-                
+
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
-                
+
                 const text = await res.text();
                 if (!text) {
                     throw new Error('Empty response from server');
                 }
-                
+
                 const data = JSON.parse(text);
-                
+
                 if (data.success) {
                     fetchQuestions();
                     setSelectedQuestions(selectedQuestions.filter(qId => qId !== id));
@@ -363,6 +383,16 @@ const QuestionList = () => {
                                 </button>
                             </>
                         )}
+                        {userRole === 'admin' && (
+                            <button className="btn btn-outline-danger btn-sm" onClick={() => setShowRecycleBin(true)}>
+                                <FiTrash2 className="me-1" />
+                                Recycle Bin
+                            </button>
+                        )}
+                        <button className="btn btn-outline-info btn-sm text-dark" onClick={() => setShowJsonImportModal(true)}>
+                            <FiDatabase className="me-1" />
+                            Import JSON
+                        </button>
                         <button className="btn btn-outline-primary btn-sm" onClick={() => setShowImportModal(true)}>
                             <FiUpload className="me-1" />
                             Import CSV
@@ -377,23 +407,23 @@ const QuestionList = () => {
                         </button>
                     </div>
                 </div>
-                
+
                 <div className="row g-3 mt-3">
                     <div className="col-md-3">
-                        <select 
+                        <select
                             className="form-select"
                             value={filters.category}
-                            onChange={(e) => setFilters({...filters, category: e.target.value, subject: 'all', questionGroup: 'all'})}
+                            onChange={(e) => setFilters({ ...filters, category: e.target.value, subject: 'all', questionGroup: 'all' })}
                         >
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <select 
+                        <select
                             className="form-select"
                             value={filters.subject}
-                            onChange={(e) => setFilters({...filters, subject: e.target.value, questionGroup: 'all'})}
+                            onChange={(e) => setFilters({ ...filters, subject: e.target.value, questionGroup: 'all' })}
                             disabled={filters.category === 'all'}
                         >
                             <option value="all">All Subjects</option>
@@ -401,10 +431,10 @@ const QuestionList = () => {
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <select 
+                        <select
                             className="form-select"
                             value={filters.questionGroup}
-                            onChange={(e) => setFilters({...filters, questionGroup: e.target.value})}
+                            onChange={(e) => setFilters({ ...filters, questionGroup: e.target.value })}
                             disabled={filters.subject === 'all'}
                         >
                             <option value="all">All Groups</option>
@@ -412,10 +442,10 @@ const QuestionList = () => {
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <select 
+                        <select
                             className="form-select"
                             value={filters.type}
-                            onChange={(e) => setFilters({...filters, type: e.target.value})}
+                            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
                         >
                             <option value="all">All Types</option>
                             <option value="mcq">MCQ</option>
@@ -428,10 +458,10 @@ const QuestionList = () => {
                     <div className="col-12">
                         <div className="input-group">
                             <span className="input-group-text"><FiSearch /></span>
-                            <input 
-                                type="text" 
-                                className="form-control" 
-                                placeholder="Search by question text..." 
+                            <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Search by question text..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -445,9 +475,9 @@ const QuestionList = () => {
                 <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
                     <div className="d-flex align-items-center gap-2">
                         <span className="text-muted">Show</span>
-                        <select 
-                            className="form-select form-select-sm" 
-                            style={{width: 'auto'}}
+                        <select
+                            className="form-select form-select-sm"
+                            style={{ width: 'auto' }}
                             value={questionsPerPage}
                             onChange={(e) => handlePerPageChange(Number(e.target.value))}
                         >
@@ -459,11 +489,11 @@ const QuestionList = () => {
                         </select>
                         <span className="text-muted">entries</span>
                     </div>
-                    
+
                     <div className="text-muted">
                         Showing {questions.length > 0 ? ((currentPage - 1) * questionsPerPage) + 1 : 0} to {Math.min(currentPage * questionsPerPage, totalQuestions)} of {totalQuestions} entries
                     </div>
-                    
+
                     <button className="btn btn-outline-secondary btn-sm" onClick={handleOnRefresh}>
                         <i className="fas fa-sync-alt me-1"></i>
                         Refresh
@@ -474,11 +504,11 @@ const QuestionList = () => {
                     <table className="table table-hover mb-0">
                         <thead className="table-light">
                             <tr>
-                                <th style={{width: '50px'}}>
+                                <th style={{ width: '50px' }}>
                                     <div className="form-check">
-                                        <input 
-                                            className="form-check-input" 
-                                            type="checkbox" 
+                                        <input
+                                            className="form-check-input"
+                                            type="checkbox"
                                             checked={selectAll}
                                             onChange={handleSelectAll}
                                         />
@@ -538,9 +568,9 @@ const QuestionList = () => {
                                     <tr key={q._id} className={selectedQuestions.includes(q._id) ? 'table-active' : ''}>
                                         <td>
                                             <div className="form-check">
-                                                <input 
-                                                    className="form-check-input" 
-                                                    type="checkbox" 
+                                                <input
+                                                    className="form-check-input"
+                                                    type="checkbox"
                                                     checked={selectedQuestions.includes(q._id)}
                                                     onChange={(e) => handleSelectQuestion(q._id, e.target.checked)}
                                                 />
@@ -575,19 +605,19 @@ const QuestionList = () => {
                         </tbody>
                     </table>
                 </div>
-                
+
                 {/* Pagination Controls Bottom */}
                 {totalPages > 1 && (
                     <div className="d-flex justify-content-between align-items-center p-3 border-top">
                         <div className="text-muted">
                             Showing {questions.length > 0 ? ((currentPage - 1) * questionsPerPage) + 1 : 0} to {Math.min(currentPage * questionsPerPage, totalQuestions)} of {totalQuestions} entries
                         </div>
-                        
+
                         <nav aria-label="Questions pagination">
                             <ul className="pagination pagination-sm mb-0">
                                 <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                    <button 
-                                        className="page-link" 
+                                    <button
+                                        className="page-link"
                                         onClick={() => handlePageChange(1)}
                                         disabled={currentPage === 1}
                                     >
@@ -595,26 +625,26 @@ const QuestionList = () => {
                                     </button>
                                 </li>
                                 <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                    <button 
-                                        className="page-link" 
+                                    <button
+                                        className="page-link"
                                         onClick={() => handlePageChange(currentPage - 1)}
                                         disabled={currentPage === 1}
                                     >
                                         Previous
                                     </button>
                                 </li>
-                                
+
                                 {/* Page numbers */}
                                 {(() => {
                                     const pages = [];
                                     const startPage = Math.max(1, currentPage - 2);
                                     const endPage = Math.min(totalPages, currentPage + 2);
-                                    
+
                                     for (let i = startPage; i <= endPage; i++) {
                                         pages.push(
                                             <li key={i} className={`page-item ${currentPage === i ? 'active' : ''}`}>
-                                                <button 
-                                                    className="page-link" 
+                                                <button
+                                                    className="page-link"
                                                     onClick={() => handlePageChange(i)}
                                                 >
                                                     {i}
@@ -624,10 +654,10 @@ const QuestionList = () => {
                                     }
                                     return pages;
                                 })()}
-                                
+
                                 <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                    <button 
-                                        className="page-link" 
+                                    <button
+                                        className="page-link"
                                         onClick={() => handlePageChange(currentPage + 1)}
                                         disabled={currentPage === totalPages}
                                     >
@@ -635,8 +665,8 @@ const QuestionList = () => {
                                     </button>
                                 </li>
                                 <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                    <button 
-                                        className="page-link" 
+                                    <button
+                                        className="page-link"
                                         onClick={() => handlePageChange(totalPages)}
                                         disabled={currentPage === totalPages}
                                     >
@@ -649,12 +679,12 @@ const QuestionList = () => {
                 )}
             </div>
 
-            <AddQuestionModal 
-                show={showAddModal} 
-                onClose={() => setShowAddModal(false)} 
+            <AddQuestionModal
+                show={showAddModal}
+                onClose={() => setShowAddModal(false)}
                 onAdd={(newQ) => {
                     fetchQuestions(); // Refresh list instead of manual update
-                }} 
+                }}
             />
 
             <EditQuestionModal
@@ -677,6 +707,27 @@ const QuestionList = () => {
                 onImportSuccess={() => {
                     fetchQuestions();
                     setShowImportModal(false);
+                }}
+            />
+
+            {/* JSON Import Modal */}
+            <JSONImportModal
+                show={showJsonImportModal}
+                onClose={() => setShowJsonImportModal(false)}
+                onImportSuccess={() => {
+                    fetchQuestions();
+                    setShowJsonImportModal(false);
+                    toast.success('JSON Questions imported successfully!');
+                }}
+            />
+
+            {/* Recycle Bin Modal */}
+            <RecycleBinModal
+                show={showRecycleBin}
+                onClose={() => setShowRecycleBin(false)}
+                onRestore={() => {
+                    fetchQuestions(); // Refresh main list if something restored
+                    // Maybe keep modal open? Restoring removes from bin list inside component.
                 }}
             />
 

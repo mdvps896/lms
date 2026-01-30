@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Subject from '@/models/Subject'
+import Question from '@/models/Question'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,9 +26,42 @@ export async function GET(request) {
             .populate('category', 'name')
             .sort({ createdAt: -1 })
 
+        // Get question counts for these subjects
+        const subjectIds = subjects.map(s => s._id);
+
+        const questionCounts = await Question.aggregate([
+            {
+                $match: {
+                    subject: { $in: subjectIds },
+                    isDeleted: { $ne: true }
+                }
+            },
+            {
+                $group: {
+                    _id: '$subject',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const countMap = {};
+        questionCounts.forEach(item => {
+            if (item._id) {
+                countMap[item._id.toString()] = item.count;
+            }
+        });
+
+        const subjectsWithCount = subjects.map(s => {
+            const doc = s.toObject();
+            return {
+                ...doc,
+                questionCount: countMap[s._id.toString()] || 0
+            };
+        });
+
         return NextResponse.json({
             success: true,
-            data: subjects
+            data: subjectsWithCount
         })
     } catch (error) {
         console.error('Error fetching subjects:', error)

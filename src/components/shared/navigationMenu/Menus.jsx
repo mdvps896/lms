@@ -94,16 +94,34 @@ const Menus = () => {
 
         // For students, only show Dashboard
         if (user.role === 'student') {
-            return item.name === 'Dashboard';
+            return item.roles.includes('student');
         }
 
-        // For other roles, show all allowed menus
+        // For teachers, check specific permissions
+        if (user.role === 'teacher') {
+            if (!item.roles.includes('teacher')) return false;
+
+            // If item requires a specific permission, check if user has it
+            if (item.permission) {
+                const userPermissions = user.permissions || [];
+                return userPermissions.includes(item.permission);
+            }
+            return true;
+        }
+
+        // For admin, show all allowed menus
         return item.roles.includes(user.role);
     });
 
     return (
         <>
             {filteredMenuList.map(({ dropdownMenu, id, name, path, icon, showModal }) => {
+                // Override showModal for teachers on 'questions' item to prevent modal opening
+                // and allow direct navigation to /question-bank
+                if (user?.role === 'teacher' && name.toLowerCase() === 'questions') {
+                    showModal = false;
+                }
+
                 const hasDropdown = dropdownMenu && dropdownMenu.length > 0;
                 // Use path segment for matching if available, otherwise fallback to name
                 const menuName = (path && path.length > 1) ? path.split('/')[1] : name.split(' ')[0];

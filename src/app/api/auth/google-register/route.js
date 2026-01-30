@@ -102,6 +102,7 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             isNewUser,
+            mobileRequired: !user.phone, // Flag if mobile number is missing
             message: isNewUser ? 'Registration successful' : 'Login successful',
             user: {
                 _id: user._id,

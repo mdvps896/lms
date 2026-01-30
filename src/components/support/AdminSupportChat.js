@@ -124,7 +124,7 @@ const AdminSupportChat = () => {
         try {
             const res = await axios.get('/api/support/conversations')
             if (res.data.success) {
-                setConversations(res.data.conversations)
+                setConversations(res.data.conversations || [])
             }
         } catch (error) {
             console.error('Fetch conversations error:', error)
@@ -208,7 +208,7 @@ const AdminSupportChat = () => {
     // --- New Feature Functions ---
 
     const handleStartNewChat = (user) => {
-        const existingConv = conversations.find(c => (c.userDetails?._id || c._id) === user._id)
+        const existingConv = (conversations || []).find(c => (c.userDetails?._id || c._id) === user._id)
         if (existingConv) {
             setSelectedUser(existingConv.userDetails || { ...user })
         } else {

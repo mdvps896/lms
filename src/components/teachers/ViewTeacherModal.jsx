@@ -22,11 +22,10 @@ const ViewTeacherModal = ({ show, teacher, onClose }) => {
                                 </span>
                             </div>
                             <h5 className="mb-1">{teacher.name}</h5>
-                            <span className={`badge ${
-                                teacher.status === 'active' ? 'bg-success' :
+                            <span className={`badge ${teacher.status === 'active' ? 'bg-success' :
                                 teacher.status === 'inactive' ? 'bg-secondary' :
-                                'bg-danger'
-                            }`}>
+                                    'bg-danger'
+                                }`}>
                                 {teacher.status}
                             </span>
                         </div>
@@ -80,6 +79,28 @@ const ViewTeacherModal = ({ show, teacher, onClose }) => {
                                 <div>
                                     <small className="text-muted d-block">Teacher ID</small>
                                     <code className="text-muted">{teacher.id}</code>
+                                </div>
+                            </div>
+                            <div className="list-group-item">
+                                <small className="text-muted d-block mb-1">Permissions</small>
+                                <div>
+                                    {(teacher.permissions && teacher.permissions.length > 0) ? (
+                                        teacher.permissions.map((perm, index) => (
+                                            <span key={index} className="badge bg-light text-dark me-1 mb-1 border">
+                                                {perm.replace('manage_', 'Manage ').replace('view_', 'View ').replace(/_/g, ' ')}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-muted small">No specific permissions assigned</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="list-group-item">
+                                <small className="text-muted d-block mb-1">Access Scope</small>
+                                <div>
+                                    <span className={`badge ${teacher.accessScope === 'global' ? 'bg-warning text-dark' : 'bg-secondary'}`}>
+                                        {teacher.accessScope === 'global' ? 'Global Access' : 'Manage Own Content'}
+                                    </span>
                                 </div>
                             </div>
                         </div>

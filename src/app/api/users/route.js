@@ -13,7 +13,7 @@ export async function GET(request) {
     const category = searchParams.get('category');
     const populate = searchParams.get('populate');
 
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     if (role) {
       query.role = role;
     }
