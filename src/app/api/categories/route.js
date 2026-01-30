@@ -12,6 +12,7 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')
         const format = searchParams.get('format')
+        const isPublished = searchParams.get('isPublished')
 
         let query = {}
         if (status && status !== 'all') {
