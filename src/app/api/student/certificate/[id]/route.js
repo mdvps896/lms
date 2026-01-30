@@ -123,7 +123,7 @@ export async function GET(request, { params }) {
             const fmt = (ext === 'PNG' || ext === 'WEBP') ? ext : 'JPEG';
 
             // Top Logo - Scale down
-            const logoSize = 14;
+            const logoSize = 20; // Increased from 14
             const logoX = (width / 2) - (logoSize / 2);
             const logoY = y;
             const radius = logoSize / 2;
@@ -172,7 +172,7 @@ export async function GET(request, { params }) {
         doc.setFontSize(32); // Reduced from 42
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...colors.navy);
-        doc.text(attempt.user.name?.toUpperCase() || "STUDENT NAME", width / 2, y, { align: "center" });
+        doc.text(attempt.user?.name?.toUpperCase() || "STUDENT NAME", width / 2, y, { align: "center" });
 
         // Horizontal line under name
         doc.setDrawColor(...colors.gold);
@@ -190,7 +190,7 @@ export async function GET(request, { params }) {
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...colors.navy);
-        doc.text(attempt.exam.name?.toUpperCase() || "EXAMINATION TITLE", width / 2, y, { align: "center" });
+        doc.text(attempt.exam?.name?.toUpperCase() || "EXAMINATION TITLE", width / 2, y, { align: "center" });
 
         // --- EXAM SUBTITLES (Reference Match) ---
         y += 7;
@@ -218,7 +218,7 @@ export async function GET(request, { params }) {
         const rollNo = attempt.user?.rollNumber || `MDC-${new Date().getFullYear()}-${attempt._id.toString().substr(-4).toUpperCase()}`;
 
         const stats = [
-            { label: "SCORE", value: `${attempt.percentage.toFixed(1)}%` },
+            { label: "SCORE", value: `${(attempt.percentage || 0).toFixed(1)}%` },
             { label: "MARKS", value: `${attempt.score}/${attempt.totalMarks}` },
             { label: "ROLL NO", value: rollNo }, // Real Roll No
             { label: "RESULT", value: attempt.passed ? "PASSED" : "FAILED" }
@@ -265,7 +265,7 @@ export async function GET(request, { params }) {
         if (sealImageBuffer) {
             const ext = useStamp ? 'JPEG' : logoPath.split('.').pop().toUpperCase();
             const fmt = (ext === 'PNG' || ext === 'WEBP') ? ext : 'JPEG';
-            const sealImgSize = 22; // Increased size from 14 to 22
+            const sealImgSize = 35; // Increased from 22
             const imgX = sealX - (sealImgSize / 2);
             const imgY = optimizedSealY - (sealImgSize / 2);
 

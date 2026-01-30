@@ -7,13 +7,14 @@ const AddCategoryModal = ({ show, onClose, onSuccess }) => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        status: 'active'
+        status: 'active',
+        isPublished: true
     })
     const [loading, setLoading] = useState(false)
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        
+
         if (!formData.name) {
             Swal.fire({
                 icon: 'error',
@@ -100,7 +101,6 @@ const AddCategoryModal = ({ show, onClose, onSuccess }) => {
                                 />
                             </div>
                             <div className="mb-3">
-                                <label className="form-label">Status</label>
                                 <select
                                     className="form-select"
                                     value={formData.status}
@@ -109,6 +109,20 @@ const AddCategoryModal = ({ show, onClose, onSuccess }) => {
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
+                            </div>
+                            <div className="mb-3">
+                                <div className="form-check form-switch">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="isPublishedSwitch"
+                                        checked={formData.isPublished}
+                                        onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                                    />
+                                    <label className="form-check-label" htmlFor="isPublishedSwitch">
+                                        Published (Visible in App)
+                                    </label>
+                                </div>
                             </div>
                         </div>
                         <div className="modal-footer">
@@ -119,8 +133,8 @@ const AddCategoryModal = ({ show, onClose, onSuccess }) => {
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }
 

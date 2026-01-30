@@ -11,10 +11,18 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')
+        const format = searchParams.get('format')
 
         let query = {}
         if (status && status !== 'all') {
             query.status = status
+        }
+
+        if (format !== 'admin') {
+            query.isPublished = true
+            query.status = 'active'
+        } else if (isPublished !== null) {
+            query.isPublished = isPublished === 'true'
         }
 
         const categories = await Category.find(query).sort({ createdAt: -1 })
@@ -39,7 +47,7 @@ export async function POST(request) {
         await connectDB()
 
         const body = await request.json()
-        const { name, description, status } = body
+        const { name, description, status, isPublished } = body
 
         // Validation
         if (!name) {
@@ -50,8 +58,8 @@ export async function POST(request) {
         }
 
         // Check if category already exists
-        const existingCategory = await Category.findOne({ 
-            name: { $regex: new RegExp(`^${name}$`, 'i') } 
+        const existingCategory = await Category.findOne({
+            name: { $regex: new RegExp(`^${name}$`, 'i') }
         })
 
         if (existingCategory) {
@@ -65,7 +73,8 @@ export async function POST(request) {
         const category = await Category.create({
             name,
             description: description || '',
-            status: status || 'active'
+            status: status || 'active',
+            isPublished: isPublished !== undefined ? isPublished : true
         })
 
         return NextResponse.json({

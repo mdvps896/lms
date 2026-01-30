@@ -15,6 +15,10 @@ const CategorySchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'inactive'],
         default: 'active'
+    },
+    isPublished: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true

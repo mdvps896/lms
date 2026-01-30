@@ -12,7 +12,13 @@ export async function GET(request) {
         const format = searchParams.get('format'); // 'admin' or 'mobile'
 
         // Fetch courses with populated data
-        const courses = await Course.find({})
+        let query = {};
+        if (format !== 'admin') {
+            query.status = 'published';
+            query.isActive = true;
+        }
+
+        const courses = await Course.find(query)
             .populate('category', 'name')
             .populate('subjects', 'name')
             .populate('exams', 'name type')

@@ -16,7 +16,7 @@ const CategoryList = () => {
     const [statusFilter, setStatusFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [categoriesPerPage] = useState(10)
-    
+
     // Modals
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
@@ -31,16 +31,17 @@ const CategoryList = () => {
     const loadCategories = async () => {
         setLoading(true)
         try {
-            const response = await fetch('/api/categories')
+            const response = await fetch('/api/categories?format=admin')
             const data = await response.json()
-            
+
             if (data.success) {
                 const categoriesData = data.data.map(category => ({
                     id: category._id,
                     name: category.name,
                     description: category.description || '',
                     createdDate: new Date(category.createdAt).toLocaleDateString(),
-                    status: category.status
+                    status: category.status,
+                    isPublished: category.isPublished
                 }))
                 setCategories(categoriesData)
                 setFilteredCategories(categoriesData)
@@ -122,7 +123,7 @@ const CategoryList = () => {
             try {
                 const text = event.target.result
                 const rows = text.split('\n').filter(row => row.trim())
-                
+
                 const importedCategories = []
                 for (let i = 1; i < rows.length; i++) {
                     const values = rows[i].split(',').map(v => v.replace(/"/g, '').trim())
@@ -140,7 +141,7 @@ const CategoryList = () => {
 
                 if (importedCategories.length > 0) {
                     let successCount = 0
-                    
+
                     for (const category of importedCategories) {
                         try {
                             const response = await fetch('/api/categories', {
@@ -154,9 +155,9 @@ const CategoryList = () => {
                             console.error('Error importing category:', error)
                         }
                     }
-                    
+
                     loadCategories()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Imported!',
@@ -199,7 +200,7 @@ const CategoryList = () => {
 
                 if (data.success) {
                     loadCategories()
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Deleted!',
@@ -267,7 +268,7 @@ const CategoryList = () => {
                         </div>
                         <div className="col-md-6 text-end">
                             <div className="btn-group me-2">
-                                <button 
+                                <button
                                     className="btn btn-sm btn-success"
                                     onClick={exportToCSV}
                                     disabled={filteredCategories.length === 0}
@@ -284,7 +285,7 @@ const CategoryList = () => {
                                     />
                                 </label>
                             </div>
-                            <button 
+                            <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => setShowAddModal(true)}
                             >
@@ -323,6 +324,7 @@ const CategoryList = () => {
                                     <th>Description</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
+                                    <th>Published</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -348,11 +350,35 @@ const CategoryList = () => {
                                             </td>
                                             <td>{category.createdDate}</td>
                                             <td>
-                                                <span className={`badge ${
-                                                    category.status === 'active' ? 'bg-success' : 'bg-secondary'
-                                                }`}>
+                                                <span className={`badge ${category.status === 'active' ? 'bg-success' : 'bg-secondary'
+                                                    }`}>
                                                     {category.status}
                                                 </span>
+                                            </td>
+                                            <td>
+                                                <div className="form-check form-switch cursor-pointer">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="checkbox"
+                                                        checked={category.isPublished}
+                                                        onChange={async () => {
+                                                            try {
+                                                                const res = await fetch(`/api/categories/${category.id}`, {
+                                                                    method: 'PUT',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({
+                                                                        ...category,
+                                                                        name: category.name, // Required by API
+                                                                        isPublished: !category.isPublished
+                                                                    })
+                                                                });
+                                                                if (res.ok) loadCategories();
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
                                             </td>
                                             <td>
                                                 <div className="btn-group btn-group-sm">
@@ -428,39 +454,45 @@ const CategoryList = () => {
                         </div>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Modals */}
-            {showAddModal && (
-                <AddCategoryModal
-                    show={showAddModal}
-                    onClose={() => setShowAddModal(false)}
-                    onSuccess={handleAddSuccess}
-                />
-            )}
+            {
+                showAddModal && (
+                    <AddCategoryModal
+                        show={showAddModal}
+                        onClose={() => setShowAddModal(false)}
+                        onSuccess={handleAddSuccess}
+                    />
+                )
+            }
 
-            {showEditModal && selectedCategory && (
-                <EditCategoryModal
-                    show={showEditModal}
-                    category={selectedCategory}
-                    onClose={() => {
-                        setShowEditModal(false)
-                        setSelectedCategory(null)
-                    }}
-                    onSuccess={handleEditSuccess}
-                />
-            )}
+            {
+                showEditModal && selectedCategory && (
+                    <EditCategoryModal
+                        show={showEditModal}
+                        category={selectedCategory}
+                        onClose={() => {
+                            setShowEditModal(false)
+                            setSelectedCategory(null)
+                        }}
+                        onSuccess={handleEditSuccess}
+                    />
+                )
+            }
 
-            {showViewModal && selectedCategory && (
-                <ViewCategoryModal
-                    show={showViewModal}
-                    category={selectedCategory}
-                    onClose={() => {
-                        setShowViewModal(false)
-                        setSelectedCategory(null)
-                    }}
-                />
-            )}
+            {
+                showViewModal && selectedCategory && (
+                    <ViewCategoryModal
+                        show={showViewModal}
+                        category={selectedCategory}
+                        onClose={() => {
+                            setShowViewModal(false)
+                            setSelectedCategory(null)
+                        }}
+                    />
+                )
+            }
         </>
     )
 }

@@ -47,7 +47,7 @@ export async function PUT(request, { params }) {
 
         const { id } = params
         const body = await request.json()
-        const { name, description, status } = body
+        const { name, description, status, isPublished } = body
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return NextResponse.json({
@@ -82,7 +82,8 @@ export async function PUT(request, { params }) {
             {
                 name,
                 description: description || '',
-                status: status || 'active'
+                status: status || 'active',
+                isPublished: isPublished !== undefined ? isPublished : true
             },
             { new: true, runValidators: true }
         )
