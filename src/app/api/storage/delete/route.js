@@ -4,7 +4,8 @@ import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth'
 
 export async function POST(request) {
     try {
-        const { filePath, publicId } = await request.json()
+        const body = await request.json()
+        const { filePath, publicId } = body
 
         // Security Check
         const authError = await requirePermission(request, 'manage_storage');
