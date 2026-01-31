@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Subject from '@/models/Subject'
 import Question from '@/models/Question'
+import { requirePermission } from '@/utils/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
 // GET - Get all subjects
 export async function GET(request) {
     try {
+        const { searchParams } = new URL(request.url)
+        const format = searchParams.get('format')
+
+        // Security check for admin format
+        if (format === 'admin') {
+            const authError = await requirePermission(request, 'manage_academic');
+            if (authError) return authError;
+        }
+
         await connectDB()
 
-        const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')
         const category = searchParams.get('category')
 
@@ -75,6 +84,9 @@ export async function GET(request) {
 
 // POST - Create new subject
 export async function POST(request) {
+    const authError = await requirePermission(request, 'manage_academic');
+    if (authError) return authError;
+
     try {
         await connectDB()
 

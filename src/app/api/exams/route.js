@@ -22,9 +22,9 @@ export async function GET(req) {
 
         const currentUser = await getAuthenticatedUser(req);
 
-        // Security: Analytics data is for admins only
+        // Security: Analytics data is for admins and authorized teachers
         if (analytics === 'true') {
-            const authError = await requireAdmin(req);
+            const authError = await requirePermission(req, 'view_analytics');
             if (authError) return authError;
         }
 
@@ -162,22 +162,17 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    console.log('POST /api/exams - Started');
-
     // Security check
     const authError = await requirePermission(req, 'manage_exams');
     if (authError) {
-        console.log('POST /api/exams - Auth Failed', authError);
         return authError;
     }
 
     try {
         await connectDB();
-        console.log('POST /api/exams - DB Connected');
-
         const currentUser = await getAuthenticatedUser(req);
         const body = await req.json();
-        console.log('POST /api/exams - Payload:', JSON.stringify(body, null, 2));
+
 
         // Add createdBy field if user is available
         if (currentUser) {
@@ -185,8 +180,6 @@ export async function POST(req) {
         }
 
         const exam = await Exam.create(body);
-        console.log('POST /api/exams - Exam Created:', exam._id);
-
         // Populate the created exam with necessary data for notifications
         const populatedExam = await Exam.findById(exam._id)
             .populate('assignedUsers', '_id name email')

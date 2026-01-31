@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
 import User from '@/models/User';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request) {
     try {
@@ -10,6 +11,12 @@ export async function GET(request) {
         // Check if request is from admin panel or mobile app
         const { searchParams } = new URL(request.url);
         const format = searchParams.get('format'); // 'admin' or 'mobile'
+
+        // Security check for admin format
+        if (format === 'admin') {
+            const authError = await requirePermission(request, 'manage_courses');
+            if (authError) return authError;
+        }
 
         // Fetch courses with populated data
         let query = {};
@@ -191,6 +198,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+    // Security check
+    const authError = await requirePermission(request, 'manage_courses');
+    if (authError) return authError;
+
     try {
         await dbConnect();
         const body = await request.json();

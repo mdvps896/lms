@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
-import { requireAdmin } from '@/utils/apiAuth';
+import { requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,8 +9,7 @@ export async function GET(request, { params }) {
     try {
         await dbConnect();
         const { id } = params;
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
 
         const course = await Course.findById(id)
             .populate('category', 'name')
@@ -39,12 +38,11 @@ export async function GET(request, { params }) {
         let isLiked = false;
         let userRating = null;
 
-        if (userId) {
+        if (currentUser) {
+            const userId = currentUser.id || currentUser._id?.toString();
             isLiked = likes.some(uid => uid.toString() === userId);
 
-            // Look for rating by this user
             userRating = ratings.find(r => {
-                // If populated, r.user is an object with _id
                 const rUserId = r.user?._id ? r.user._id.toString() : r.user?.toString();
                 return rUserId === userId;
             });
@@ -57,10 +55,8 @@ export async function GET(request, { params }) {
         courseObj.isLiked = isLiked;
         courseObj.userRating = userRating;
         courseObj.isRated = !!userRating;
-        courseObj.isRated = !!userRating;
         courseObj.language = courseObj.language || 'English';
 
-        // Format reading duration
         let readingDurationText = 'Not specified';
         if (courseObj.readingDuration) {
             const { value, unit } = courseObj.readingDuration;
@@ -75,30 +71,25 @@ export async function GET(request, { params }) {
             date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recently'
         }));
 
-        // If instructor is not properly populated (just a string or null), fetch admin from settings
         if (!courseObj.instructor || typeof courseObj.instructor === 'string') {
             try {
                 const Settings = (await import('@/models/Settings')).default;
                 const settings = await Settings.findOne();
                 const adminName = settings?.general?.adminName || 'Instructor';
 
-                // Also try to get admin user for profile image
                 const User = (await import('@/models/User')).default;
                 const adminUser = await User.findOne({ role: 'ADMIN' }).select('profileImage profilePicture email');
 
                 courseObj.instructor = {
                     _id: adminUser?._id || null,
-                    name: adminName, // Use settings admin name
+                    name: adminName,
                     profileImage: adminUser?.profileImage,
                     profilePicture: adminUser?.profilePicture,
                     email: adminUser?.email
                 };
-            } catch (err) {
-                // Silent error
-            }
+            } catch (err) { }
         }
 
-        // URL Fixer for local uploads in production
         const fixUrl = (url) => {
             if (typeof url === 'string' && url.startsWith('/uploads/')) {
                 return `/api/storage/file${url}`;
@@ -106,11 +97,9 @@ export async function GET(request, { params }) {
             return url;
         };
 
-        // Apply URL fix to course fields
         courseObj.thumbnail = fixUrl(courseObj.thumbnail);
         courseObj.demoVideo = fixUrl(courseObj.demoVideo);
 
-        // Apply URL fix to curriculum
         if (courseObj.curriculum) {
             courseObj.curriculum.forEach(topic => {
                 if (topic.lectures) {
@@ -128,34 +117,23 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-    // Security check
-    const authError = await requireAdmin(request);
+    const authError = await requirePermission(request, 'manage_courses');
     if (authError) return authError;
 
     try {
         await dbConnect();
         const { id } = params;
 
-        // Validate ID
         if (!id || id === 'undefined' || id === 'null') {
-            return NextResponse.json({
-                success: false,
-                error: 'Invalid course ID'
-            }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Invalid course ID' }, { status: 400 });
         }
 
         let body;
         try {
             body = await request.json();
         } catch (jsonError) {
-            return NextResponse.json({
-                success: false,
-                error: 'Invalid JSON body: ' + jsonError.message
-            }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Invalid JSON body: ' + jsonError.message }, { status: 400 });
         }
-
-
-
 
         const course = await Course.findByIdAndUpdate(id, body, {
             new: true,
@@ -169,13 +147,12 @@ export async function PUT(request, { params }) {
         return NextResponse.json({ success: true, data: course });
     } catch (error) {
         console.error('❌ Course Update Error:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 400 }); // Consider 500 if it's a server crash, but keeping 400 as requested for validation errors
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
 
 export async function DELETE(request, { params }) {
-    // Security check
-    const authError = await requireAdmin(request);
+    const authError = await requirePermission(request, 'manage_courses');
     if (authError) return authError;
 
     try {

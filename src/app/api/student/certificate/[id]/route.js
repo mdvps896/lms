@@ -5,6 +5,7 @@ import Settings from '@/models/Settings';
 import jsPDF from 'jspdf';
 import path from 'path';
 import fs from 'fs';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Helper to load fonts/images from the local filesystem
 const loadAsset = (relativePath) => {
@@ -24,6 +25,11 @@ export async function GET(request, { params }) {
     try {
         await dbConnect();
         const { id } = params;
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         // 1. Fetch Attempt with populated data
         const attempt = await ExamAttempt.findById(id)
@@ -32,6 +38,12 @@ export async function GET(request, { params }) {
 
         if (!attempt) {
             return NextResponse.json({ success: false, message: 'Attempt not found' }, { status: 404 });
+        }
+
+        // Security: Students can only access their own certificate, unless admin/teacher
+        const userId = currentUser.id || currentUser._id?.toString();
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && attempt.user?._id?.toString() !== userId && attempt.user?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
         // 2. Fetch Settings for branding
@@ -89,9 +101,6 @@ export async function GET(request, { params }) {
         drawCorner(12, height - 12, 1, -1); // Bottom Left
         drawCorner(width - 12, height - 12, -1, -1); // Bottom Right
 
-
-
-
         // --- HEADER SECTION ---
         let y = 20; // Reduced top margin
 
@@ -135,15 +144,6 @@ export async function GET(request, { params }) {
 
             y += (logoSize + 5);
         }
-
-        // REMOVED Site Name text as per reference image (Logo only)
-        // doc.setFont("helvetica", "bold");
-        // doc.setFontSize(14);
-        // doc.setTextColor(...colors.navy);
-        // doc.text("MD CONSULTANCY", width / 2, y, { align: "center" });
-        // y += 6;
-        // doc.setFontSize(10);
-        // doc.text("MOH DHA COACHING CENTER", width / 2, y, { align: "center" });
 
         // --- CERTIFICATE TITLE (Row 2) ---
         y += 10; // Adjusted for larger logo

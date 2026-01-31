@@ -25,8 +25,8 @@ class ServerSideLiveStream {
         this.intervalId = setInterval(() => {
             this.captureAndSendFrames();
         }, 500);
+    }
 
-        }
 
     /**
      * Capture current frame from streams and send to server
@@ -172,7 +172,8 @@ class ServerSideLiveStream {
             clearInterval(this.intervalId);
             this.intervalId = null;
         }
-        }
+
+    }
 }
 
 export default ServerSideLiveStream;

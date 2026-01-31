@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Category from '@/models/Category'
+import { requireAuth, requirePermission } from '@/utils/apiAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,9 +11,13 @@ export async function GET(request) {
         await connectDB()
 
         const { searchParams } = new URL(request.url)
-        const status = searchParams.get('status')
         const format = searchParams.get('format')
-        const isPublished = searchParams.get('isPublished')
+
+        // Security check for admin format
+        if (format === 'admin') {
+            const authError = await requirePermission(request, 'manage_academic');
+            if (authError) return authError;
+        }
 
         let query = {}
 
@@ -49,6 +54,9 @@ export async function GET(request) {
 
 // POST - Create new category
 export async function POST(request) {
+    const authError = await requirePermission(request, 'manage_academic');
+    if (authError) return authError;
+
     try {
         await connectDB()
 

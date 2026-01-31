@@ -7,37 +7,41 @@ import fs from 'fs';
 import path from 'path';
 import { PDFDrawer } from './pdf-drawing';
 import { drawImage } from './pdf-images';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-    console.log('GET /api/student/esign/pdf REQUEST RECEIVED');
     try {
         await connectDB();
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
+        // Security: Students can only access their own PDF, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const submission = await ESignSubmission.findOne({ user: userId });
         if (!submission) {
-            console.log('No submission found for userId:', userId);
             return NextResponse.json({ success: false, message: 'No E-Sign submission found' }, { status: 404 });
         }
-        console.log('Submission found:', submission._id);
 
         // Fallback to User images
         let userImages = {};
         try {
-            console.log('Fetching User for fallback images...');
             const user = await User.findById(userId).select('esign_images');
             if (user) {
                 userImages = user.esign_images || {};
-                console.log('User images fetched:', Object.keys(userImages));
-            } else {
-                console.log('User not found.');
             }
         } catch (err) {
             console.error('Error fetching user images:', err);
@@ -65,12 +69,10 @@ export async function GET(request) {
         drawer.yPos += 10;
 
         // --- Uploaded Documents ---
-        // Compact layout: Smaller boxes, tighter gaps
         const boxW = 75;
         const boxH = 45;
         const gap = 5;
 
-        // Space check for Title + Row 1
         if (drawer.yPos + 15 + boxH > drawer.pageHeight - 20) {
             doc.addPage();
             drawer.yPos = 25;
@@ -82,28 +84,12 @@ export async function GET(request) {
 
         let currentY = drawer.yPos + 5;
 
-        // Draw Images (Fallback to User Model if submission doc is missing)
         // Row 1
         await drawImage(doc, 'Passport Front', d.passportFront || userImages.passportFront, startX, currentY, boxW, boxH, drawer.colors);
         await drawImage(doc, 'Passport Back', d.passportBack || userImages.passportBack, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
 
-        // Row 2 (No page break check - force together)
-        // Draw adjacent to row 1 if width allows? No, stick to 2x2 grid but keep close.
-        // Actually, user said "1 page me hi dekhe". If we want ALL 4 on one line, we need smaller boxes.
-        // 75*4 > PageWidth. 
-        // Let's stick to 2 rows but remove gap between rows.
-
-        // Check if Row 2 fits on same page?
-        // Ideally we just continue drawing.
-
-        // If we really want to fit on same page, we can try to draw Row 2 immediately below.
-        // If it doesn't fit, it will naturally overflow or cut. 
-        // But user asked to "see in 1 page". 
-        // Let's try to fit closely.
-
         // Row 2
-        currentY += boxH + 5; // minimal vertical gap
-
+        currentY += boxH + 5;
         await drawImage(doc, 'Passport Photo', d.passportPhoto || userImages.passportPhoto, startX, currentY, boxW, boxH, drawer.colors);
         await drawImage(doc, 'Selfie / Human Check', d.selfiePhoto || userImages.selfiePhoto, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
 
@@ -167,7 +153,6 @@ export async function GET(request) {
         const declarations = s.declarations || {};
         const ca = s.clientAcceptance || {};
 
-        // 1. IMPORTANT NOTE (Static)
         doc.setFontSize(11);
         doc.setTextColor(255, 0, 0);
         doc.setFont('helvetica', 'bold');
@@ -177,7 +162,6 @@ export async function GET(request) {
         drawer.drawWrappedText('Work/process will start only after MD Consultancy approval and payment confirmation as per selected services.');
         drawer.yPos += 5;
 
-        // 2. LEGAL DISCLAIMER
         drawer.drawSectionTitle('LEGAL DISCLAIMER (INDIA COMPLIANCE)');
         drawer.drawWrappedText('MD Consultancy is a private consultancy / coaching & documentation support service provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
         drawer.drawWrappedText('All services are provided on the client\'s request and depend on official rules, portal systems, authority verification, and timelines.');
@@ -245,8 +229,7 @@ export async function GET(request) {
             if (declarations.finalConfirmation.authorizeStart) drawer.drawSelectedItem('Authorized: Start processing application.');
             drawer.yPos += 5;
         }
-        drawer.yPos += 5;
-        drawer.yPos += 5;
+        drawer.yPos += 10;
         drawer.drawSectionTitle('Payment Authorization');
 
         doc.setFontSize(10);
@@ -275,48 +258,36 @@ export async function GET(request) {
 
         doc.setFontSize(11);
         doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
-        doc.setFontSize(11);
-        doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
         doc.text('CLIENT DIGITAL SIGNATURE:', drawer.margin, drawer.yPos + 10);
 
         // Draw Client Signature Image (Async)
         const signatureToUse = sig.signatureImage || userImages.signatureImage;
         if (signatureToUse) {
-            // Moved down to +25 for more gap from label
             await drawImage(doc, 'Client Signature', signatureToUse, drawer.margin, drawer.yPos + 25, 60, 30, drawer.colors);
         }
 
         doc.setFont('courier', 'bolditalic');
         doc.setFontSize(12);
         doc.setTextColor(drawer.colors.secondary[0], drawer.colors.secondary[1], drawer.colors.secondary[2]);
-        // Increased gap: Image ends at +55, Name at +70 (15 units gap)
         doc.text(sig.clientName || 'AUTHORIZED SIGNATORY', drawer.margin, drawer.yPos + 70);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.setTextColor(drawer.colors.textLight[0], drawer.colors.textLight[1], drawer.colors.textLight[2]);
-        // Moved Date and Location below the name
         doc.text(`Submission Date: ${sig.date ? new Date(sig.date).toLocaleDateString('en-GB') : 'N/A'}`, drawer.margin, drawer.yPos + 78);
         doc.text(`Filing Location: ${sig.place || 'Registered Address'}`, drawer.margin, drawer.yPos + 85);
 
-        // Add Approval Footer Text
-        // Draw Disclaimer Text below Stamp (No Box, Black Text)
         const boxX = drawer.pageWidth - 70;
         const boxY = drawer.yPos + 55;
         const footerBoxW = 50;
 
-        // Removed Red Box
-        // doc.setDrawColor(255, 0, 0); 
-        // doc.rect(boxX, boxY, footerBoxW, footerBoxH);
-
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
-        doc.setTextColor(0, 0, 0); // Black Text
+        doc.setTextColor(0, 0, 0);
 
         const footerText = "This document is electronically signed and approved by MD Consultancy and does not require a physical signature.";
         doc.text(footerText, boxX + 2, boxY + 5, { maxWidth: footerBoxW - 4, align: 'left' });
 
-        // --- Finalize: Add Footers to All Pages ---
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);

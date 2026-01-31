@@ -61,23 +61,15 @@ export async function GET(request) {
         await connectDB()
 
         const user = await getAuthenticatedUser(request)
-        console.log('Storage API - User:', user?.email, 'Role:', user?.role);
-
         const isTeacherOwn = user && user.role === 'teacher' && (user.accessScope || 'own') === 'own';
-        console.log('Storage API - isTeacherOwn:', isTeacherOwn);
-
         // 1. Get local files (Legacy support & backups)
         const publicDir = path.join(process.cwd(), 'public')
         const localFiles = getAllFiles(publicDir)
-        console.log('Storage API - Found local files:', localFiles.length);
-
         // 2. Get Cloudinary files - REMOVED
 
         // 3. Get exam recordings (from DB)
         // Pass userId if restriction applies (Recordings are still strictly filtered by ownership)
         const examRecordings = await getExamRecordings(isTeacherOwn ? user.id : null)
-        console.log('Storage API - Found recordings:', examRecordings.length);
-
         // ... (rest of the merging logic)
 
         // Deduplicate and merge: Prefer examRecordings (rich metadata) but fill size from localFiles

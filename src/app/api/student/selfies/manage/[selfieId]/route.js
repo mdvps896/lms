@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import SelfieCapture from '@/models/SelfieCapture';
-import { verifyToken } from '@/utils/auth';
+import { requireAdmin } from '@/utils/apiAuth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 
@@ -10,21 +10,8 @@ export async function DELETE(request, { params }) {
         await connectDB();
 
         // Verify authentication
-        const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('token')?.value;
-        if (!token) {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        const decoded = await verifyToken(token);
-        if (!decoded || decoded.role !== 'admin') {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized. Admin access required.' },
-                { status: 403 }
-            );
-        }
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
 
         const { selfieId } = params;
 

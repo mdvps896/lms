@@ -14,7 +14,7 @@ export async function GET(request) {
     try {
         await dbConnect();
 
-        console.log('Generating Student Report...'); // Debug log
+        // Debug log
 
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get('studentId');

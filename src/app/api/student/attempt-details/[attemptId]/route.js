@@ -1,44 +1,27 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import connectDB from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
-        await dbConnect();
+        await connectDB();
 
         const { attemptId } = params;
 
-        // Get user ID and role from cookies
-        const cookies = request.headers.get('cookie');
-        let userId = null;
-        let userRole = null;
-
-        if (cookies) {
-            const userCookie = cookies
-                .split('; ')
-                .find(row => row.startsWith('user='));
-
-            if (userCookie) {
-                try {
-                    const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
-                    const userData = JSON.parse(userDataStr);
-                    userId = userData._id;
-                    userRole = userData.role;
-                } catch (parseError) {
-                    console.error('Failed to parse user cookie:', parseError);
-                }
-            }
-        }
-
-        if (!userId) {
-            console.error('No user ID found');
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            console.error('No user found');
             return NextResponse.json(
                 { success: false, message: 'User not authenticated' },
                 { status: 401 }
             );
         }
+
+        const userId = currentUser.id || currentUser._id?.toString();
+        const userRole = currentUser.role;
 
         // Find ExamAttempt
         const attempt = await ExamAttempt.findById(attemptId)

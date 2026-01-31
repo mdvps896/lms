@@ -43,16 +43,12 @@ const ExamAttemptSchema = new mongoose.Schema({
 const ExamAttempt = mongoose.models.ExamAttempt || mongoose.model('ExamAttempt', ExamAttemptSchema);
 
 async function migrateExamAttempts() {
-    console.log('🚀 Starting migration...');
     try {
         await connectDB();
 
         // Get all exam attempts
         const allAttempts = await ExamAttempt.find({});
-        console.log(`Found ${allAttempts.length} total attempts to migrate.`);
-
         if (allAttempts.length === 0) {
-            console.log('No attempts found. Exiting.');
             return;
         }
 
@@ -111,9 +107,7 @@ async function migrateExamAttempts() {
 
                 await exam.save();
                 successCount += attempts.length;
-                console.log(`✅ Migrated ${attempts.length} attempts for Exam: ${examId}`);
-
-            } catch (error) {
+                } catch (error) {
                 console.error(`❌ Error migrating attempts for exam ${examId}:`, error.message);
                 errorCount += attempts.length;
                 errors.push({ examId, reason: error.message, attemptsCount: attempts.length });
@@ -121,17 +115,14 @@ async function migrateExamAttempts() {
         }
 
         if (errors.length > 0) {
-            console.log('\n--- Migration Errors ---');
             errors.forEach(err => {
-                console.log(`Exam ${err.examId}: ${err.reason} (${err.attemptsCount} attempts failed)`);
+                `);
             });
         }
 
         if (successCount > 0) {
-            console.log(`\n🎉 Successfully migrated ${successCount} attempts.`);
-        } else {
-            console.log('\nNo attempts were migrated.');
-        }
+            } else {
+            }
 
     } catch (error) {
         console.error('❌ Migration failed:', error);
@@ -148,7 +139,6 @@ const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
     migrateExamAttempts()
         .then(() => {
-            console.log('Migration complete.');
             process.exit(0);
         })
         .catch(err => {

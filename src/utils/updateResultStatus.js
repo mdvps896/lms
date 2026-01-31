@@ -9,7 +9,7 @@ async function updateResultStatus() {
         const MONGODB_URI = 'mongodb+srv://hawk76713_db_user:QPGGcF1aRxTM1Z4f@exam1.xqdis5p.mongodb.net/?appName=exam1';
         await mongoose.connect(MONGODB_URI);
         // Get all submitted exam attempts without resultStatus or with published status
-        const attempts = await ExamAttempt.find({ 
+        const attempts = await ExamAttempt.find({
             status: 'submitted',
             $or: [
                 { resultStatus: { $exists: false } },
@@ -26,11 +26,11 @@ async function updateResultStatus() {
         for (const attempt of attempts) {
             // Get exam with question groups
             const exam = await Exam.findById(attempt.exam).lean();
-            
+
             if (!exam) {
                 continue;
             }
-            
+
             if (!exam.questionGroups || exam.questionGroups.length === 0) {
                 continue;
             }
@@ -41,16 +41,15 @@ async function updateResultStatus() {
             }).lean();
 
             // Check if any question is subjective
-            const hasSubjective = questions.some(q => 
+            const hasSubjective = questions.some(q =>
                 q.type === 'short_answer' || q.type === 'long_answer'
             );
 
-            const subjectiveQuestions = questions.filter(q => 
+            const subjectiveQuestions = questions.filter(q =>
                 q.type === 'short_answer' || q.type === 'long_answer'
             );
 
-            subjectiveQuestions.forEach(q => {
-                });
+
 
             if (hasSubjective) {
                 await ExamAttempt.findByIdAndUpdate(attempt._id, {
@@ -59,18 +58,18 @@ async function updateResultStatus() {
                 });
                 updatedCount++;
                 draftCount++;
-                } else {
+            } else {
                 await ExamAttempt.findByIdAndUpdate(attempt._id, {
                     resultStatus: 'published',
                     hasSubjectiveQuestions: false
                 });
                 updatedCount++;
                 publishedCount++;
-                }
+            }
         }
 
         await mongoose.connection.close();
-        } catch (error) {
+    } catch (error) {
         console.error('Error updating result status:', error);
         process.exit(1);
     }

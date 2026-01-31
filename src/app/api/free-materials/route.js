@@ -2,12 +2,10 @@ import path from 'path';
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import FreeMaterial from '@/models/FreeMaterial';
-import Category from '@/models/Category';
-import Subject from '@/models/Subject';
-import { saveFileLocally } from '@/utils/localFileStorage';
-
 import Question from '@/models/Question';
-import Exam from '@/models/Exam'; // Import Exam model
+import Exam from '@/models/Exam';
+import { saveFileLocally } from '@/utils/localFileStorage';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export async function GET(request) {
     try {
@@ -17,25 +15,19 @@ export async function GET(request) {
             .populate('subject', 'name')
             .populate({
                 path: 'testId',
-                model: Exam, // Explicitly specify the model to use
+                model: Exam,
                 select: 'name questionGroups',
                 options: { strictPopulate: false }
             })
             .sort({ createdAt: -1 });
 
-        // Transform testId data to match expected format
         const transformedMaterials = await Promise.all(materials.map(async (material) => {
             const materialObj = material.toObject();
 
             if (materialObj.testId) {
                 let totalQuestions = 0;
                 if (materialObj.testId.questionGroups && materialObj.testId.questionGroups.length > 0) {
-                    // Extract IDs depending on whether questionGroups are populated objects or just IDs
-                    // populate options above suggest they might be populated if strictPopulate allows, 
-                    // but we only selected 'name questionGroups'. 
-                    // If they are just IDs in the array or objects, we handle both.
                     const groupIds = materialObj.testId.questionGroups.map(g => g._id || g);
-
                     totalQuestions = await Question.countDocuments({
                         questionGroup: { $in: groupIds }
                     });
@@ -61,6 +53,11 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         await connectDB();
+
+        // Security: Admin only
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const data = await request.json();
 
         // Validation
@@ -68,7 +65,7 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
         }
 
-        const materialType = data.type || 'document'; // default to document
+        const materialType = data.type || 'document';
 
         // Validate based on type
         if (materialType === 'test') {
@@ -85,20 +82,14 @@ export async function POST(request) {
         let testId = null;
 
         if (materialType === 'test') {
-            // For test type, store the testId
             testId = data.testId;
         } else {
-            // Handle File Uploads for document/video types
             if (data.files && Array.isArray(data.files)) {
                 for (const file of data.files) {
-                    // Check if it's a base64 data URI (new upload)
                     if (file.fileData && file.fileData.startsWith('data:')) {
-                        // Save locally
                         const uploadResult = await saveFileLocally(file.fileData, 'uploads/materials', file.title);
-
-                        // Determine type based on extension or material type
                         const ext = path.extname(uploadResult.originalName || '').toLowerCase();
-                        let fileType = materialType; // Use material type (document/video)
+                        let fileType = materialType;
 
                         const vidExts = ['.mp4', '.mkv', '.avi', '.webm', '.mov', '.3gp', '.flv', '.m4v'];
                         const docExts = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
@@ -113,7 +104,6 @@ export async function POST(request) {
                             size: uploadResult.size
                         });
                     } else if (file.url) {
-                        // Valid link without upload (or external link)
                         processedFiles.push(file);
                     }
                 }
@@ -133,7 +123,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Error creating free material:', error);
-        const message = error.message || 'Failed to create material';
-        return NextResponse.json({ success: false, message }, { status: 500 });
+        return NextResponse.json({ success: false, message: error.message || 'Failed to create material' }, { status: 500 });
     }
 }

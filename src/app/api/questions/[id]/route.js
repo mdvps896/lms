@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Question from '@/models/Question';
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
         await connectDB();
+
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         const question = await Question.findById(params.id)
             .populate('category', 'name')
             .populate('subject', 'name')
@@ -23,8 +28,6 @@ export async function GET(request, { params }) {
         );
     }
 }
-
-import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
 
 export async function PUT(request, { params }) {
     try {
@@ -100,16 +103,13 @@ export async function DELETE(request, { params }) {
         if (force) {
             // Permanent Delete
             question = await Question.findOneAndDelete(query);
-            console.log('Force Deleted:', question?._id);
         } else {
             // Soft Delete (Recycle Bin)
-            console.log('Attempting Soft Delete for:', params.id);
             question = await Question.findOneAndUpdate(
                 query,
                 { isDeleted: true, deletedAt: new Date(), status: 'inactive' },
                 { new: true, strict: false }
             );
-            console.log('Soft Deleted Result:', question?._doc, 'isDeleted:', question?.isDeleted);
         }
 
         if (!question) {

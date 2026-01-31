@@ -2,19 +2,21 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import PDFViewSession from '@/models/PDFViewSession';
 import mongoose from 'mongoose';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * POST /api/courses/track-pdf-view
- * Track PDF viewing sessions
- */
 export async function POST(request) {
     try {
         await connectDB();
 
         const body = await request.json();
         const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude, locationName, activeDuration } = body;
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId || !courseId || !lectureId) {
             return NextResponse.json({
@@ -23,9 +25,13 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
+        // Security: Students can only track for themselves, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         switch (action) {
             case 'start':
-                // Start a new viewing session
                 const newSession = await PDFViewSession.create({
                     user: userId,
                     course: courseId,
@@ -50,28 +56,23 @@ export async function POST(request) {
                 });
 
             case 'update':
-                // Update existing session (heartbeat)
                 if (!sessionId) {
-                    return NextResponse.json({
-                        success: false,
-                        message: 'Session ID required for update'
-                    }, { status: 400 });
+                    return NextResponse.json({ success: false, message: 'Session ID required for update' }, { status: 400 });
                 }
 
                 const session = await PDFViewSession.findById(sessionId);
                 if (!session) {
-                    return NextResponse.json({
-                        success: false,
-                        message: 'Session not found'
-                    }, { status: 404 });
+                    return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
                 }
 
-                // Update last active time and current page
+                // Verify session ownership
+                if (session.user.toString() !== userId) {
+                    return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+                }
+
                 session.lastActiveTime = new Date();
                 if (currentPage) {
                     session.currentPage = currentPage;
-
-                    // Track page view
                     const existingPage = session.pagesViewed.find(p => p.pageNumber === currentPage);
                     if (!existingPage) {
                         session.pagesViewed.push({
@@ -82,7 +83,6 @@ export async function POST(request) {
                     }
                 }
 
-                // Calculate duration
                 if (activeDuration !== undefined) {
                     session.duration = activeDuration;
                 } else {
@@ -98,20 +98,18 @@ export async function POST(request) {
                 });
 
             case 'end':
-                // End viewing session
                 if (!sessionId) {
-                    return NextResponse.json({
-                        success: false,
-                        message: 'Session ID required to end session'
-                    }, { status: 400 });
+                    return NextResponse.json({ success: false, message: 'Session ID required to end session' }, { status: 400 });
                 }
 
                 const endSession = await PDFViewSession.findById(sessionId);
                 if (!endSession) {
-                    return NextResponse.json({
-                        success: false,
-                        message: 'Session not found'
-                    }, { status: 404 });
+                    return NextResponse.json({ success: false, message: 'Session not found' }, { status: 404 });
+                }
+
+                // Verify session ownership
+                if (endSession.user.toString() !== userId) {
+                    return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
                 }
 
                 endSession.endTime = new Date();
@@ -133,10 +131,7 @@ export async function POST(request) {
                 });
 
             default:
-                return NextResponse.json({
-                    success: false,
-                    message: 'Invalid action'
-                }, { status: 400 });
+                return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
         }
 
     } catch (error) {
@@ -148,10 +143,6 @@ export async function POST(request) {
     }
 }
 
-/**
- * GET /api/courses/track-pdf-view
- * Get PDF viewing statistics
- */
 export async function GET(request) {
     try {
         await connectDB();
@@ -160,24 +151,28 @@ export async function GET(request) {
         const userId = searchParams.get('userId');
         const courseId = searchParams.get('courseId');
         const lectureId = searchParams.get('lectureId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: 'User ID required'
-            }, { status: 400 });
+            return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
+        }
+
+        // Security: Students can only view their own stats, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
         let stats = {};
 
         if (courseId && lectureId) {
-            // Get stats for specific PDF
             stats = await PDFViewSession.getTotalPdfTime(userId, courseId, lectureId);
         } else if (courseId) {
-            // Get stats for entire course
             stats = await PDFViewSession.getTotalCourseTime(userId, courseId);
 
-            // Also get breakdown by lecture
             const lectureBreakdown = await PDFViewSession.aggregate([
                 {
                     $match: {
@@ -212,7 +207,6 @@ export async function GET(request) {
                 lastAccessed: item.lastAccessed
             }));
         } else {
-            // Get all user's PDF viewing stats
             const allSessions = await PDFViewSession.find({ user: userId })
                 .sort({ createdAt: -1 })
                 .limit(50)
@@ -235,10 +229,7 @@ export async function GET(request) {
             };
         }
 
-        return NextResponse.json({
-            success: true,
-            stats
-        });
+        return NextResponse.json({ success: true, stats });
 
     } catch (error) {
         console.error('❌ Get PDF Stats Error:', error);
@@ -249,7 +240,6 @@ export async function GET(request) {
     }
 }
 
-// Helper function
 function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);

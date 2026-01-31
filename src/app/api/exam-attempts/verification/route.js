@@ -3,6 +3,7 @@ import ExamAttempt from '@/models/ExamAttempt'
 import Exam from '@/models/Exam'
 import { NextResponse } from 'next/server'
 import { saveVerificationImage } from '@/utils/saveVerificationImage'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export async function POST(request) {
     try {
@@ -16,6 +17,11 @@ export async function POST(request) {
             isAuthorized,
             unauthorizedReason
         } = body
+        const currentUser = await getAuthenticatedUser(request)
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
 
         // Validate required fields
         if (!examId || !userId) {
@@ -23,6 +29,11 @@ export async function POST(request) {
                 success: false,
                 message: 'Missing required fields'
             }, { status: 400 })
+        }
+
+        // Security: Students can only submit verification for themselves, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
         // Check if exam exists
@@ -37,41 +48,33 @@ export async function POST(request) {
         // Save images to file system and get paths
         const processedVerification = { ...verification }
 
-
-
         // Save face verification image
         if (verification?.faceVerification?.selfieImage) {
             try {
-
                 const facePath = saveVerificationImage(
                     verification.faceVerification.selfieImage,
                     'face',
                     userId,
                     examId
                 )
-
                 processedVerification.faceVerification.selfieImage = facePath
             } catch (error) {
                 console.error('Error saving face image:', error)
-                // Keep base64 if file save fails
             }
         }
 
         // Save identity verification image
         if (verification?.identityVerification?.identityImage) {
             try {
-
                 const identityPath = saveVerificationImage(
                     verification.identityVerification.identityImage,
                     'identity',
                     userId,
                     examId
                 )
-
                 processedVerification.identityVerification.identityImage = identityPath
             } catch (error) {
                 console.error('Error saving identity image:', error)
-                // Keep base64 if file save fails
             }
         }
 
@@ -83,7 +86,6 @@ export async function POST(request) {
         })
 
         if (!examAttempt) {
-            // Create new exam attempt with verification data
             const sessionToken = `${userId}-${examId}-${Date.now()}`
 
             examAttempt = new ExamAttempt({
@@ -94,7 +96,6 @@ export async function POST(request) {
                 status: isAuthorized ? 'active' : 'terminated'
             })
 
-            // Add warning if not authorized
             if (!isAuthorized) {
                 examAttempt.warnings.push({
                     message: `Student not authorized: ${unauthorizedReason}`,
@@ -105,7 +106,6 @@ export async function POST(request) {
 
             await examAttempt.save()
         } else {
-            // Update existing attempt with verification data
             examAttempt.verification = processedVerification
 
             if (!isAuthorized) {
@@ -141,7 +141,6 @@ export async function POST(request) {
     }
 }
 
-// GET endpoint to retrieve verification data
 export async function GET(request) {
     try {
         await connectDB()
@@ -150,6 +149,11 @@ export async function GET(request) {
         const attemptId = searchParams.get('attemptId')
         const examId = searchParams.get('examId')
         const userId = searchParams.get('userId')
+        const currentUser = await getAuthenticatedUser(request)
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
 
         let query = {}
 
@@ -169,14 +173,16 @@ export async function GET(request) {
             .populate('user', 'name email profileImage')
             .populate('exam', 'name')
 
-        if (examAttempt) {
-        }
-
         if (!examAttempt) {
             return NextResponse.json({
                 success: false,
                 message: 'Exam attempt not found'
             }, { status: 404 })
+        }
+
+        // Security: Students can only view their own verification, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && examAttempt.user?._id?.toString() !== currentUser.id && examAttempt.user?.toString() !== currentUser.id) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
         return NextResponse.json({
@@ -200,13 +206,17 @@ export async function GET(request) {
     }
 }
 
-// PUT endpoint to update verification (for periodic face checks)
 export async function PUT(request) {
     try {
         await connectDB()
 
         const body = await request.json()
         const { attemptId, periodicFaceCheck } = body
+        const currentUser = await getAuthenticatedUser(request)
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
 
         if (!attemptId || !periodicFaceCheck) {
             return NextResponse.json({
@@ -224,7 +234,11 @@ export async function PUT(request) {
             }, { status: 404 })
         }
 
-        // Save periodic face check image to file system
+        // Security: Students can only update their own attempt
+        if (currentUser.role !== 'admin' && examAttempt.user?.toString() !== currentUser.id && examAttempt.user?._id?.toString() !== currentUser.id) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
+        }
+
         let processedFaceCheck = { ...periodicFaceCheck }
 
         if (periodicFaceCheck.selfieImage) {
@@ -238,11 +252,9 @@ export async function PUT(request) {
                 processedFaceCheck.selfieImage = facePath
             } catch (error) {
                 console.error('Error saving periodic face check image:', error)
-                // Keep base64 if file save fails
             }
         }
 
-        // Add periodic face check
         if (!examAttempt.verification.faceVerification.periodicChecks) {
             examAttempt.verification.faceVerification.periodicChecks = []
         }
@@ -255,7 +267,6 @@ export async function PUT(request) {
             warningReason: processedFaceCheck.warningReason
         })
 
-        // Add warning if face mismatch detected
         if (periodicFaceCheck.warning) {
             examAttempt.warnings.push({
                 message: periodicFaceCheck.warningReason || 'Face verification mismatch detected',

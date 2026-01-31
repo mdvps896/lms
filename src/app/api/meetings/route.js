@@ -1,11 +1,13 @@
-
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import { requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
 import Meeting from '@/models/Meeting';
 import Category from '@/models/Category';
 import Subject from '@/models/Subject';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
     try {
         await connectDB();
 
@@ -30,11 +32,11 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
     try {
         await connectDB();
         const data = await request.json();
-
-        // Basic validation
         if (!data.title || !data.category || !data.startTime || !data.endTime || !data.links || data.links.length === 0) {
             return NextResponse.json(
                 { success: false, message: 'Missing required fields' },

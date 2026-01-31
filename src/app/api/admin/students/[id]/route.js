@@ -7,13 +7,9 @@ import bcrypt from 'bcryptjs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
-    console.log('🔥🔥🔥 GET STUDENT DETAILS ROUTE CALLED 🔥🔥🔥');
     try {
-        console.log('========== FETCHING STUDENT DETAILS ==========');
         await connectDB();
         const { id } = params;
-        console.log('Student ID:', id);
-
         // Use lean() to get a plain object, easier to manipulate
         let student = await User.findOne({
             _id: id,
@@ -31,18 +27,9 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log('Student found:', student.name);
-        console.log('Number of enrolled courses:', student.enrolledCourses?.length || 0);
-
         // Use Mongoose populate instead of manual population
         if (student.enrolledCourses && student.enrolledCourses.length > 0) {
             try {
-                console.log('Populating course details...');
-                console.log('========== BEFORE POPULATE ==========');
-                console.log('First courseId BEFORE:', student.enrolledCourses[0]?.courseId);
-                console.log('courseId type:', typeof student.enrolledCourses[0]?.courseId);
-                console.log('====================================');
-
                 // Re-fetch with populate to get course details AND category
                 student = await User.findOne({
                     _id: id,
@@ -63,27 +50,16 @@ export async function GET(request, { params }) {
                     })
                     .lean();
 
-                console.log('========== AFTER POPULATE ==========');
-                console.log('First courseId AFTER:', student.enrolledCourses[0]?.courseId);
-                console.log('courseId type:', typeof student.enrolledCourses[0]?.courseId);
                 if (student.enrolledCourses[0]?.courseId) {
-                    console.log('Is it an object?', typeof student.enrolledCourses[0]?.courseId === 'object');
-                    console.log('Has title?', student.enrolledCourses[0]?.courseId?.title);
-                }
-                console.log('Category:', student.category);
-                console.log('====================================');
-            } catch (err) {
+                    }
+                } catch (err) {
                 console.error('Populate error:', err);
             }
         }
 
-        console.log('========== FINAL STUDENT DATA ==========');
-        console.log('Enrolled Courses Count:', student.enrolledCourses?.length || 0);
         if (student.enrolledCourses && student.enrolledCourses.length > 0) {
-            console.log('First course structure:', JSON.stringify(student.enrolledCourses[0], null, 2));
+            );
         }
-        console.log('========================================');
-
         return NextResponse.json({ success: true, data: student });
     } catch (error) {
         console.error('Error fetching student:', error);

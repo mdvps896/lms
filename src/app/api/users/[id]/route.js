@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Category from '@/models/Category';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
+
+async function checkUserManagementPermission(request, targetUser) {
+  const currentUser = await getAuthenticatedUser(request);
+  if (!currentUser) return false;
+
+  // Admin can manage anyone
+  if (currentUser.role === 'admin') return true;
+
+  // Teachers with manage_students can only manage students
+  if (currentUser.role === 'teacher' &&
+    currentUser.permissions &&
+    currentUser.permissions.includes('manage_students')) {
+    return targetUser.role === 'student';
+  }
+
+  return false;
+}
 
 // GET single user
 export async function GET(request, { params }) {
@@ -11,14 +29,22 @@ export async function GET(request, { params }) {
       .select('-password -twoFactorSecret')
       .populate('category', 'name')
       .lean();
-    
+
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
       );
     }
-    
+
+    const hasPermission = await checkUserManagementPermission(request, user);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
     return NextResponse.json(
@@ -33,7 +59,7 @@ export async function PUT(request, { params }) {
   try {
     await connectDB();
     const body = await request.json();
-    
+
     // Validate category if provided
     if (body.category) {
       const categoryExists = await Category.findById(body.category);
@@ -44,23 +70,32 @@ export async function PUT(request, { params }) {
         );
       }
     }
-    
-    const user = await User.findByIdAndUpdate(
-      params.id,
-      body,
-      { new: true, runValidators: true }
-    )
-    .select('-password -twoFactorSecret')
-    .populate('category', 'name')
-    .lean();
-    
-    if (!user) {
+
+    const targetUser = await User.findById(params.id);
+    if (!targetUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
       );
     }
-    
+
+    const hasPermission = await checkUserManagementPermission(request, targetUser);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const user = await User.findByIdAndUpdate(
+      params.id,
+      body,
+      { new: true, runValidators: true }
+    )
+      .select('-password -twoFactorSecret')
+      .populate('category', 'name')
+      .lean();
+
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
     return NextResponse.json(
@@ -75,7 +110,7 @@ export async function PATCH(request, { params }) {
   try {
     await connectDB();
     const body = await request.json();
-    
+
     // Validate category if provided
     if (body.category) {
       const categoryExists = await Category.findById(body.category);
@@ -86,25 +121,25 @@ export async function PATCH(request, { params }) {
         );
       }
     }
-    
+
     const user = await User.findByIdAndUpdate(
       params.id,
       { $set: body },
       { new: true, runValidators: true }
     )
-    .select('-password -twoFactorSecret')
-    .populate('category', 'name')
-    .lean();
-    
+      .select('-password -twoFactorSecret')
+      .populate('category', 'name')
+      .lean();
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
       );
     }
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       data: user,
       message: 'User updated successfully'
     });
@@ -124,6 +159,38 @@ export async function DELETE(request, { params }) {
     const { searchParams } = new URL(request.url);
     const permanent = searchParams.get('permanent') === 'true';
 
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Only Admin can perform permanent deletion
+    if (permanent && currentUser.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Only administrators can perform permanent deletion' },
+        { status: 403 }
+      );
+    }
+
+    const targetUser = await User.findById(params.id);
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const hasPermission = await checkUserManagementPermission(request, targetUser);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     let user;
 
     if (permanent) {
@@ -131,24 +198,24 @@ export async function DELETE(request, { params }) {
     } else {
       user = await User.findByIdAndUpdate(
         params.id,
-        { 
+        {
           isDeleted: true,
           deletedAt: new Date()
         },
         { new: true }
       );
     }
-    
+
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
       );
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: permanent ? 'User permanently deleted' : 'User moved to recycle bin' 
+
+    return NextResponse.json({
+      success: true,
+      message: permanent ? 'User permanently deleted' : 'User moved to recycle bin'
     });
   } catch (error) {
     return NextResponse.json(

@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import { requireAdmin } from '@/utils/apiAuth';
 import Payment from '@/models/Payment';
 import Course from '@/models/Course';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await connectDB();
 

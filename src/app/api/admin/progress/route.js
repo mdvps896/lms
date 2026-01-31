@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import StudentProgress from '@/models/StudentProgress';
-import { verifyToken } from '@/utils/auth';
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,16 +11,20 @@ export async function GET(request) {
         await connectDB();
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
-        // Potential Auth Check: Only self or admin can view
-        // const authUser = await verifyToken(request);
-        // if (!authUser || (authUser.userId !== userId && authUser.role !== 'admin')) {
-        //     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        // }
+        // Security: Students can only view their own progress, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
 
         let progress = await StudentProgress.findOne({ user: userId });
 
@@ -40,15 +44,17 @@ export async function GET(request) {
 export async function PATCH(request) {
     try {
         await connectDB();
+
+        // Use requirePermission for standard admin/teacher management check
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         const body = await request.json();
         const { userId, ...updates } = body;
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
-
-        // Security: Ensure the update object is flat or correctly structured
-        // In this simple implementation, we assume the body contains the keys like 'eligibilityCheck', 'dataFlow' etc.
 
         const progress = await StudentProgress.findOneAndUpdate(
             { user: userId },

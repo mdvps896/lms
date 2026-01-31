@@ -4,32 +4,24 @@ import SelfieCapture from '@/models/SelfieCapture';
 import PDFViewSession from '@/models/PDFViewSession';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import { verifyToken } from '@/utils/auth';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
-
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
     try {
         await connectDB();
 
         // Verify authentication
-        const token = request.headers.get('authorization')?.replace('Bearer ', '');
-        if (!token) {
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized' },
                 { status: 401 }
             );
         }
 
-        const decoded = await verifyToken(token);
-        if (!decoded) {
-            return NextResponse.json(
-                { success: false, message: 'Invalid token' },
-                { status: 401 }
-            );
-        }
-
-        const userId = decoded.userId;
+        const userId = currentUser.id || currentUser._id?.toString();
 
         // Parse multipart form data
         const formData = await request.formData();
@@ -42,13 +34,6 @@ export async function POST(request) {
         const latitude = formData.get('latitude');
         const longitude = formData.get('longitude');
         const locationName = formData.get('locationName');
-
-        // Ensure IDs are strings and handle potential object in token
-        let userIdStr = String(userId);
-        if (typeof userId === 'object' && userId.buffer) {
-            userIdStr = Buffer.from(userId.buffer).toString('hex');
-        }
-        const courseIdStr = String(courseId);
 
         if (!selfieFile || !courseId || !captureType) {
             return NextResponse.json(
@@ -76,12 +61,14 @@ export async function POST(request) {
         }
 
         // Create directory structure: /uploads/selfies/{userId}/{courseId}/
+        const userIdStr = String(userId);
+        const courseIdStr = String(courseId);
         const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'selfies', userIdStr, courseIdStr);
         await mkdir(uploadDir, { recursive: true });
 
         // Generate unique filename
         const timestamp = Date.now();
-        const fileExtension = selfieFile.name.split('.').pop();
+        const fileExtension = selfieFile.name.split('.').pop() || 'jpg';
         const fileName = `${captureType}_${timestamp}.${fileExtension}`;
         const filePath = path.join(uploadDir, fileName);
 

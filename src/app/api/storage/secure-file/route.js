@@ -1,59 +1,44 @@
 import { NextResponse } from 'next/server'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
+import fs from 'fs'
+import path from 'path'
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
     try {
-        // Check if user is authenticated
-        const userCookie = request.cookies.get('user')
+        const currentUser = await getAuthenticatedUser(request)
 
-        if (!userCookie) {
+        if (!currentUser) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized. Please login to access files.' },
                 { status: 401 }
             )
         }
 
-        // Parse user data
-        let user
-        try {
-            user = JSON.parse(userCookie.value)
-        } catch (error) {
-            return NextResponse.json(
-                { success: false, message: 'Invalid authentication token.' },
-                { status: 401 }
-            )
-        }
+        const isAdmin = currentUser.role === 'admin';
+        const isStudent = currentUser.role === 'student' || currentUser.role === 'USER'; // USER is student role in some models
 
-        // Check user role - allow admin and students for course videos
-        const isAdmin = user.role === 'admin';
-        const isStudent = user.role === 'student';
-
-        // Get the file path to check if it's a course video
         const url = new URL(request.url);
         const filePath = url.searchParams.get('path');
-        const isCourseVideo = filePath && filePath.includes('/courses/videos/');
+
+        if (!filePath) {
+            return NextResponse.json({ success: false, message: 'File path is required' }, { status: 400 });
+        }
+
+        const isCourseVideo = filePath.includes('/courses/videos/');
+        const isPublicAsset = filePath.startsWith('uploads/materials/') || filePath.startsWith('uploads/categories/') || filePath.startsWith('uploads/subjects/') || filePath.startsWith('uploads/courses/');
 
         // Allow access if:
         // 1. User is admin (full access)
-        // 2. User is student AND it's a course video
-        if (!isAdmin && !(isStudent && isCourseVideo)) {
+        // 2. User is student AND it's a course video or public asset
+        if (!isAdmin && !(isStudent && (isCourseVideo || isPublicAsset))) {
             return NextResponse.json(
                 { success: false, message: 'Access denied. Insufficient privileges.' },
                 { status: 403 }
             );
         }
 
-        if (!filePath) {
-            return NextResponse.json(
-                { success: false, message: 'File path is required' },
-                { status: 400 }
-            )
-        }
-
-        // Read the file
-        const fs = require('fs')
-        const path = require('path')
         const fullPath = path.join(process.cwd(), 'public', filePath)
 
         if (!fs.existsSync(fullPath)) {
@@ -63,11 +48,9 @@ export async function GET(request, { params }) {
             )
         }
 
-        // Read file and return
         const fileBuffer = fs.readFileSync(fullPath)
         const ext = path.extname(filePath).toLowerCase()
 
-        // Set appropriate content type
         const contentTypes = {
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',

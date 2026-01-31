@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import QuestionGroup from '@/models/QuestionGroup';
 import Question from '@/models/Question';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request) {
+    const authError = await requirePermission(request, 'manage_questions');
+    if (authError) return authError;
+
     try {
+
         await connectDB();
 
         // Get query parameters
@@ -56,7 +61,11 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+    const authError = await requirePermission(request, 'manage_questions');
+    if (authError) return authError;
+
     try {
+
         await connectDB();
         const body = await request.json();
 

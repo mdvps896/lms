@@ -1,30 +1,36 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ESignSubmission from '@/models/ESignSubmission';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(request) {
     try {
         await connectDB();
         const body = await request.json();
         const { userId, personalDetails, documents, selections, signature } = body;
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 
+        // Security: Students can only submit their own form, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         // Check if already submitted
         const existing = await ESignSubmission.findOne({ user: userId });
         if (existing) {
-            console.log('Submission already exists for:', userId);
-            // Optional: Allow update if status is Pending? For now, keep strict as per requirement or allow overwrite for testing?
-            // User likely wants to re-submit if previous failed. Let's block for now but log it.
             return NextResponse.json({
                 success: false,
                 message: 'You have already submitted the E-Sign form. Multiple submissions are not allowed.'
             }, { status: 400 });
         }
-
-        console.log('Creating new submission for:', userId);
 
         // Validate mandatory fields (Basic validation)
         if (!signature || !signature.clientName) {
@@ -39,20 +45,18 @@ export async function POST(request) {
             selections,
             signature,
             adminStatus: 'Pending',
-            pdfGenerated: false // Will be generated on demand or by a background process
+            pdfGenerated: false
         });
 
-        // --- SYNC TO USER MODEL (Fallback Support) ---
-        // Save these documents to the User model so PDF generation can find them 
-        // even if looked up via User fallback.
+        // Sync to User model
         try {
             if (documents) {
-                const userUpdate = await import('@/models/User').then(mod => mod.default.findByIdAndUpdate(userId, {
+                const User = (await import('@/models/User')).default;
+                await User.findByIdAndUpdate(userId, {
                     $set: {
                         'esign_images': documents
                     }
-                }, { new: true }));
-                console.log('User esign_images updated:', userUpdate ? 'Success' : 'User not found');
+                });
             }
         } catch (syncErr) {
             console.error('Failed to sync images to User model:', syncErr);

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import { requirePermission } from '@/utils/apiAuth';
 import ExamAttempt from '@/models/ExamAttempt';
 
 // Store latest snapshots in memory (for production)
@@ -59,6 +59,8 @@ export async function POST(request) {
  * Get live snapshots for monitoring
  */
 export async function GET(request) {
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
     try {
         const { searchParams } = new URL(request.url);
         const examId = searchParams.get('examId');

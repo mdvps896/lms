@@ -1,11 +1,16 @@
-
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Meeting from '@/models/Meeting';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
         await connectDB();
+
+        // Security: Manage live exams permission required to view details
+        const authError = await requirePermission(request, 'manage_live_exams');
+        if (authError) return authError;
+
         const { id } = params;
 
         const meeting = await Meeting.findById(id)
@@ -36,6 +41,11 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         await connectDB();
+
+        // Security: Manage live exams permission required
+        const authError = await requirePermission(request, 'manage_live_exams');
+        if (authError) return authError;
+
         const { id } = params;
         const data = await request.json();
 
@@ -71,6 +81,11 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
     try {
         await connectDB();
+
+        // Security: Manage live exams permission required
+        const authError = await requirePermission(request, 'manage_live_exams');
+        if (authError) return authError;
+
         const { id } = params;
 
         const meeting = await Meeting.findByIdAndDelete(id);

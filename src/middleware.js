@@ -125,6 +125,63 @@ export async function middleware(request) {
             }
         }
 
+        // If user is teacher, enforce permission-based access
+        if (user.role === 'teacher') {
+            const isHome = pathname === '/';
+            const isProfile = pathname.startsWith('/profile');
+
+            if (!isHome && !isProfile) {
+                // Define route to permission mapping
+                const routePermissions = {
+                    '/students': 'manage_students',
+                    '/exam': 'manage_exams',
+                    '/subjects': 'manage_academic',
+                    '/categories': 'manage_academic',
+                    '/courses': 'manage_courses',
+                    '/question-bank': 'manage_questions',
+                    '/question-groups': 'manage_questions',
+                    '/analytics': 'view_analytics',
+                    '/exam-analytics': 'view_analytics',
+                    '/live-exams': 'manage_live_exams',
+                    '/recorded-exams': 'manage_content',
+                    '/google-meet': 'manage_live_exams',
+                    '/free-materials': 'manage_content',
+                    '/storage': 'manage_storage'
+                };
+
+                // Admin-only routes (Teacher never has access)
+                const adminOnlyPrefixes = [
+                    '/teachers',
+                    '/coupons',
+                    '/payment',
+                    '/settings',
+                    '/support',
+                    '/customers',
+                    '/leads',
+                    '/projects',
+                    '/proposal',
+                    '/reports',
+                    '/widgets'
+                ];
+                const isAdminOnly = adminOnlyPrefixes.some(prefix => pathname.startsWith(prefix));
+
+                if (isAdminOnly) {
+                    return NextResponse.redirect(new URL('/', request.url));
+                }
+
+                // Check specific permissions for other routes
+                const matchedRoute = Object.keys(routePermissions).find(route => pathname.startsWith(route));
+                if (matchedRoute) {
+                    const requiredPermission = routePermissions[matchedRoute];
+                    const userPermissions = user.permissions || [];
+
+                    if (!userPermissions.includes(requiredPermission)) {
+                        return NextResponse.redirect(new URL('/', request.url));
+                    }
+                }
+            }
+        }
+
     } catch (error) {
         // If cookie is invalid, redirect to login
         const loginUrl = new URL('/authentication/login', request.url)

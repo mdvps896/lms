@@ -1,32 +1,20 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Exam from '@/models/Exam';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
         await dbConnect();
+        const currentUser = await getAuthenticatedUser(request);
 
-        // Get user ID from cookies
-        const cookies = request.headers.get('cookie');
-        let userId = null;
-
-        if (cookies) {
-            const userCookie = cookies
-                .split('; ')
-                .find(row => row.startsWith('user='));
-
-            if (userCookie) {
-                try {
-                    const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
-                    const userData = JSON.parse(userDataStr);
-                    userId = userData._id;
-                } catch (parseError) {
-                    console.error('Failed to parse user cookie:', parseError);
-                }
-            }
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
+
+        const userId = currentUser.id || currentUser._id?.toString();
 
         // Get all exams
         const allExams = await Exam.find({}).select('name attempts').lean();
@@ -35,9 +23,9 @@ export async function GET(request) {
         const examsWithAttempts = allExams.filter(exam => exam.attempts && exam.attempts.length > 0);
 
         // Get user's exams
-        const userExams = userId ? allExams.filter(exam =>
-            exam.attempts && exam.attempts.some(attempt => attempt.userId && attempt.userId.toString() === userId)
-        ) : [];
+        const userExams = allExams.filter(exam =>
+            exam.attempts && exam.attempts.some(attempt => (attempt.userId && attempt.userId.toString() === userId) || (attempt.user && attempt.user.toString() === userId))
+        );
 
         return NextResponse.json({
             success: true,
@@ -48,7 +36,7 @@ export async function GET(request) {
                 userExams: userExams.length,
                 userExamDetails: userExams.map(exam => ({
                     name: exam.name,
-                    attemptCount: exam.attempts.filter(a => a.userId && a.userId.toString() === userId).length
+                    attemptCount: exam.attempts.filter(a => (a.userId && a.userId.toString() === userId) || (a.user && a.user.toString() === userId)).length
                 }))
             }
         });
@@ -56,7 +44,7 @@ export async function GET(request) {
     } catch (error) {
         console.error('Debug error:', error);
         return NextResponse.json(
-            { success: false, message: error.message, stack: error.stack },
+            { success: false, message: error.message },
             { status: 500 }
         );
     }

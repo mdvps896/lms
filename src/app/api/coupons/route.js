@@ -1,8 +1,5 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import Coupon from '@/models/Coupon';
-import Course from '@/models/Course';
 import Category from '@/models/Category';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +20,12 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url);
         const format = searchParams.get('format'); // 'admin' or 'mobile'
+
+        // Admin needs permission
+        if (format !== 'mobile') {
+            const authError = await requireAdmin(request);
+            if (authError) return authError;
+        }
 
         let coupons;
 
@@ -71,6 +74,8 @@ export async function GET(request) {
 
 // POST - Create new coupon
 export async function POST(request) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await dbConnect();
 

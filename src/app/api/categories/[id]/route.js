@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server'
-import connectDB from '@/lib/mongodb'
 import Category from '@/models/Category'
 import mongoose from 'mongoose'
+import connectDB from '../../../lib/mongodb';
+import { requirePermission, requireAdmin } from '@/utils/apiAuth';
+import { NextResponse } from 'next/server';
 
 // GET - Get single category
 export async function GET(request, { params }) {
+    const authError = await requirePermission(request, 'manage_academic');
+    if (authError) return authError;
     try {
         await connectDB()
 
@@ -42,6 +45,8 @@ export async function GET(request, { params }) {
 
 // PUT - Update category
 export async function PUT(request, { params }) {
+    const authError = await requirePermission(request, 'manage_academic');
+    if (authError) return authError;
     try {
         await connectDB()
 
@@ -112,6 +117,8 @@ export async function PUT(request, { params }) {
 
 // DELETE - Delete category
 export async function DELETE(request, { params }) {
+    const authError = await requirePermission(request, 'manage_academic');
+    if (authError) return authError;
     try {
         await connectDB()
 

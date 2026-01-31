@@ -2,71 +2,39 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
-
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-
         const { examId } = params;
+        const currentUser = await getAuthenticatedUser(request);
 
-        // Get user ID from cookies
-        const cookies = request.headers.get('cookie');
-        let userId = null;
-
-        if (cookies) {
-            const userCookie = cookies
-                .split('; ')
-                .find(row => row.startsWith('user='));
-
-            if (userCookie) {
-                try {
-                    const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
-                    const userData = JSON.parse(userDataStr);
-                    userId = userData._id;
-                } catch (parseError) {
-                    console.error('Failed to parse user cookie:', parseError);
-                }
-            }
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, message: 'User not authenticated' },
-                { status: 401 }
-            );
-        }
+        const userId = currentUser.id || currentUser._id?.toString();
 
-        // Get exam details
         const exam = await Exam.findById(examId)
             .populate('subjects')
             .lean();
 
         if (!exam) {
-            console.error('Exam not found:', examId);
-            return NextResponse.json(
-                { success: false, message: 'Exam not found' },
-                { status: 404 }
-            );
+            return NextResponse.json({ success: false, message: 'Exam not found' }, { status: 404 });
         }
 
-        // Fetch attempts from ExamAttempt collection
         const examAttempts = await ExamAttempt.find({
             exam: examId,
             user: userId
         }).lean();
 
-        let userAttempts = examAttempts;
-
-        // Calculate total questions from questionGroups count
         let totalQuestions = 0;
         if (exam.questionGroups && Array.isArray(exam.questionGroups)) {
             totalQuestions = exam.questionGroups.length;
         }
 
-        // Format attempts for response
-        const formattedAttempts = userAttempts.map(attempt => {
-            // Use percentage if available, otherwise calculate from score
+        const formattedAttempts = examAttempts.map(attempt => {
             let score = 0;
             if (attempt.percentage !== undefined && attempt.percentage !== null) {
                 score = attempt.percentage;
@@ -82,9 +50,7 @@ export async function GET(request, { params }) {
             if (attempt.submittedAt && attempt.startedAt) {
                 try {
                     timeTaken = Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 1000);
-                } catch (e) {
-                    console.error('Error calculating time:', e);
-                }
+                } catch (e) { }
             }
 
             return {
@@ -100,7 +66,7 @@ export async function GET(request, { params }) {
             };
         });
 
-        const response = {
+        return NextResponse.json({
             success: true,
             exam: {
                 _id: exam._id,
@@ -110,13 +76,10 @@ export async function GET(request, { params }) {
                 totalQuestions
             },
             attempts: formattedAttempts
-        };
-
-        return NextResponse.json(response);
+        });
 
     } catch (error) {
         console.error('Error fetching exam attempts:', error);
-        console.error('Error stack:', error.stack);
         return NextResponse.json(
             { success: false, message: 'Failed to fetch exam attempts', error: error.message },
             { status: 500 }

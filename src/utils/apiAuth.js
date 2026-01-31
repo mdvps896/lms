@@ -69,8 +69,8 @@ export async function requireAdmin(request) {
  * @param {Request} request 
  * @returns {NextResponse|null} Error response if unauthorized, null if authorized.
  */
-export function requireAuth(request) {
-    const user = getAuthenticatedUser(request);
+export async function requireAuth(request) {
+    const user = await getAuthenticatedUser(request);
     if (!user) {
         return NextResponse.json(
             { success: false, error: 'Unauthorized: Login required' },

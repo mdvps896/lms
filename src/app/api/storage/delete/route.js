@@ -17,11 +17,27 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'Access Denied: Teachers with "Manage Own" scope cannot delete general files.' }, { status: 403 });
         }
 
-        if (!filePath && !publicId) {
+        if (!filePath && !publicId && (!Array.isArray(body?.filePaths) || body.filePaths.length === 0)) {
             return NextResponse.json(
-                { success: false, message: 'File path or Public ID is required' },
+                { success: false, message: 'File path, Public ID, or filePaths array is required' },
                 { status: 400 }
             )
+        }
+
+        // Handle bulk deletion if filePaths array is provided
+        if (Array.isArray(body?.filePaths)) {
+            const results = [];
+            for (const path of body.filePaths) {
+                const result = await deleteFromLocalStorage(path);
+                results.push({ path, success: result.success, message: result.message });
+            }
+
+            const successCount = results.filter(r => r.success).length;
+            return NextResponse.json({
+                success: successCount > 0,
+                message: `Deleted ${successCount} of ${results.length} files`,
+                results
+            });
         }
 
         const pathToDelete = filePath || publicId;
@@ -32,7 +48,6 @@ export async function POST(request) {
             // If the file is missing, we consider the delete intent "successful" (idempotency)
             // so the UI cleans up the entry.
             if (result.message === 'File not found' || (result.error && result.error.includes('ENOENT'))) {
-                // console.warn('⚠️ File not found, treating as deleted:', pathToDelete);
                 return NextResponse.json({
                     success: true,
                     message: 'File not found (considered deleted)',

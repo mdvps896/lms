@@ -5,6 +5,7 @@ import ExamAttempt from '@/models/ExamAttempt';
 import User from '@/models/User';
 import Category from '@/models/Category';
 import Subject from '@/models/Subject';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,11 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({
@@ -22,7 +28,10 @@ export async function GET(request) {
             }, { status: 400 });
         }
 
-
+        // Security: Students can only access their own dashboard, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
 
         // Get user details
         const user = await User.findById(userId).select('name email role category').lean();
@@ -33,8 +42,6 @@ export async function GET(request) {
                 error: 'User not found'
             }, { status: 404 });
         }
-
-
 
         if (!user.category) {
             return NextResponse.json({
@@ -135,7 +142,6 @@ export async function GET(request) {
                     });
                 }
             }
-
         }
 
         // Transform attempts to results format

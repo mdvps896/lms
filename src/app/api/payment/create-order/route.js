@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Razorpay from 'razorpay';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
     try {
+        await connectDB();
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { amount, currency } = body;
 
-        await connectDB();
         const db = require('mongoose').connection.db;
-        // Fetch settings from DB
         const settings = await db.collection('settings').findOne({});
 
         if (!settings?.integrations?.razorpay?.enabled) {
@@ -29,8 +35,6 @@ export async function POST(request) {
             key_secret: keySecret,
         });
 
-        // Amount must be in paisa (e.g. 500.00 -> 50000)
-        // Ensure input amount is in Rupees (e.g. 23599)
         const amountInPaisa = Math.round(amount * 100);
 
         const options = {
@@ -44,9 +48,9 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             orderId: order.id,
-            amount: order.amount, // This is in paisa
+            amount: order.amount,
             currency: order.currency,
-            keyId: keyId // Send keyId so mobile app knows which key to distinctively use
+            keyId: keyId
         });
 
     } catch (error) {

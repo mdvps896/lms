@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
 import Coupon from '@/models/Coupon';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // GET - Get single coupon
 export async function GET(request, { params }) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await dbConnect();
         const { id } = params;
@@ -39,6 +40,8 @@ export async function GET(request, { params }) {
 
 // PUT - Update coupon
 export async function PUT(request, { params }) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await dbConnect();
         const { id } = params;
@@ -126,6 +129,8 @@ export async function PUT(request, { params }) {
 
 // DELETE - Delete coupon
 export async function DELETE(request, { params }) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await dbConnect();
         const { id } = params;

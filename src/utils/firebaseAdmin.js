@@ -21,8 +21,7 @@ function initFirebase() {
                 privateKey: privateKey.replace(/\\n/g, '\n'),
             }),
         });
-        console.log('✅ Firebase Admin initialized successfully');
-    } catch (error) {
+        } catch (error) {
         console.error('❌ Firebase Admin initialization error:', error.message);
         return null;
     }

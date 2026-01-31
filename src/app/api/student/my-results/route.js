@@ -2,39 +2,20 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
         await dbConnect();
+        const currentUser = await getAuthenticatedUser(request);
 
-        // Get user ID from cookies
-        const cookies = request.headers.get('cookie');
-        let userId = null;
-
-        if (cookies) {
-            const userCookie = cookies
-                .split('; ')
-                .find(row => row.startsWith('user='));
-
-            if (userCookie) {
-                try {
-                    const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
-                    const userData = JSON.parse(userDataStr);
-                    userId = userData._id;
-                } catch (parseError) {
-                    console.error('Failed to parse user cookie:', parseError);
-                }
-            }
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, message: 'User not authenticated' },
-                { status: 401 }
-            );
-        }
+        const userId = currentUser.id || currentUser._id?.toString();
 
         // Get all submitted exam attempts for this user
         const examAttempts = await ExamAttempt.find({
@@ -53,26 +34,25 @@ export async function GET(request) {
 
         // Group attempts by exam
         const examMap = new Map();
-        
+
         examAttempts.forEach(attempt => {
             if (!attempt.exam) return;
-            
+
             const examId = attempt.exam._id.toString();
-            
+
             if (!examMap.has(examId)) {
                 examMap.set(examId, {
                     exam: attempt.exam,
                     attempts: []
                 });
             }
-            
+
             examMap.get(examId).attempts.push(attempt);
         });
 
         // Process exams to create results
         const examResults = Array.from(examMap.values()).map(({ exam, attempts }) => {
-            // Get last attempt
-            const lastAttempt = attempts[0]; // Already sorted by submittedAt desc
+            const lastAttempt = attempts[0];
 
             return {
                 _id: exam._id,
@@ -100,7 +80,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Error fetching student results:', error);
-        console.error('Error stack:', error.stack);
         return NextResponse.json(
             { success: false, message: 'Failed to fetch results', error: error.message },
             { status: 500 }

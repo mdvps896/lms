@@ -2,22 +2,33 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Exam from '@/models/Exam'
 import ExamAttempt from '@/models/ExamAttempt'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
         await connectDB()
-        
+
         const { searchParams } = new URL(request.url)
         const examId = searchParams.get('examId')
         const userId = searchParams.get('userId')
+        const currentUser = await getAuthenticatedUser(request)
+
+        if (!currentUser) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+        }
 
         if (!examId || !userId) {
             return NextResponse.json(
                 { message: 'Exam ID and User ID are required' },
                 { status: 400 }
             )
+        }
+
+        // Security: Students can only check their own attempts, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
         }
 
         // Verify exam exists

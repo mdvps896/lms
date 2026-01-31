@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ESignSubmission from '@/models/ESignSubmission';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export async function POST(request) {
     try {
         await connectDB();
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const { studentId } = await request.json();
 
         if (!studentId) {

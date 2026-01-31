@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Notification from '@/models/Notification';
 import mongoose from 'mongoose';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +11,19 @@ export async function GET(request) {
         await connectDB();
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
+        }
+
+        // Security: Students can only access their own notifications, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -36,12 +47,10 @@ export async function GET(request) {
             let data = {};
             if (notif.data) {
                 if (notif.data instanceof Map) {
-                    // If it's a Map, iterate over entries
                     for (let [key, value] of notif.data) {
                         data[key] = value;
                     }
                 } else if (typeof notif.data === 'object') {
-                    // If it's a plain object, just use it
                     data = notif.data;
                 }
             }
@@ -75,9 +84,19 @@ export async function PUT(request) {
     try {
         await connectDB();
         const { userId, notificationId, markAll } = await request.json();
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
+        }
+
+        // Security: Students can only update their own notifications
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
         if (markAll) {

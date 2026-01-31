@@ -50,8 +50,6 @@ export const drawImage = async (doc, label, imagePath, x, y, w, h, colors) => {
             // Option 2: Remote Fetch (Fallback)
             try {
                 const remoteUrl = `https://app.mdconsultancy.in/api/storage/secure-file?path=/${encodeURIComponent(cleanPath)}`;
-                console.log(`Fetching remote image for ${label}: ${remoteUrl}`);
-
                 const res = await fetch(remoteUrl);
                 if (res.ok) {
                     const arrayBuffer = await res.arrayBuffer();
@@ -66,7 +64,6 @@ export const drawImage = async (doc, label, imagePath, x, y, w, h, colors) => {
                         doc.addImage(imgData, format, x + 1, y + 1, w - 2, h - 2);
                     }
                 } else {
-                    console.log(`Remote fetch failed ${res.status} for ${remoteUrl}`);
                     doc.setFont('helvetica', 'italic');
                     doc.setTextColor(200, 200, 200);
                     doc.text('Image Not Found', x + 5, y + (h / 2));

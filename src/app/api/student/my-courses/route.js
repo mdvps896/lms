@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Course from '@/models/Course';
 import PDFViewSession from '@/models/PDFViewSession';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,19 @@ export async function GET(request) {
         await connectDB();
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!userId) {
             return NextResponse.json({ success: false, message: 'UserId required' }, { status: 400 });
+        }
+
+        // Security: Students can only access their own courses, unless admin
+        if (currentUser.role !== 'admin' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
         const user = await User.findById(userId).lean();

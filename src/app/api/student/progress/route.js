@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import StudentProgress from '@/models/StudentProgress';
-import { verifyToken } from '@/utils/auth';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,25 +9,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
     try {
         await connectDB();
+        const currentUser = await getAuthenticatedUser(request);
 
-        // Auth check
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!currentUser) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const token = authHeader.substring(7);
-        const payload = await verifyToken(token);
-
-        if (!payload) {
-            return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId') || payload.userId;
+        const userId = searchParams.get('userId') || currentUser.id;
 
-        // Ensure user can only view their own progress (unless admin)
-        if (payload.role !== 'admin' && payload.userId !== userId) {
+        // Security: Students can only view their own progress, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 

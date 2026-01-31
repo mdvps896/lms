@@ -3,10 +3,9 @@ import connectDB from '@/lib/mongodb'
 import Exam from '@/models/Exam'
 import ExamAttempt from '@/models/ExamAttempt'
 import Question from '@/models/Question'
-import QuestionGroup from '@/models/QuestionGroup'
-import Subject from '@/models/Subject'
 import User from '@/models/User'
 import mongoose from 'mongoose'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export async function GET(request, { params }) {
     try {
@@ -16,7 +15,12 @@ export async function GET(request, { params }) {
         const { searchParams } = new URL(request.url)
         const attemptId = searchParams.get('attemptId')
         const sessionToken = searchParams.get('sessionToken')
-        const userId = searchParams.get('userId') // Get userId from request
+        const userId = searchParams.get('userId')
+        const currentUser = await getAuthenticatedUser(request)
+
+        if (!currentUser) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+        }
 
         // 🔒 SECURITY: Validate required parameters
         if (!id || !attemptId || !userId) {
@@ -26,22 +30,18 @@ export async function GET(request, { params }) {
             )
         }
 
-        // 🔒 SECURITY: Validate MongoDB ObjectId format to prevent injection
+        // 🔒 SECURITY: Students can only take exams for themselves, unless admin/teacher
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && currentUser.id !== userId && currentUser._id?.toString() !== userId) {
+            return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
+        }
+
+        // 🔒 SECURITY: Validate MongoDB ObjectId format
         if (!mongoose.Types.ObjectId.isValid(id) ||
             !mongoose.Types.ObjectId.isValid(attemptId) ||
             !mongoose.Types.ObjectId.isValid(userId)) {
             return NextResponse.json(
                 { message: 'Invalid ID format' },
                 { status: 400 }
-            )
-        }
-
-        // 🔒 SECURITY: Verify user exists and is active
-        const user = await User.findById(userId);
-        if (!user || user.status !== 'active') {
-            return NextResponse.json(
-                { message: 'Unauthorized access' },
-                { status: 403 }
             )
         }
 
@@ -55,8 +55,8 @@ export async function GET(request, { params }) {
             )
         }
 
-        // 🔒 SECURITY: Verify attempt belongs to the requesting user
-        if (attempt.userId.toString() !== userId) {
+        // 🔒 SECURITY: Verify attempt belongs to the user
+        if (attempt.user.toString() !== userId && attempt.userId?.toString() !== userId) {
             return NextResponse.json(
                 { message: 'Unauthorized: This exam attempt does not belong to you' },
                 { status: 403 }
@@ -88,7 +88,6 @@ export async function GET(request, { params }) {
         let questions = []
 
         if (exam.questionGroups && exam.questionGroups.length > 0) {
-            // Get all questions that belong to these question groups
             questions = await Question.find({
                 questionGroup: { $in: exam.questionGroups.map(g => g._id) },
                 status: 'active'
@@ -96,7 +95,6 @@ export async function GET(request, { params }) {
                 .populate('subject', 'name _id')
                 .lean();
 
-            // Attach group info to each question
             questions = questions.map(q => {
                 const group = exam.questionGroups.find(g => g._id.toString() === q.questionGroup.toString());
                 return {
@@ -106,20 +104,19 @@ export async function GET(request, { params }) {
                 };
             });
         } else {
-            // Fallback: Get questions by subject if no groups
             const questionIds = []
             for (const subject of exam.subjects) {
                 const subjectQuestions = await Question.find({
                     subject: subject._id,
                     status: 'active'
-                }).limit(10) // Limit questions per subject
+                }).limit(20)
 
                 questionIds.push(...subjectQuestions.map(q => q._id))
             }
 
             questions = await Question.find({
                 _id: { $in: questionIds }
-            }).populate('subject', 'name')
+            }).populate('subject', 'name').lean()
         }
 
         // Shuffle questions if needed
@@ -130,7 +127,7 @@ export async function GET(request, { params }) {
         // Remove correct answers from questions (security)
         const sanitizedQuestions = questions.map(question => ({
             _id: question._id,
-            questionText: question.questionText || question.text,  // Support both field names
+            questionText: question.questionText || question.text,
             type: question.type,
             options: question.options,
             marks: question.marks,
@@ -139,7 +136,6 @@ export async function GET(request, { params }) {
             subject: question.subject,
             questionGroup: question.questionGroup,
             groupInfo: question.groupInfo
-            // correctAnswer intentionally omitted
         }))
 
         // Calculate time remaining
@@ -147,8 +143,8 @@ export async function GET(request, { params }) {
         const endTime = new Date(attempt.startedAt.getTime() + exam.duration * 60 * 1000);
         const timeRemaining = Math.max(0, Math.floor((endTime - now2) / 1000))
 
-        // Get existing answers from Map
-        const existingAnswers = attempt.answers ? Object.fromEntries(attempt.answers) : {};
+        // Get existing answers
+        const existingAnswers = attempt.answers ? (attempt.answers instanceof Map ? Object.fromEntries(attempt.answers) : attempt.answers) : {};
 
         return NextResponse.json({
             success: true,
@@ -173,11 +169,6 @@ export async function GET(request, { params }) {
                 sessionToken: attempt.sessionToken,
                 status: attempt.status,
                 isActive: attempt.isActive
-            },
-            attemptInfo: {
-                startTime: attempt.startedAt,
-                endTime: endTime,
-                sessionToken: attempt.sessionToken
             }
         })
 

@@ -1,12 +1,33 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import Course from '@/models/Course';
 import Category from '@/models/Category';
+import { requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
+
+async function checkUserManagementPermission(request, targetUser) {
+  const currentUser = await getAuthenticatedUser(request);
+  if (!currentUser) return false;
+
+  // Admin can manage anyone
+  if (currentUser.role === 'admin') return true;
+
+  // Teachers with manage_students can only manage students
+  if (currentUser.role === 'teacher' &&
+    currentUser.permissions &&
+    currentUser.permissions.includes('manage_students')) {
+    return targetUser.role === 'student';
+  }
+
+  return false;
+}
 
 // GET all users
 export async function GET(request) {
+  const authError = await requirePermission(request, 'manage_students');
+  if (authError) return authError;
+
   try {
+
     await connectDB();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
@@ -40,7 +61,11 @@ export async function GET(request) {
 
 // POST create new user
 export async function POST(request) {
+  const authError = await requirePermission(request, 'manage_students');
+  if (authError) return authError;
+
   try {
+
     await connectDB();
     const body = await request.json();
 
@@ -50,6 +75,18 @@ export async function POST(request) {
       return NextResponse.json(
         { success: false, message: 'Email already exists' },
         { status: 400 }
+      );
+    }
+
+    // For POST, we check permission against the *intended* role of the new user
+    // If the user being created is a student, and the current user has manage_students, it's allowed.
+    // If the user being created is not a student, only admin can create it.
+    const intendedNewUser = { role: body.role || 'student' }; // Default to student if role not provided
+    const hasPermission = await checkUserManagementPermission(request, intendedNewUser);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Insufficient permissions to create this user type' },
+        { status: 403 }
       );
     }
 

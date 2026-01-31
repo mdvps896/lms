@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectDB from '../../../lib/mongodb';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -177,7 +178,9 @@ const defaultSettings = {
     }
 };
 
-export async function GET() {
+export async function GET(request) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         await connectDB();
         const db = require('mongoose').connection.db;
@@ -203,6 +206,8 @@ export async function GET() {
 }
 
 export async function PUT(request) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
     try {
         const { tab, settings, data } = await request.json();
 

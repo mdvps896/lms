@@ -42,26 +42,46 @@ const UserCard = ({ user, onClick }) => {
                         </div>
                     </div>
 
-                    {user.lastSelfie && (
+                    {user.lastSelfie ? (
                         <div className="rounded overflow-hidden position-relative" style={{ height: '120px' }}>
-                            <img
+                            <ImageWithFallback
                                 src={user.lastSelfie}
                                 alt="Last Selfie"
                                 className="w-100 h-100"
                                 style={{ objectFit: 'cover' }}
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = '/assets/images/placeholder.png'; // Fallback
-                                }}
                             />
                             <div className="position-absolute pt-3 bottom-0 start-0 w-100 bg-gradient-to-t from-black/70 to-transparent p-2">
                                 <small className="text-white text-shadow">Latest Capture</small>
                             </div>
                         </div>
+                    ) : (
+                        <div className="rounded overflow-hidden bg-light d-flex align-items-center justify-content-center" style={{ height: '120px' }}>
+                            <i className="fas fa-camera fa-2x text-muted opacity-25"></i>
+                        </div>
                     )}
                 </div>
             </div>
         </div>
+    );
+};
+
+const ImageWithFallback = ({ src, ...props }) => {
+    const [error, setError] = React.useState(false);
+
+    if (error) {
+        return (
+            <div className="w-100 h-100 bg-light d-flex align-items-center justify-content-center">
+                <i className="fas fa-image text-muted opacity-50"></i>
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            {...props}
+            onError={() => setError(true)}
+        />
     );
 };
 

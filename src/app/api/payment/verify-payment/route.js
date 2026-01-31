@@ -7,11 +7,19 @@ import Notification from '@/models/Notification';
 import { sendAdminPurchaseNotification } from '@/lib/sendAdminPurchaseNotification';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
     try {
+        await connectDB();
+        const currentUser = await getAuthenticatedUser(request);
+
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const {
             razorpay_order_id,
@@ -24,19 +32,22 @@ export async function POST(request) {
             couponCode
         } = body;
 
+        // Security: Students can only verify/enroll for themselves, unless admin
+        const targetUserId = userId || currentUser.id || currentUser._id?.toString();
+        if (currentUser.role !== 'admin' && currentUser.id !== targetUserId && currentUser._id?.toString() !== targetUserId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         // Handle Free Enrollment (100% discount coupon)
         if (isFree === true && amount === 0) {
-            if (!userId || !courseId) {
+            if (!targetUserId || !courseId) {
                 return NextResponse.json({ success: false, message: 'Missing user or course ID' }, { status: 400 });
             }
 
-            await connectDB();
-
-            const user = await User.findById(userId);
+            const user = await User.findById(targetUserId);
             const course = await Course.findById(courseId);
 
             if (!user || !course) {
-                console.error(`❌ User or Course not found in DB. User: ${!!user}, Course: ${!!course}`);
                 return NextResponse.json({ success: false, message: 'User or Course not found' }, { status: 404 });
             }
 
@@ -53,11 +64,11 @@ export async function POST(request) {
 
             // Remove existing enrollment
             await User.updateOne(
-                { _id: userId },
+                { _id: targetUserId },
                 { $pull: { enrolledCourses: { courseId: new mongoose.Types.ObjectId(courseId) } } }
             );
             await User.updateOne(
-                { _id: userId },
+                { _id: targetUserId },
                 { $pull: { enrolledCourses: courseId } }
             );
 
@@ -69,13 +80,13 @@ export async function POST(request) {
             };
 
             await User.updateOne(
-                { _id: userId },
+                { _id: targetUserId },
                 { $push: { enrolledCourses: newEnrollment } }
             );
 
-            // Create Payment Record for free enrollment
+            // Create Payment Record
             await Payment.create({
-                user: userId,
+                user: targetUserId,
                 course: courseId,
                 razorpayOrderId: `FREE_${Date.now()}`,
                 razorpayPaymentId: `FREE_${Date.now()}`,
@@ -86,7 +97,6 @@ export async function POST(request) {
                 isFree: true
             });
 
-            // Update coupon usage if coupon was used
             if (couponCode) {
                 const Coupon = (await import('@/models/Coupon')).default;
                 await Coupon.findOneAndUpdate(
@@ -95,24 +105,23 @@ export async function POST(request) {
                         $inc: { currentUses: 1 },
                         $push: {
                             usedBy: {
-                                user: userId,
+                                user: targetUserId,
                                 courseId: courseId,
                                 usedAt: new Date()
                             }
                         }
                     }
                 );
-                }
+            }
 
-            const updatedUser = await User.findById(userId);
-            // Save Notification to DB for history
+            const updatedUser = await User.findById(targetUserId);
             try {
                 await Notification.create({
                     title: '🎉 Course Purchased!',
                     message: `Thank you for purchasing "${course.title}". Start learning now!`,
                     type: 'course_purchase',
-                    createdBy: new mongoose.Types.ObjectId(userId), // System notification
-                    recipients: [{ userId: new mongoose.Types.ObjectId(userId) }],
+                    createdBy: new mongoose.Types.ObjectId(targetUserId),
+                    recipients: [{ userId: new mongoose.Types.ObjectId(targetUserId) }],
                     status: 'active',
                     data: {
                         courseId: course._id.toString(),
@@ -120,17 +129,14 @@ export async function POST(request) {
                         thumbnail: course.thumbnail || ''
                     }
                 });
-                } catch (dbError) {
+            } catch (dbError) {
                 console.error('❌ DB Notification save error:', dbError.message);
             }
 
             // Send push notification
             try {
                 if (updatedUser.fcmToken) {
-                    // Import Firebase Admin dynamically
                     const admin = (await import('firebase-admin')).default;
-
-                    // Initialize if not already initialized
                     if (!admin.apps.length) {
                         admin.initializeApp({
                             credential: admin.credential.cert({
@@ -139,9 +145,8 @@ export async function POST(request) {
                                 privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
                             }),
                         });
-                        }
+                    }
 
-                    // Send notification directly
                     const message = {
                         notification: {
                             title: '🎉 Course Purchased!',
@@ -165,15 +170,12 @@ export async function POST(request) {
                             },
                         },
                     };
-
                     await admin.messaging().send(message);
-                    } else {
-                    }
+                }
             } catch (notifError) {
                 console.error('❌ Notification error:', notifError.message);
             }
 
-            // Send admin email notification
             try {
                 await sendAdminPurchaseNotification({
                     user: { name: user.name, email: user.email },
@@ -193,47 +195,39 @@ export async function POST(request) {
             });
         }
 
-        // Regular Paid Enrollment - Razorpay Verification Required
+        // Regular Paid Enrollment
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
             return NextResponse.json({ success: false, message: 'Missing payment details' }, { status: 400 });
         }
 
-        await connectDB();
-
-        // Get Settings for Secret
         const db = mongoose.connection.db;
         const settings = await db.collection('settings').findOne({});
         const keySecret = settings?.integrations?.razorpay?.keySecret;
 
         if (!keySecret) {
-            console.error('❌ Razorpay Secret not found in settings');
             return NextResponse.json({ success: false, message: 'Payment configuration missing' }, { status: 500 });
         }
 
-        // Signature Verification
         const generated_signature = crypto
             .createHmac('sha256', keySecret)
             .update(razorpay_order_id + "|" + razorpay_payment_id)
             .digest('hex');
 
         if (generated_signature !== razorpay_signature) {
-            console.error('❌ Signature mismatch!');
             return NextResponse.json({ success: false, message: 'Invalid payment signature' }, { status: 400 });
         }
 
-        if (!userId || !courseId) {
+        if (!targetUserId || !courseId) {
             return NextResponse.json({ success: true, message: 'Payment verified, but missing IDs to enroll' });
         }
 
-        const user = await User.findById(userId);
+        const user = await User.findById(targetUserId);
         const course = await Course.findById(courseId);
 
         if (!user || !course) {
-            console.error(`❌ User or Course not found in DB. User: ${!!user}, Course: ${!!course}`);
             return NextResponse.json({ success: false, message: 'User or Course not found' }, { status: 404 });
         }
 
-        // Expiry Calculation
         let expiryDate = new Date();
         if (course.duration?.value && course.duration?.unit) {
             const { value, unit } = course.duration;
@@ -241,41 +235,31 @@ export async function POST(request) {
             if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
             if (unit === 'years') expiryDate.setFullYear(expiryDate.getFullYear() + value);
         } else {
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Default 1 year
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
         }
 
-        // Update Enrollment Atomically to be safer
-        // 1. Remove any existing enrollment (both formats)
         await User.updateOne(
-            { _id: userId },
-            {
-                $pull: {
-                    enrolledCourses: { courseId: new mongoose.Types.ObjectId(courseId) }
-                }
-            }
+            { _id: targetUserId },
+            { $pull: { enrolledCourses: { courseId: new mongoose.Types.ObjectId(courseId) } } }
         );
         await User.updateOne(
-            { _id: userId },
-            {
-                $pull: { enrolledCourses: courseId }
-            }
+            { _id: targetUserId },
+            { $pull: { enrolledCourses: courseId } }
         );
 
-        // 2. Add new enrollment
         const newEnrollment = {
             courseId: new mongoose.Types.ObjectId(courseId),
             enrolledAt: new Date(),
             expiresAt: expiryDate
         };
 
-        const updateResult = await User.updateOne(
-            { _id: userId },
+        await User.updateOne(
+            { _id: targetUserId },
             { $push: { enrolledCourses: newEnrollment } }
         );
 
-        // 3. Create Payment Record
         await Payment.create({
-            user: userId,
+            user: targetUserId,
             course: courseId,
             razorpayOrderId: razorpay_order_id,
             razorpayPaymentId: razorpay_payment_id,
@@ -284,16 +268,14 @@ export async function POST(request) {
             status: 'success'
         });
 
-        // Fetch user again to verify
-        const updatedUser = await User.findById(userId);
-        // Save Notification to DB for history
+        const updatedUser = await User.findById(targetUserId);
         try {
             await Notification.create({
                 title: '🎉 Course Purchased!',
                 message: `Thank you for purchasing "${course.title}". Start learning now!`,
                 type: 'course_purchase',
-                createdBy: new mongoose.Types.ObjectId(userId),
-                recipients: [{ userId: new mongoose.Types.ObjectId(userId) }],
+                createdBy: new mongoose.Types.ObjectId(targetUserId),
+                recipients: [{ userId: new mongoose.Types.ObjectId(targetUserId) }],
                 status: 'active',
                 data: {
                     courseId: course._id.toString(),
@@ -301,17 +283,13 @@ export async function POST(request) {
                     thumbnail: course.thumbnail || ''
                 }
             });
-            } catch (dbError) {
+        } catch (dbError) {
             console.error('❌ DB Notification save error:', dbError.message);
         }
 
-        // Send push notification
         try {
             if (updatedUser.fcmToken) {
-                // Import Firebase Admin dynamically
                 const admin = (await import('firebase-admin')).default;
-
-                // Initialize if not already initialized
                 if (!admin.apps.length) {
                     admin.initializeApp({
                         credential: admin.credential.cert({
@@ -322,7 +300,6 @@ export async function POST(request) {
                     });
                 }
 
-                // Send notification directly
                 const message = {
                     notification: {
                         title: '🎉 Course Purchased!',
@@ -346,14 +323,12 @@ export async function POST(request) {
                         },
                     },
                 };
-
                 await admin.messaging().send(message);
-                }
+            }
         } catch (notifError) {
             console.error('❌ Notification error:', notifError);
         }
 
-        // Send admin email notification
         try {
             await sendAdminPurchaseNotification({
                 user: { name: user.name, email: user.email },

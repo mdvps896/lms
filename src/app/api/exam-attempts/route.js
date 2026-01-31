@@ -3,8 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/utils/auth';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(req) {
     try {
@@ -12,60 +11,16 @@ export async function POST(req) {
 
         const body = await req.json();
         const { examId, answers, timeTaken, userId } = body;
+        const currentUser = await getAuthenticatedUser(req);
 
-        let currentUserId = userId;
-        let token = null;
-
-        // 🔒 SECURITY: Try to get User ID from Token first (Verified Source)
-        const authHeader = req.headers.get('authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7);
-        } else {
-            const tokenCookie = req.cookies.get('token');
-            if (tokenCookie) token = tokenCookie.value;
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (token) {
-            const payload = await verifyToken(token);
-            if (payload && payload.userId) {
-                // Handle buffer objects from JWT
-                if (payload.userId.buffer) {
-                    // Convert buffer to ObjectId string
-                    const buffer = Buffer.from(Object.values(payload.userId.buffer));
-                    currentUserId = buffer.toString('hex');
-                } else {
-                    currentUserId = payload.userId;
-                }
-            }
-        }
-
-        // Fallback to legacy/web cookie
-        if (!currentUserId) {
-            const cookieStore = cookies();
-            const userCookie = cookieStore.get('currentUser') || cookieStore.get('user');
-            if (userCookie) {
-                try {
-                    const u = JSON.parse(userCookie.value);
-                    currentUserId = u.id || u._id;
-                } catch (e) { }
-            }
-        }
-
-        // Ensure currentUserId is a string
-        if (currentUserId && typeof currentUserId === 'object') {
-            if (currentUserId.buffer) {
-                const buffer = Buffer.from(Object.values(currentUserId.buffer));
-                currentUserId = buffer.toString('hex');
-            } else if (currentUserId.toString) {
-                currentUserId = currentUserId.toString();
-            }
-        }
-
-        if (!currentUserId) {
-            return NextResponse.json({
-                success: false,
-                error: 'User not authenticated'
-            }, { status: 401 });
+        // Security: Students can only submit for themselves, unless admin
+        const targetUserId = userId || currentUser.id;
+        if (currentUser.role !== 'admin' && targetUserId !== currentUser.id && targetUserId !== currentUser._id?.toString()) {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 
         // Generate unique session token
@@ -95,9 +50,7 @@ export async function POST(req) {
             if (userAnswer !== undefined && userAnswer !== null) {
                 let isCorrect = false;
 
-                // MCQ / TrueFalse logic
                 if (['mcq', 'true_false', 'multiple_choice'].includes(question.type)) {
-                    // Check if userAnswer matches strict correct option
                     if (typeof userAnswer === 'number') {
                         const option = question.options[userAnswer];
                         if (option && option.isCorrect) isCorrect = true;
@@ -128,11 +81,10 @@ export async function POST(req) {
         try {
             const submittedAt = new Date();
             const timeTakenSec = Number(timeTaken) || 0;
-            // Subtract time taken from submission time to get approximate start time
             const startedAt = new Date(submittedAt.getTime() - (timeTakenSec * 1000));
 
             const examAttempt = await ExamAttempt.create({
-                user: currentUserId,
+                user: targetUserId,
                 exam: examId,
                 sessionToken,
                 answers: answers || {},
@@ -152,12 +104,6 @@ export async function POST(req) {
             });
         } catch (createError) {
             console.error('❌ Error creating exam attempt in database:', createError);
-            console.error('❌ Error details:', {
-                name: createError.name,
-                message: createError.message,
-                code: createError.code,
-                stack: createError.stack
-            });
             throw createError;
         }
     } catch (error) {
@@ -174,61 +120,20 @@ export async function GET(req) {
         await dbConnect();
 
         const { searchParams } = new URL(req.url);
-        let currentUserId = searchParams.get('userId');
+        const userId = searchParams.get('userId');
+        const currentUser = await getAuthenticatedUser(req);
 
-        // 🔒 SECURITY: Verify Token
-        const authHeader = req.headers.get('authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.substring(7);
-            const payload = await verifyToken(token);
-            if (payload && payload.userId) {
-                // Only use token userId if no userId param provided (or implement admin check)
-                // For now, if userId param is present, assume it's an admin/authorized request for that user
-                // Real implementation should verify role
-                if (!currentUserId) {
-                    // Handle buffer objects from JWT
-                    if (payload.userId.buffer) {
-                        const buffer = Buffer.from(Object.values(payload.userId.buffer));
-                        currentUserId = buffer.toString('hex');
-                    } else {
-                        currentUserId = payload.userId;
-                    }
-                }
-            }
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!currentUserId) {
-            const cookieStore = cookies();
-            const sessionUser = cookieStore.get('currentUser') || cookieStore.get('user');
-            if (sessionUser) {
-                try {
-                    const u = JSON.parse(sessionUser.value);
-                    currentUserId = u.id || u._id;
-                } catch (e) { }
-            }
+        // Security: Students can only list their own attempts, unless admin/teacher
+        const targetUserId = userId || currentUser.id;
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && targetUserId !== currentUser.id && targetUserId !== currentUser._id?.toString()) {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 
-        // Ensure currentUserId is a string
-        if (currentUserId && typeof currentUserId === 'object') {
-            if (currentUserId.buffer) {
-                const buffer = Buffer.from(Object.values(currentUserId.buffer));
-                currentUserId = buffer.toString('hex');
-            } else if (currentUserId.toString) {
-                currentUserId = currentUserId.toString();
-            }
-        }
-
-        if (!currentUserId) {
-            // For Admin? Admins might list all attempts.
-            // If no user ID but Admin token?
-            // For now, restrictive to user.
-            return NextResponse.json({
-                success: false,
-                error: 'User not authenticated'
-            }, { status: 401 });
-        }
-
-        const attempts = await ExamAttempt.find({ user: currentUserId })
+        const attempts = await ExamAttempt.find({ user: targetUserId })
             .populate('exam', 'name category')
             .sort({ submittedAt: -1 })
             .lean();

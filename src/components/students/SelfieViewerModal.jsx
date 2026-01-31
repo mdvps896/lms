@@ -102,12 +102,7 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                                                 className="ratio ratio-1x1 cursor-pointer"
                                                 onClick={() => setSelectedImage(selfie)}
                                             >
-                                                <img
-                                                    src={selfie.imageUrl}
-                                                    alt="Selfie"
-                                                    className="object-fit-cover w-100 h-100"
-                                                    onError={(e) => e.target.src = 'https://placehold.co/400x400?text=Error+Loading'}
-                                                />
+                                                <SelfieImage src={selfie.imageUrl} />
                                             </div>
 
                                             {/* Badge for capture type */}
@@ -234,5 +229,26 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
         </div>
     )
 }
+
+const SelfieImage = ({ src }) => {
+    const [error, setError] = useState(false);
+
+    if (error) {
+        return (
+            <div className="w-100 h-100 bg-light d-flex align-items-center justify-content-center">
+                <FiCamera size={40} className="text-muted opacity-25" />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt="Selfie"
+            className="object-fit-cover w-100 h-100"
+            onError={() => setError(true)}
+        />
+    );
+};
 
 export default SelfieViewerModal

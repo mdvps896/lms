@@ -9,6 +9,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(request) {
     try {
         await connectDB();
+
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         const { searchParams } = new URL(request.url);
         const category = searchParams.get('category');
         const subject = searchParams.get('subject');
@@ -24,6 +28,7 @@ export async function GET(request) {
         const skip = (page - 1) * limit;
 
         const user = await getAuthenticatedUser(request);
+
         let query = {};
 
         if (isTrash) {
@@ -35,7 +40,6 @@ export async function GET(request) {
         if (user && user.role === 'teacher') {
             // Check access scope
             const accessScope = user.accessScope || 'own';
-            console.log(`Teacher Access: ${user.email}, Scope: ${accessScope}, ID: ${user.id}`);
             if (accessScope === 'own') {
                 try {
                     query.createdBy = new mongoose.Types.ObjectId(user.id);
@@ -45,7 +49,7 @@ export async function GET(request) {
                 }
             }
         }
-        console.log('Final Query:', JSON.stringify(query));
+
 
         if (category && category !== 'all') query.category = category;
         if (subject && subject !== 'all') {
@@ -116,13 +120,12 @@ export async function POST(request) {
 
         if (user) {
             body.createdBy = user.id;
-            console.log('Creating Question for User:', user.id, 'Role:', user.role);
         } else {
             console.warn('Creating Question without authenticated user (Public?)');
         }
 
         const question = await Question.create(body);
-        console.log('Question Created with ID:', question._id, 'CreatedBy (Initial):', question.createdBy);
+
 
         // FORCE UPDATE to ensure createdBy is saved even if schema is stale
         if (body.createdBy) {
@@ -130,7 +133,6 @@ export async function POST(request) {
                 { _id: question._id },
                 { $set: { createdBy: new mongoose.Types.ObjectId(body.createdBy) } }
             );
-            console.log('Force Updated createdBy via collection');
         }
 
         const populatedQuestion = await Question.findById(question._id)

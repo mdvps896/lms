@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Course from '@/models/Course';
 import User from '@/models/User';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/admin/courses - List all courses with filters
 export async function GET(request) {
+    const authError = await requirePermission(request, 'manage_courses');
+    if (authError) return authError;
+
     try {
+
         await connectDB();
         const { searchParams } = new URL(request.url);
 
@@ -79,7 +84,11 @@ export async function GET(request) {
 
 // POST /api/admin/courses - Create new course
 export async function POST(request) {
+    const authError = await requirePermission(request, 'manage_courses');
+    if (authError) return authError;
+
     try {
+
         await connectDB();
         const body = await request.json();
 
