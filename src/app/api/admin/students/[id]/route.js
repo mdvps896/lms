@@ -51,14 +51,15 @@ export async function GET(request, { params }) {
                     .lean();
 
                 if (student.enrolledCourses[0]?.courseId) {
-                    }
-                } catch (err) {
+                    console.log('Enrolled course found');
+                }
+            } catch (err) {
                 console.error('Populate error:', err);
             }
         }
 
         if (student.enrolledCourses && student.enrolledCourses.length > 0) {
-            );
+            // Processing enrolled courses if needed
         }
         return NextResponse.json({ success: true, data: student });
     } catch (error) {

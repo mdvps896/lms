@@ -321,8 +321,6 @@ const ExamForm = ({ type, initialData }) => {
             const url = initialData ? `/api/exams/${initialData._id}` : '/api/exams';
             const method = initialData ? 'PUT' : 'POST';
 
-            );
-
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },

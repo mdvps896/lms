@@ -1,6 +1,6 @@
 import Category from '@/models/Category'
 import mongoose from 'mongoose'
-import connectDB from '../../../lib/mongodb';
+import connectDB from '@/lib/mongodb';
 import { requirePermission, requireAdmin } from '@/utils/apiAuth';
 import { NextResponse } from 'next/server';
 

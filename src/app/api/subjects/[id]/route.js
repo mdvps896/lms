@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import connectDB from '../../../lib/mongodb';
+import connectDB from '@/lib/mongodb';
 import { requireAdmin, requirePermission } from '@/utils/apiAuth';
 import Subject from '@/models/Subject'
 import mongoose from 'mongoose'
