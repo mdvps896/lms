@@ -5,10 +5,15 @@ const useJoditConfig = () => {
     const config = useMemo(
         () => ({
             readonly: false,
-            placeholder: 'Start typings...',
+            placeholder: 'Start typing...',
             defaultActionOnPaste: 'insert_as_html',
+            askBeforePasteHTML: false,
+            askBeforePasteFromWord: false,
             defaultLineHeight: 1.3,
-            // enter: 'div',
+            enter: 'P',
+            cleanHTML: {
+                fillEmptyParagraph: false
+            },
             // options that we defined in above step.
             buttons: options,
             buttonsMD: options,
