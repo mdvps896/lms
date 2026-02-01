@@ -25,8 +25,25 @@ export async function POST(request) {
             );
         }
 
+        // MIGRATION FIX: If activeDeviceId is missing, claim this device as active
+        if (!user.activeDeviceId) {
+            console.log(`[Session Check] User ${userId} has no activeDeviceId, claiming device: ${deviceId}`);
+            await User.findByIdAndUpdate(userId, { 
+                activeDeviceId: deviceId, 
+                lastActiveAt: new Date() 
+            });
+            return NextResponse.json({
+                success: true,
+                message: 'Session is valid (device claimed)'
+            });
+        }
+
         // Check if the device ID matches the active device
-        if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
+        if (user.activeDeviceId !== deviceId) {
+            console.log(`[Session Check] Device mismatch for user ${userId}`);
+            console.log(`  Expected: ${user.activeDeviceId}`);
+            console.log(`  Received: ${deviceId}`);
+            
             // User is logged in on another device, force logout
             return NextResponse.json({
                 success: false,
@@ -35,15 +52,10 @@ export async function POST(request) {
             });
         }
 
-        // MIGRATION FIX: If activeDeviceId is missing, claim this device as active
-        if (!user.activeDeviceId) {
-            await User.findByIdAndUpdate(userId, { activeDeviceId: deviceId, lastActiveAt: new Date() });
-        } else {
-            // Update last active time
-            await User.findByIdAndUpdate(userId, {
-                lastActiveAt: new Date()
-            });
-        }
+        // Device ID matches - update last active time
+        await User.findByIdAndUpdate(userId, {
+            lastActiveAt: new Date()
+        });
 
         return NextResponse.json({
             success: true,
