@@ -20,6 +20,7 @@ export async function GET(request) {
         const type = searchParams.get('type');
         const status = searchParams.get('status');
         const search = searchParams.get('search');
+        const createdBy = searchParams.get('createdBy'); // Teacher filter
         const isTrash = searchParams.get('trash') === 'true';
 
         // Pagination parameters
@@ -62,6 +63,16 @@ export async function GET(request) {
         if (questionGroup && questionGroup !== 'all') query.questionGroup = questionGroup;
         if (type && type !== 'all') query.type = type;
         if (status && status !== 'all') query.status = status;
+
+        // Add teacher filter (admin only)
+        if (createdBy && createdBy !== 'all') {
+            try {
+                query.createdBy = new mongoose.Types.ObjectId(createdBy);
+            } catch (e) {
+                console.error('Error casting createdBy to ObjectId:', e);
+                query.createdBy = createdBy;
+            }
+        }
 
         // Add search functionality
         if (search && search.trim()) {
@@ -120,6 +131,53 @@ export async function POST(request) {
 
         if (user) {
             body.createdBy = user.id;
+
+            // Check if user is a teacher with question limit
+            if (user.role === 'teacher' && user.questionLimit && user.questionLimit > 0) {
+                const User = (await import('@/models/User')).default;
+                const teacher = await User.findById(user.id);
+
+                if (teacher && teacher.questionLimit) {
+                    // Count existing questions by this teacher
+                    const questionCount = await Question.countDocuments({
+                        createdBy: user.id,
+                        isDeleted: { $ne: true }
+                    });
+
+                    if (questionCount >= teacher.questionLimit) {
+                        return NextResponse.json(
+                            {
+                                success: false,
+                                message: `You have reached your question limit of ${teacher.questionLimit} questions. Please contact admin to increase your limit.`
+                            },
+                            { status: 403 }
+                        );
+                    }
+                }
+            }
+
+            // Check question group limit
+            if (body.questionGroup) {
+                const QuestionGroup = (await import('@/models/QuestionGroup')).default;
+                const group = await QuestionGroup.findById(body.questionGroup);
+
+                if (group && group.questionLimit && group.questionLimit > 0) {
+                    const groupQuestionCount = await Question.countDocuments({
+                        questionGroup: body.questionGroup,
+                        isDeleted: { $ne: true }
+                    });
+
+                    if (groupQuestionCount >= group.questionLimit) {
+                        return NextResponse.json(
+                            {
+                                success: false,
+                                message: `This question group has reached its limit of ${group.questionLimit} questions.`
+                            },
+                            { status: 403 }
+                        );
+                    }
+                }
+            }
         } else {
             console.warn('Creating Question without authenticated user (Public?)');
         }

@@ -103,6 +103,40 @@ const ViewTeacherModal = ({ show, teacher, onClose }) => {
                                     </span>
                                 </div>
                             </div>
+                            <div className="list-group-item">
+                                <small className="text-muted d-block mb-1">Question Limit</small>
+                                <div>
+                                    {teacher.questionLimit && teacher.questionLimit > 0 ? (
+                                        <>
+                                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                                <span>
+                                                    <strong>{teacher.questionCount || 0}</strong> / {teacher.questionLimit} questions
+                                                </span>
+                                                <span className="text-muted small">
+                                                    {Math.max(0, teacher.questionLimit - (teacher.questionCount || 0))} remaining
+                                                </span>
+                                            </div>
+                                            <div className="progress" style={{ height: '8px' }}>
+                                                <div
+                                                    className={`progress-bar ${(teacher.questionCount || 0) / teacher.questionLimit >= 0.95 ? 'bg-danger' :
+                                                            (teacher.questionCount || 0) / teacher.questionLimit >= 0.80 ? 'bg-warning' :
+                                                                'bg-success'
+                                                        }`}
+                                                    role="progressbar"
+                                                    style={{ width: `${Math.min(100, ((teacher.questionCount || 0) / teacher.questionLimit) * 100)}%` }}
+                                                    aria-valuenow={teacher.questionCount || 0}
+                                                    aria-valuemin="0"
+                                                    aria-valuemax={teacher.questionLimit}
+                                                ></div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <span className="badge bg-info">
+                                            {teacher.questionCount || 0} questions (Unlimited)
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="modal-footer">

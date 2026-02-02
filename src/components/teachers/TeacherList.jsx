@@ -46,7 +46,10 @@ const TeacherList = () => {
                     status: user.status || 'active',
                     isGoogleAuth: user.isGoogleAuth || false,
                     emailVerified: user.emailVerified || false,
-                    permissions: user.permissions || []
+                    permissions: user.permissions || [],
+                    accessScope: user.accessScope || 'own',
+                    questionLimit: user.questionLimit || null,
+                    questionCount: user.questionCount || 0
                 }))
                 setTeachers(teachersData)
                 setFilteredTeachers(teachersData)
@@ -317,6 +320,7 @@ const TeacherList = () => {
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Category</th>
+                                    <th>Questions</th>
                                     <th>Joining Date</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -354,11 +358,25 @@ const TeacherList = () => {
                                                     {teacher.category}
                                                 </span>
                                             </td>
+                                            <td>
+                                                {teacher.questionLimit && teacher.questionLimit > 0 ? (
+                                                    <span className={`badge ${teacher.questionCount / teacher.questionLimit >= 0.95 ? 'bg-danger' :
+                                                            teacher.questionCount / teacher.questionLimit >= 0.80 ? 'bg-warning text-dark' :
+                                                                'bg-success'
+                                                        }`}>
+                                                        {teacher.questionCount}/{teacher.questionLimit}
+                                                    </span>
+                                                ) : (
+                                                    <span className="badge bg-info">
+                                                        {teacher.questionCount}/∞
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td>{teacher.joiningDate}</td>
                                             <td>
                                                 <span className={`badge ${teacher.status === 'active' ? 'bg-success' :
-                                                        teacher.status === 'inactive' ? 'bg-secondary' :
-                                                            'bg-danger'
+                                                    teacher.status === 'inactive' ? 'bg-secondary' :
+                                                        'bg-danger'
                                                     }`}>
                                                     {teacher.status}
                                                 </span>

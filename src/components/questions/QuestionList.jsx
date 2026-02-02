@@ -26,6 +26,7 @@ const QuestionList = () => {
     const [showRecycleBin, setShowRecycleBin] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState(null);
     const [userRole, setUserRole] = useState(null); // 'admin', 'teacher', etc.
+    const [userInfo, setUserInfo] = useState(null); // Store full user info including questionLimit
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -45,13 +46,15 @@ const QuestionList = () => {
     const [categories, setCategories] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [questionGroups, setQuestionGroups] = useState([]);
+    const [teachers, setTeachers] = useState([]);
 
     const [filters, setFilters] = useState({
         category: 'all',
         subject: 'all',
         questionGroup: 'all',
         type: 'all',
-        status: 'all'
+        status: 'all',
+        createdBy: 'all' // Teacher filter
     });
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -65,7 +68,10 @@ const QuestionList = () => {
         fetchUserInfo();
         fetchQuestions();
         fetchCategories();
-    }, [searchParams]);
+        if (userRole === 'admin') {
+            fetchTeachers();
+        }
+    }, [searchParams, userRole]);
 
     const fetchUserInfo = async () => {
         try {
@@ -74,6 +80,7 @@ const QuestionList = () => {
                 const data = await res.json();
                 if (data.success) {
                     setUserRole(data.data.role);
+                    setUserInfo(data.data); // Store full user info
                 }
             }
         } catch (error) {
@@ -278,6 +285,69 @@ const QuestionList = () => {
         }
     };
 
+    const fetchTeachers = async () => {
+        try {
+            const res = await fetch('/api/users?role=teacher');
+            if (!res.ok) return;
+
+            const text = await res.text();
+            if (!text) return;
+
+            const data = JSON.parse(text);
+            if (data.success) setTeachers(data.data || []);
+        } catch (error) {
+            console.error('Error fetching teachers:', error);
+        }
+    };
+
+    const handleAddQuestion = async () => {
+        console.log('🔵 handleAddQuestion called');
+        console.log('🔵 User Role:', userRole);
+        console.log('🔵 User Info:', userInfo);
+
+        // Check if teacher has reached question limit
+        if (userRole === 'teacher' && userInfo) {
+            const questionLimit = userInfo.questionLimit;
+            console.log('🟡 Teacher detected. Question Limit:', questionLimit);
+
+            // If teacher has a limit set (not null or 0)
+            if (questionLimit && questionLimit > 0) {
+                console.log('🟡 Limit is set. Checking current question count...');
+
+                const currentCount = userInfo.questionCount || 0;
+                console.log('🟡 Current Count:', currentCount);
+                console.log('🟡 Question Limit:', questionLimit);
+                console.log('🟡 Limit Reached?', currentCount >= questionLimit);
+
+                if (currentCount >= questionLimit) {
+                    console.log('🔴 LIMIT REACHED! Showing error and blocking modal.');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Question Limit Reached',
+                        html: `
+                            <p>You have reached your question limit of <strong>${questionLimit}</strong> questions.</p>
+                            <p>Current questions: <strong>${currentCount}</strong></p>
+                            <p>Please contact the administrator to increase your limit.</p>
+                        `,
+                        confirmButtonText: 'OK'
+                    });
+                    console.log('🔴 Returning early - modal should NOT open');
+                    return; // Don't open the modal
+                } else {
+                    console.log('🟢 Limit NOT reached. Proceeding to open modal.');
+                }
+            } else {
+                console.log('🟢 No limit set or limit is 0. Proceeding to open modal.');
+            }
+        } else {
+            console.log('🟢 Not a teacher or no user info. Proceeding to open modal.');
+        }
+
+        // If no limit or limit not reached, open the modal
+        console.log('🟢 Opening modal...');
+        setShowAddModal(true);
+    };
+
     const handleEdit = (question) => {
         setSelectedQuestion(question);
         setShowEditModal(true);
@@ -401,7 +471,7 @@ const QuestionList = () => {
                             <FiDownload className="me-1" />
                             Export
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+                        <button className="btn btn-primary btn-sm" onClick={handleAddQuestion}>
                             <FiPlus className="me-1" />
                             Add Question
                         </button>
@@ -455,6 +525,18 @@ const QuestionList = () => {
                             <option value="long_answer">Long Answer</option>
                         </select>
                     </div>
+                    {userRole === 'admin' && (
+                        <div className="col-md-3">
+                            <select
+                                className="form-select"
+                                value={filters.createdBy}
+                                onChange={(e) => setFilters({ ...filters, createdBy: e.target.value })}
+                            >
+                                <option value="all">All Teachers</option>
+                                {teachers.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                            </select>
+                        </div>
+                    )}
                     <div className="col-12">
                         <div className="input-group">
                             <span className="input-group-text"><FiSearch /></span>

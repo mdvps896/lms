@@ -8,6 +8,7 @@ const AddQuestionGroupModal = ({ show, onClose, onAdd }) => {
         category: '',
         subject: '',
         description: '',
+        questionLimit: '',
         status: 'active'
     });
     const [categories, setCategories] = useState([]);
@@ -122,6 +123,7 @@ const AddQuestionGroupModal = ({ show, onClose, onAdd }) => {
             category: '',
             subject: '',
             description: '',
+            questionLimit: '',
             status: 'active'
         });
         setFilteredSubjects([]);
@@ -191,6 +193,18 @@ const AddQuestionGroupModal = ({ show, onClose, onAdd }) => {
                                             <option key={sub._id} value={sub._id}>{sub.name}</option>
                                         ))}
                                     </select>
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">Question Limit</label>
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        value={formData.questionLimit}
+                                        onChange={(e) => setFormData({ ...formData, questionLimit: e.target.value })}
+                                        min="0"
+                                        placeholder="Leave empty for unlimited"
+                                    />
+                                    <small className="text-muted">Maximum questions allowed in this group (0 or empty = unlimited)</small>
                                 </div>
                                 <div className="col-12">
                                     <label className="form-label">Description</label>

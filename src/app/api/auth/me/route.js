@@ -35,6 +35,13 @@ export async function GET(request) {
     delete userObj.twoFactorOtp;
     delete userObj.resetOtp;
 
+    // If user is a teacher, include question count
+    if (user.role === 'teacher') {
+      const Question = (await import('@/models/Question')).default;
+      const questionCount = await Question.countDocuments({ createdBy: user._id });
+      userObj.questionCount = questionCount;
+    }
+
     return NextResponse.json({
       success: true,
       data: userObj

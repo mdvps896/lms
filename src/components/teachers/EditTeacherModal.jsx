@@ -11,10 +11,12 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
         status: 'active',
         category: '',
         permissions: [],
-        accessScope: 'own'
+        accessScope: 'own',
+        questionLimit: ''
     })
     const [loading, setLoading] = useState(false)
     const [categories, setCategories] = useState([])
+    const [questionCount, setQuestionCount] = useState(0)
 
     useEffect(() => {
         if (show) {
@@ -52,8 +54,10 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                     status: data.data.status || 'active',
                     category: data.data.category?._id || data.data.category || '',
                     permissions: data.data.permissions || [],
-                    accessScope: data.data.accessScope || 'own'
+                    accessScope: data.data.accessScope || 'own',
+                    questionLimit: data.data.questionLimit || ''
                 })
+                setQuestionCount(data.data.questionCount || 0)
             }
         } catch (error) {
             setFormData({
@@ -94,7 +98,8 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                     status: formData.status,
                     category: formData.category || null,
                     permissions: formData.permissions || [],
-                    accessScope: formData.accessScope
+                    accessScope: formData.accessScope,
+                    questionLimit: formData.questionLimit ? parseInt(formData.questionLimit) : null
                 }),
             })
 
@@ -197,6 +202,29 @@ const EditTeacherModal = ({ show, teacher, onClose, onSuccess }) => {
                                     <option value="inactive">Inactive</option>
                                     <option value="suspended">Suspended</option>
                                 </select>
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Question Limit</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={formData.questionLimit}
+                                    onChange={(e) => setFormData({ ...formData, questionLimit: e.target.value })}
+                                    min="0"
+                                    placeholder="Leave empty for unlimited"
+                                />
+                                <small className="text-muted">
+                                    Current: {questionCount} question{questionCount !== 1 ? 's' : ''} created.
+                                    {formData.questionLimit && parseInt(formData.questionLimit) > 0
+                                        ? ` Limit: ${formData.questionLimit} (${Math.max(0, parseInt(formData.questionLimit) - questionCount)} remaining)`
+                                        : ' Unlimited'}
+                                </small>
+                                {formData.questionLimit && parseInt(formData.questionLimit) > 0 && questionCount >= parseInt(formData.questionLimit) && (
+                                    <div className="alert alert-warning mt-2 mb-0 py-1 px-2 small">
+                                        ⚠️ Teacher has reached the question limit
+                                    </div>
+                                )}
                             </div>
 
                             <div className="mb-3">

@@ -50,6 +50,25 @@ export async function GET(request) {
 
     const users = await userQuery;
 
+    // If fetching teachers, add question count
+    if (role === 'teacher') {
+      const Question = (await import('@/models/Question')).default;
+
+      const usersWithCounts = await Promise.all(users.map(async (user) => {
+        const questionCount = await Question.countDocuments({
+          createdBy: user._id,
+          isDeleted: { $ne: true }
+        });
+
+        return {
+          ...user.toObject(),
+          questionCount
+        };
+      }));
+
+      return NextResponse.json({ success: true, data: usersWithCounts });
+    }
+
     return NextResponse.json({ success: true, data: users });
   } catch (error) {
     return NextResponse.json(

@@ -14,7 +14,8 @@ const AddTeacherModal = ({ show, onClose, onSuccess }) => {
         category: '',
         category: '',
         permissions: [],
-        accessScope: 'own'
+        accessScope: 'own',
+        questionLimit: '' // Empty means unlimited
     })
     const [loading, setLoading] = useState(false)
     const [categories, setCategories] = useState([])
@@ -66,7 +67,8 @@ const AddTeacherModal = ({ show, onClose, onSuccess }) => {
                     category: formData.category || null,
                     category: formData.category || null,
                     permissions: formData.permissions || [],
-                    accessScope: formData.accessScope
+                    accessScope: formData.accessScope,
+                    questionLimit: formData.questionLimit ? parseInt(formData.questionLimit) : null
                 }),
             })
 
@@ -180,6 +182,21 @@ const AddTeacherModal = ({ show, onClose, onSuccess }) => {
                                     <option value="inactive">Inactive</option>
                                     <option value="suspended">Suspended</option>
                                 </select>
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Question Limit</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={formData.questionLimit}
+                                    onChange={(e) => setFormData({ ...formData, questionLimit: e.target.value })}
+                                    min="0"
+                                    placeholder="Leave empty for unlimited"
+                                />
+                                <small className="text-muted">
+                                    Maximum number of questions this teacher can create. Leave empty or set to 0 for unlimited.
+                                </small>
                             </div>
 
                             <div className="mb-3">

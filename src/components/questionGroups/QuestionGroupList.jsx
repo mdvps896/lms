@@ -159,7 +159,7 @@ const QuestionGroupList = () => {
                 for (const row of rows) {
                     if (!row.trim()) continue;
                     const [name, categoryName, subjectName, description, status] = row.split(',');
-                    
+
                     const category = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
                     if (!category) continue;
 
@@ -272,6 +272,7 @@ const QuestionGroupList = () => {
                                 <th>Name</th>
                                 <th>Category</th>
                                 <th>Subject</th>
+                                <th>Questions</th>
                                 <th>Description</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -282,7 +283,7 @@ const QuestionGroupList = () => {
                                 <SkeletonLoader />
                             ) : paginatedGroups.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="text-center py-4">No question groups found</td>
+                                    <td colSpan="8" className="text-center py-4">No question groups found</td>
                                 </tr>
                             ) : (
                                 paginatedGroups.map((group, index) => (
@@ -294,6 +295,20 @@ const QuestionGroupList = () => {
                                         </td>
                                         <td>
                                             <span className="badge bg-info">{group.subject?.name || 'N/A'}</span>
+                                        </td>
+                                        <td>
+                                            {group.questionLimit && group.questionLimit > 0 ? (
+                                                <span className={`badge ${(group.questionCount || 0) / group.questionLimit >= 0.95 ? 'bg-danger' :
+                                                        (group.questionCount || 0) / group.questionLimit >= 0.80 ? 'bg-warning text-dark' :
+                                                            'bg-success'
+                                                    }`}>
+                                                    {group.questionCount || 0}/{group.questionLimit}
+                                                </span>
+                                            ) : (
+                                                <span className="badge bg-info">
+                                                    {group.questionCount || 0}/∞
+                                                </span>
+                                            )}
                                         </td>
                                         <td>{group.description?.substring(0, 50) || 'N/A'}</td>
                                         <td>

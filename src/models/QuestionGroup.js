@@ -22,6 +22,11 @@ const questionGroupSchema = new mongoose.Schema({
         trim: true,
         default: ''
     },
+    questionLimit: {
+        type: Number,
+        default: null, // null or 0 means unlimited
+        min: 0
+    },
     status: {
         type: String,
         enum: ['active', 'inactive'],

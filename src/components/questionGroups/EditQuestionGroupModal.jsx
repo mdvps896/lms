@@ -8,12 +8,14 @@ const EditQuestionGroupModal = ({ show, onClose, onUpdate, group }) => {
         category: '',
         subject: '',
         description: '',
+        questionLimit: '',
         status: 'active'
     });
     const [categories, setCategories] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [filteredSubjects, setFilteredSubjects] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [questionCount, setQuestionCount] = useState(0);
 
     useEffect(() => {
         if (show && group) {
@@ -22,8 +24,10 @@ const EditQuestionGroupModal = ({ show, onClose, onUpdate, group }) => {
                 category: group.category?._id || '',
                 subject: group.subject?._id || '',
                 description: group.description || '',
+                questionLimit: group.questionLimit || '',
                 status: group.status || 'active'
             });
+            setQuestionCount(group.questionCount || 0);
             fetchCategories();
             fetchSubjects();
         }
@@ -163,6 +167,28 @@ const EditQuestionGroupModal = ({ show, onClose, onUpdate, group }) => {
                                             <option key={sub._id} value={sub._id}>{sub.name}</option>
                                         ))}
                                     </select>
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">Question Limit</label>
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        value={formData.questionLimit}
+                                        onChange={(e) => setFormData({ ...formData, questionLimit: e.target.value })}
+                                        min="0"
+                                        placeholder="Leave empty for unlimited"
+                                    />
+                                    <small className="text-muted">
+                                        Current: {questionCount} question{questionCount !== 1 ? 's' : ''}.
+                                        {formData.questionLimit && parseInt(formData.questionLimit) > 0
+                                            ? ` Limit: ${formData.questionLimit} (${Math.max(0, parseInt(formData.questionLimit) - questionCount)} remaining)`
+                                            : ' Unlimited'}
+                                    </small>
+                                    {formData.questionLimit && parseInt(formData.questionLimit) > 0 && questionCount >= parseInt(formData.questionLimit) && (
+                                        <div className="alert alert-warning mt-2 mb-0 py-1 px-2 small">
+                                            ⚠️ This group has reached the question limit
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="col-12">
                                     <label className="form-label">Description</label>

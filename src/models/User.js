@@ -44,6 +44,11 @@ const userSchema = new mongoose.Schema({
     enum: ['global', 'own'],
     default: 'own',
   },
+  questionLimit: {
+    type: Number,
+    default: null, // null or 0 means unlimited
+    min: 0,
+  },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',

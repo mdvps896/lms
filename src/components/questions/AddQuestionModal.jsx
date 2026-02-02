@@ -24,7 +24,7 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
         wordLimit: 0,
         status: 'active'
     });
-    
+
     const [options, setOptions] = useState([
         { text: '', image: '', isCorrect: false, order: 0 },
         { text: '', image: '', isCorrect: false, order: 1 },
@@ -118,6 +118,25 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
 
     const handleSubmit = async (e, addMore = false) => {
         e.preventDefault();
+
+        // Validate that question group hasn't reached its limit
+        if (formData.questionGroup) {
+            const selectedGroup = questionGroups.find(g => g._id === formData.questionGroup);
+            if (selectedGroup) {
+                const count = selectedGroup.questionCount || 0;
+                const limit = selectedGroup.questionLimit;
+                if (limit && limit > 0 && count >= limit) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Question Group Full',
+                        text: `The selected question group "${selectedGroup.name}" has reached its limit of ${limit} questions.`,
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+            }
+        }
+
         setLoading(true);
 
         // Validation
@@ -134,13 +153,13 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
                 setLoading(false);
                 return;
             }
-            
+
             // Check for empty options if not using images (or check images if using images)
             const invalidOptions = options.some(o => hasImageOptions ? !o.image : !o.text);
             if (invalidOptions && formData.type !== 'true_false') { // True/False text is auto-filled
-                 Swal.fire('Error', 'Please fill in all option fields', 'error');
-                 setLoading(false);
-                 return;
+                Swal.fire('Error', 'Please fill in all option fields', 'error');
+                setLoading(false);
+                return;
             }
         }
 
@@ -184,7 +203,7 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
                 }));
                 // Reset options based on type
                 if (formData.type === 'true_false') {
-                     setOptions([
+                    setOptions([
                         { text: 'True', image: '', isCorrect: true, order: 0 },
                         { text: 'False', image: '', isCorrect: false, order: 1 }
                     ]);
@@ -238,9 +257,9 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
             case 'true_false':
                 return <TrueFalse options={options} setOptions={setOptions} hasImageOptions={hasImageOptions} setHasImageOptions={setHasImageOptions} />;
             case 'short_answer':
-                return <ShortAnswer wordLimit={formData.wordLimit} setWordLimit={(val) => setFormData({...formData, wordLimit: val})} />;
+                return <ShortAnswer wordLimit={formData.wordLimit} setWordLimit={(val) => setFormData({ ...formData, wordLimit: val })} />;
             case 'long_answer':
-                return <LongAnswer wordLimit={formData.wordLimit} setWordLimit={(val) => setFormData({...formData, wordLimit: val})} />;
+                return <LongAnswer wordLimit={formData.wordLimit} setWordLimit={(val) => setFormData({ ...formData, wordLimit: val })} />;
             default:
                 return null;
         }
@@ -292,7 +311,25 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
                                         disabled={!formData.subject}
                                     >
                                         <option value="">Select Group</option>
-                                        {questionGroups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+                                        {questionGroups.map(g => {
+                                            const count = g.questionCount || 0;
+                                            const limit = g.questionLimit;
+                                            const isFull = limit && limit > 0 && count >= limit;
+                                            const displayText = limit && limit > 0
+                                                ? `${g.name} (${count}/${limit})${isFull ? ' - FULL' : ''}`
+                                                : `${g.name} (${count}/∞)`;
+
+                                            return (
+                                                <option
+                                                    key={g._id}
+                                                    value={g._id}
+                                                    disabled={isFull}
+                                                    style={isFull ? { color: '#999', fontStyle: 'italic' } : {}}
+                                                >
+                                                    {displayText}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
                                 <div className="col-md-3">
