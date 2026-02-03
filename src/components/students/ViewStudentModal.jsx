@@ -9,9 +9,11 @@ import StudentOverviewTab from './tabs/StudentOverviewTab'
 import StudentExamsTab from './tabs/StudentExamsTab'
 import StudentActivityLog from './tabs/StudentActivityLog'
 import StudentESignTab from './tabs/StudentESignTab'
+import StudentProgressTab from './tabs/StudentProgressTab'
 import { generateStudentReport } from '@/utils/studentReportGenerator'
 import StudentReportModal from './StudentReportModal'
 import { useSettings } from '@/contexts/SettingsContext'
+import { FiCheckCircle } from 'react-icons/fi'
 
 const ViewStudentModal = ({ show, student, onClose }) => {
     const [activeTab, setActiveTab] = useState('overview')
@@ -130,6 +132,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 <li className="nav-item">
                                     <TabButton id="esign" label="E-Sign" icon={FiPenTool} />
                                 </li>
+                                <li className="nav-item">
+                                    <TabButton id="progress" label="Progress Tracking" icon={FiCheckCircle} />
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -171,6 +176,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 )}
                                 {activeTab === 'esign' && (
                                     <StudentESignTab studentId={student.id} />
+                                )}
+                                {activeTab === 'progress' && (
+                                    <StudentProgressTab studentId={student.id} />
                                 )}
                             </div>
                         ) : null}

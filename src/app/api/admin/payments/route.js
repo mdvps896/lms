@@ -3,6 +3,7 @@ import { requireAdmin } from '@/utils/apiAuth';
 import Payment from '@/models/Payment';
 import User from '@/models/User';
 import Course from '@/models/Course';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 

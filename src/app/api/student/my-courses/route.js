@@ -59,7 +59,7 @@ export async function GET(request) {
             }
         });
 
-        const courses = await Course.find({ _id: { $in: courseIds }, isActive: true })
+        const courses = await Course.find({ _id: { $in: courseIds }, status: 'active' })
             .select('title thumbnail description price duration totalLectures totalLessons instructor rating readingDuration')
             .lean();
 

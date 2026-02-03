@@ -12,6 +12,8 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url)
         const format = searchParams.get('format')
+        const status = searchParams.get('status')
+        const isPublished = searchParams.get('isPublished')
 
         // Security check for admin format
         if (format === 'admin') {

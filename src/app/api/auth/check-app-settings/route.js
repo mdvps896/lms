@@ -32,7 +32,17 @@ export async function GET() {
             enableRegistration: settings.authSettings?.app?.enableRegistration ?? true,
             enableMobileOTP: settings.authSettings?.app?.enableMobileOTP ?? false,
             allowEmailAuth: settings.authSettings?.app?.allowEmailAuth ?? true,
-            allowGoogleAuth: settings.authSettings?.app?.allowGoogleAuth ?? true
+            allowGoogleAuth: settings.authSettings?.app?.allowGoogleAuth ?? true,
+            // Include payment integration settings for mobile app
+            integrations: {
+                offlinePayments: {
+                    enabled: settings.integrations?.offlinePayments?.enabled ?? false,
+                    message: settings.integrations?.offlinePayments?.message ?? 'Please pay offline'
+                },
+                razorpay: {
+                    enabled: settings.integrations?.razorpay?.enabled ?? false
+                }
+            }
         };
 
         return NextResponse.json({

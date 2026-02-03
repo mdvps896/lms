@@ -1,4 +1,7 @@
 import Category from '@/models/Category';
+import Coupon from '@/models/Coupon';
+import dbConnect from '@/lib/mongodb';
+import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';

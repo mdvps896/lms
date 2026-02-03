@@ -217,7 +217,7 @@ const CourseList = () => {
                                                 </div>
                                             </td>
                                             <td>
-                                                {course.isFree ? <span className="text-success fw-bold">FREE</span> : `₹${course.price}`}
+                                                {course.isFree || course.price == 0 ? <span className="text-success fw-bold">FREE</span> : `₹${course.price}`}
                                             </td>
                                             <td>{course.duration?.value || '-'} {course.duration?.unit || ''}</td>
                                             <td>

@@ -37,6 +37,22 @@ export async function GET(request, { params }) {
       );
     }
 
+    // Check if user is viewing their own profile
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Allow users to view their own profile
+    const isOwnProfile = currentUser._id.toString() === params.id;
+    if (isOwnProfile) {
+      return NextResponse.json({ success: true, data: user });
+    }
+
+    // For viewing other users, check admin/teacher permissions
     const hasPermission = await checkUserManagementPermission(request, user);
     if (!hasPermission) {
       return NextResponse.json(

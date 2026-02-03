@@ -11,6 +11,7 @@ export async function GET(request) {
         // Check if request is from admin panel or mobile app
         const { searchParams } = new URL(request.url);
         const format = searchParams.get('format'); // 'admin' or 'mobile'
+        const status = searchParams.get('status');
 
         // Security check for admin format
         if (format === 'admin') {
@@ -20,9 +21,21 @@ export async function GET(request) {
 
         // Fetch courses with populated data
         let query = {};
+
+        if (status && status !== 'null' && status !== 'undefined') {
+            query.status = status;
+        }
+
         if (format !== 'admin') {
-            // Only show courses that are explicitly 'active'
+            // Only show courses that are explicitly 'active' if not admin
+            // However, if the mobile app (which might use non-admin format for students) requests, 
+            // only active courses should be shown. 
+            // BUT, looking at the code, it seems 'admin' format is used for the admin app too.
+            // If format is NOT admin, we enforce status='active', overriding any status param?
+            // Let's assume non-admin (student app) *always* sees active only.
             query.status = 'active';
+        } else {
+            // Admin format: query.status is already set above if param exists
         }
 
         // Migration/Sanitization: Consolidate legacy status/isActive to new status system

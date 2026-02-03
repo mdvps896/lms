@@ -271,6 +271,14 @@ export async function deleteFromLocalStorage(filePath) {
     try {
         const pathsToTry = [];
 
+        if (!filePath || typeof filePath !== 'string') {
+            return {
+                success: false,
+                message: 'Invalid file path provided',
+                error: 'FilePath must be a non-empty string'
+            };
+        }
+
         // Normalize the path to use forward slashes
         const normalizedFilePath = filePath.replace(/\\/g, '/');
 

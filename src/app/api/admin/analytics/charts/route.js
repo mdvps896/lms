@@ -2,6 +2,7 @@ import connectDB from '@/lib/mongodb';
 import { requireAdmin } from '@/utils/apiAuth';
 import StudentActivity from '@/models/StudentActivity';
 import PDFViewSession from '@/models/PDFViewSession';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
