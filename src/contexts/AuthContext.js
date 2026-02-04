@@ -56,8 +56,8 @@ export const AuthProvider = ({ children }) => {
       if (data.success) {
         if (data.requiresTwoFactor) {
           // Return 2FA required state
-          return { 
-            success: true, 
+          return {
+            success: true,
             requiresTwoFactor: true,
             userId: data.userId,
             email: data.email,
@@ -67,11 +67,11 @@ export const AuthProvider = ({ children }) => {
           // Normal login flow
           setUser(data.data);
           localStorage.setItem('user', JSON.stringify(data.data));
-          
+
           // Set cookie for middleware
           document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
-          
-          router.push('/');
+
+          window.location.href = '/';
           return { success: true };
         }
       }
@@ -85,11 +85,11 @@ export const AuthProvider = ({ children }) => {
   const completeTwoFactorAuth = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
-    
+
     // Set cookie for middleware
     document.cookie = `user=${JSON.stringify(userData)}; path=/; max-age=86400`;
-    
-    router.push('/');
+
+    window.location.href = '/';
   };
 
   const register = async (userData) => {
@@ -106,11 +106,11 @@ export const AuthProvider = ({ children }) => {
         // Auto login after registration
         setUser(data.data);
         localStorage.setItem('user', JSON.stringify(data.data));
-        
+
         // Set cookie for middleware
         document.cookie = `user=${JSON.stringify(data.data)}; path=/; max-age=86400`;
-        
-        router.push('/');
+
+        window.location.href = '/';
         return { success: true };
       }
 
@@ -123,11 +123,11 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
-    
+
     // Remove cookie
     document.cookie = 'user=; path=/; max-age=0';
-    
-    router.push('/authentication/login');
+
+    window.location.href = '/authentication/login';
   };
 
   const refreshUser = async () => {
@@ -141,7 +141,7 @@ export const AuthProvider = ({ children }) => {
         const updatedUser = { ...user, ...data.data };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        
+
         // Update cookie
         document.cookie = `user=${JSON.stringify(updatedUser)}; path=/; max-age=86400`;
       }

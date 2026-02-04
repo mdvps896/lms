@@ -42,7 +42,20 @@ export async function GET() {
                 razorpay: {
                     enabled: settings.integrations?.razorpay?.enabled ?? false
                 }
-            }
+            },
+            pdfSelfieSettings: {
+                enabled: settings.pdfSelfieSettings?.enabled ?? true,
+                intervalInMinutes: settings.pdfSelfieSettings?.intervalInMinutes ?? 5,
+                captureOnStart: settings.pdfSelfieSettings?.captureOnStart ?? true,
+                captureOnEnd: settings.pdfSelfieSettings?.captureOnEnd ?? false
+            },
+            whatsappSupport: {
+                phoneNumber: settings.whatsappSupport?.phoneNumber ?? '',
+                message: settings.whatsappSupport?.message ?? '',
+                enabled: settings.whatsappSupport?.enabled ?? false,
+                primaryMethod: settings.whatsappSupport?.primaryMethod ?? 'chat'
+            },
+            appLink: settings.general?.appLink ?? ''
         };
 
         return NextResponse.json({

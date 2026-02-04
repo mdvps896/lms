@@ -43,7 +43,7 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
                 address: student.address || '',
                 enrolledCourses: student.enrolledCourses?.map(ec => {
                     // Handle populated or direct ID
-                    return typeof ec.courseId === 'object' ? ec.courseId._id : ec.courseId;
+                    return (ec.courseId && typeof ec.courseId === 'object') ? ec.courseId._id : ec.courseId;
                 }) || []
             })
         }
@@ -109,7 +109,7 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
             const formattedEnrolledCourses = formData.enrolledCourses.map(id => {
                 // Check if it was already enrolled to keep original enrollment date
                 const existing = student.enrolledCourses?.find(ec => {
-                    const existingId = typeof ec.courseId === 'object' ? ec.courseId._id : ec.courseId;
+                    const existingId = (ec.courseId && typeof ec.courseId === 'object') ? ec.courseId._id : ec.courseId;
                     return existingId === id;
                 });
 

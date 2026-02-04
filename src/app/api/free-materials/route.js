@@ -16,7 +16,7 @@ export async function GET(request) {
             .populate({
                 path: 'testId',
                 model: Exam,
-                select: 'name questionGroups',
+                select: 'name questionGroups duration totalMarks passingPercentage maxAttempts',
                 options: { strictPopulate: false }
             })
             .sort({ createdAt: -1 });

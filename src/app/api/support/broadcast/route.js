@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import SupportMessage from '@/models/SupportMessage';
 import User from '@/models/User';
-import { requireAdmin } from '@/utils/apiAuth';
+import { requireAdmin, getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,21 +15,25 @@ export async function POST(request) {
         if (authError) return authError;
 
         const body = await request.json();
-        const { text, images, recipientIds, sendToAll } = body;
+        const { text, images, recipientIds, sendToAll, categoryId } = body;
 
-        // Get admin user (sender)
-        const adminUser = await User.findOne({ role: { $regex: /^admin$/i } });
-        if (!adminUser) {
-            return NextResponse.json({ success: false, message: 'Admin user not found' }, { status: 404 });
+        // Get authenticated user (sender)
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         let targetUserIds = [];
 
         if (sendToAll) {
-            // Fetch all student IDs
-            const students = await User.find({ role: 'student' }).select('_id');
+            // Fetch all student IDs, optionally filtered by category
+            const query = { role: 'student' };
+            if (categoryId) {
+                query.category = categoryId;
+            }
+            const students = await User.find(query).select('_id');
             targetUserIds = students.map(s => s._id);
-        } else if (recipientIds && Array.isArray(recipientIds)) {
+        } else if (recipientIds && Array.isArray(recipientIds) && recipientIds.length > 0) {
             targetUserIds = recipientIds;
         } else {
             return NextResponse.json(
@@ -48,7 +52,7 @@ export async function POST(request) {
         // Create messages in bulk
         const messagesToInsert = targetUserIds.map(userId => ({
             user: userId,
-            sender: adminUser._id,
+            sender: currentUser.id || currentUser._id,
             text,
             images: images || [],
             isAdmin: true,

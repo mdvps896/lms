@@ -48,21 +48,39 @@ export async function GET(request) {
             },
             {
                 $project: {
-                    userId: "$_id",
-                    userName: "$userInfo.name",
-                    userEmail: "$userInfo.email",
-                    userProfileImage: "$userInfo.profileImage",
-                    lastMessage: "$lastMessage.text",
-                    lastMessageTime: "$lastMessage.createdAt",
+                    _id: "$_id",
+                    userDetails: {
+                        _id: "$_id",
+                        name: "$userInfo.name",
+                        email: "$userInfo.email",
+                        profileImage: "$userInfo.profileImage",
+                        isSupportBlocked: "$userInfo.isSupportBlocked"
+                    },
+                    latestMessage: {
+                        text: "$lastMessage.text",
+                        createdAt: "$lastMessage.createdAt"
+                    },
                     unreadCount: 1
                 }
             },
             {
-                $sort: { lastMessageTime: -1 }
+                $sort: { "latestMessage.createdAt": -1 }
             }
         ]);
 
-        return NextResponse.json({ success: true, data: conversations });
+        return NextResponse.json({
+            success: true,
+            conversations,
+            data: conversations.map(c => ({
+                userId: c.userDetails._id,
+                userName: c.userDetails.name,
+                userEmail: c.userDetails.email,
+                userProfileImage: c.userDetails.profileImage,
+                lastMessage: c.latestMessage.text,
+                lastMessageTime: c.latestMessage.createdAt,
+                unreadCount: c.unreadCount
+            }))
+        });
     } catch (error) {
         console.error('Error fetching conversations:', error);
         return NextResponse.json(

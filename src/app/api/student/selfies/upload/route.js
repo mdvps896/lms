@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import SelfieCapture from '@/models/SelfieCapture';
 import PDFViewSession from '@/models/PDFViewSession';
+import mongoose from 'mongoose';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { getAuthenticatedUser } from '@/utils/apiAuth';
@@ -35,6 +36,9 @@ export async function POST(request) {
         const longitude = formData.get('longitude');
         const locationName = formData.get('locationName');
 
+        const userIdStr = String(userId);
+        console.log(`DEBUG: Selfie Upload - User: ${userIdStr}, Course: ${courseId}, Session: ${sessionId}, Type: ${captureType}, Page: ${currentPage}`);
+
         if (!selfieFile || !courseId || !captureType) {
             return NextResponse.json(
                 { success: false, message: 'Missing required fields' },
@@ -61,7 +65,6 @@ export async function POST(request) {
         }
 
         // Create directory structure: /uploads/selfies/{userId}/{courseId}/
-        const userIdStr = String(userId);
         const courseIdStr = String(courseId);
         const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'selfies', userIdStr, courseIdStr);
         await mkdir(uploadDir, { recursive: true });
@@ -106,14 +109,27 @@ export async function POST(request) {
         });
 
         // Update PDFViewSession if sessionId provided
-        if (sessionId) {
-            await PDFViewSession.findByIdAndUpdate(
-                sessionId,
-                {
-                    $push: { selfies: selfieCapture._id },
-                    $inc: { selfieCount: 1 }
+        if (sessionId && mongoose.Types.ObjectId.isValid(sessionId)) {
+            try {
+                const updatedSession = await PDFViewSession.findByIdAndUpdate(
+                    sessionId,
+                    {
+                        $push: { selfies: selfieCapture._id },
+                        $inc: { selfieCount: 1 }
+                    },
+                    { new: true }
+                );
+
+                if (updatedSession) {
+                    console.log(`DEBUG: Updated PDFViewSession ${sessionId} with new selfie ${selfieCapture._id}`);
+                } else {
+                    console.warn(`DEBUG: PDFViewSession ${sessionId} not found for update`);
                 }
-            );
+            } catch (sessionErr) {
+                console.error(`DEBUG: Error updating PDFViewSession ${sessionId}:`, sessionErr);
+            }
+        } else if (sessionId) {
+            console.warn(`DEBUG: Invalid sessionId provided: ${sessionId}`);
         }
 
         return NextResponse.json({
