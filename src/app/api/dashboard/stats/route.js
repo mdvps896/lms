@@ -28,6 +28,8 @@ export async function GET(request) {
         }
 
         // Get counts from database
+        const dashboardQuery = { isDeleted: { $ne: true } };
+
         const [
             allTeachersCount,
             activeTeachersCount,
@@ -39,19 +41,20 @@ export async function GET(request) {
             totalCourses,
             totalMeetings
         ] = await Promise.all([
-            user.role === 'admin' ? User.countDocuments({ role: 'teacher' }) : Promise.resolve(0),
-            user.role === 'admin' ? User.countDocuments({ role: 'teacher', status: 'active' }) : Promise.resolve(0),
-            User.countDocuments({ role: 'student', status: 'active' }), // Teachers see all active students for now
-            Exam.countDocuments(contentFilter),
-            Exam.countDocuments({ ...contentFilter, status: 'active' }),
+            user.role === 'admin' ? User.countDocuments({ role: 'teacher', ...dashboardQuery }) : Promise.resolve(0),
+            user.role === 'admin' ? User.countDocuments({ role: 'teacher', status: 'active', ...dashboardQuery }) : Promise.resolve(0),
+            User.countDocuments({ role: 'student', status: 'active', ...dashboardQuery }), // Teachers see all active students for now
+            Exam.countDocuments({ ...contentFilter, ...dashboardQuery }),
+            Exam.countDocuments({ ...contentFilter, status: 'active', ...dashboardQuery }),
             Exam.countDocuments({
                 ...contentFilter,
                 endDate: { $lt: new Date() },
-                status: 'active'
+                status: 'active',
+                ...dashboardQuery
             }),
-            Question.countDocuments(contentFilter),
-            Course.countDocuments(contentFilter),
-            Meeting.countDocuments(contentFilter)
+            Question.countDocuments({ ...contentFilter, ...dashboardQuery }),
+            Course.countDocuments({ ...contentFilter, ...dashboardQuery }),
+            Meeting.countDocuments({ ...contentFilter, ...dashboardQuery })
         ]);
 
         // Calculate completion rate
