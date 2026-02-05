@@ -3,7 +3,7 @@
 import React from 'react'
 import { Grid, Image, Video, Music, FileText, File, MoreHorizontal, HardDrive } from 'feather-icons-react'
 
-const StorageSidebar = ({ filters, setFilters, totalFiles }) => {
+const StorageSidebar = ({ filters, setFilters, totalFiles, storageStatus }) => {
   const fileTypes = [
     { value: 'all', label: 'All Files', icon: Grid },
     { value: 'image', label: 'Images', icon: Image },
@@ -59,20 +59,27 @@ const StorageSidebar = ({ filters, setFilters, totalFiles }) => {
           </div>
         </div>
 
-        {/* Optional: Add storage usage summary here later */}
-        {/* <div className="p-4 mt-auto border-top">
-                    <div className="d-flex justify-content-between mb-2">
-                        <span className="small text-muted">Storage Used</span>
-                        <span className="small fw-bold">75%</span>
-                    </div>
-                    <div className="progress" style={{ height: '6px' }}>
-                        <div 
-                            className="progress-bar bg-warning" 
-                            role="progressbar" 
-                            style={{ width: '75%' }}
-                        ></div>
-                    </div>
-                </div> */}
+        {storageStatus && (
+          <div className="p-4 mt-auto border-top">
+            <div className="d-flex justify-content-between mb-2">
+              <span className="small text-muted">Storage Used</span>
+              <span className="small fw-bold">{storageStatus.totalSizeFormatted}</span>
+            </div>
+            {/* Displaying a small progress bar (assuming 5GB limit for visual context, even if local is unlimited) */}
+            <div className="progress" style={{ height: '6px' }}>
+              <div
+                className="progress-bar bg-primary"
+                role="progressbar"
+                style={{
+                  width: `${Math.min(100, (storageStatus.totalSizeBytes / (5 * 1024 * 1024 * 1024)) * 100)}%`
+                }}
+              ></div>
+            </div>
+            <div className="mt-2">
+              <span className="small text-muted">{storageStatus.fileCount} total files</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

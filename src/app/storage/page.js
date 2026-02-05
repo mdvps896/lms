@@ -27,6 +27,20 @@ const StoragePage = () => {
     })
     const [deleting, setDeleting] = useState(false)
     const [storageMode, setStorageMode] = useState('files') // 'files' or 'users'
+    const [storageStatus, setStorageStatus] = useState(null)
+
+    // Fetch storage status
+    const fetchStorageStatus = async () => {
+        try {
+            const response = await fetch('/api/storage/status')
+            const data = await response.json()
+            if (data.success) {
+                setStorageStatus(data.data)
+            }
+        } catch (error) {
+            console.error('Error fetching storage status:', error)
+        }
+    }
 
     // Fetch files from API
     const fetchFiles = async () => {
@@ -55,6 +69,7 @@ const StoragePage = () => {
     useEffect(() => {
         if (storageMode === 'files') {
             fetchFiles()
+            fetchStorageStatus()
         }
     }, [storageMode])
 
@@ -158,6 +173,7 @@ const StoragePage = () => {
 
             // Refresh file list on success
             await fetchFiles()
+            await fetchStorageStatus()
             return data
         } catch (error) {
             console.error('Error deleting file:', error)
@@ -252,6 +268,7 @@ const StoragePage = () => {
                                     filters={filters}
                                     setFilters={setFilters}
                                     totalFiles={files.length}
+                                    storageStatus={storageStatus}
                                 />
                             </div>
 
@@ -259,7 +276,7 @@ const StoragePage = () => {
                             <div className="col-lg-9 col-xl-10">
                                 <div className="card">
                                     <div className="card-body">
-                                        <FileUpload onUploadComplete={fetchFiles} />
+                                        <FileUpload onUploadComplete={() => { fetchFiles(); fetchStorageStatus(); }} />
 
                                         {/* Exam Recording Info Banner - Only show if not filtering or specific exam recording filter */}
                                         {(filters.type === 'all' || filters.type === 'exam-recording') && files.some(file => file.category?.includes('exam')) && (

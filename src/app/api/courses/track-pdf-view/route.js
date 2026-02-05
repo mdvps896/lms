@@ -44,9 +44,9 @@ export async function POST(request) {
                     isActive: true,
                     currentPage: currentPage || 1,
                     totalPages: totalPages || 0,
-                    latitude: latitude,
-                    longitude: longitude,
-                    locationName: locationName
+                    latitude: latitude ? parseFloat(latitude) : null,
+                    longitude: longitude ? parseFloat(longitude) : null,
+                    locationName: locationName || null
                 });
 
                 return NextResponse.json({
@@ -71,6 +71,12 @@ export async function POST(request) {
                 }
 
                 session.lastActiveTime = new Date();
+
+                // Update location if it wasn't set yet but is provided now
+                if (latitude && !session.latitude) session.latitude = parseFloat(latitude);
+                if (longitude && !session.longitude) session.longitude = parseFloat(longitude);
+                if (locationName && !session.locationName) session.locationName = locationName;
+
                 if (currentPage) {
                     session.currentPage = currentPage;
                     const existingPage = session.pagesViewed.find(p => p.pageNumber === currentPage);

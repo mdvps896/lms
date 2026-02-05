@@ -78,7 +78,8 @@ export async function GET(request, { params }) {
                 lastViewed: endTime,
                 latitude: session.latitude,
                 longitude: session.longitude,
-                locationName: session.locationName
+                locationName: session.locationName,
+                selfieCount: session.selfieCount || 0
             };
         });
 

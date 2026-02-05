@@ -29,7 +29,8 @@ export async function GET(request) {
 
         // Get counts from database
         const [
-            totalTeachers,
+            allTeachersCount,
+            activeTeachersCount,
             totalStudents,
             totalExams,
             activeExams,
@@ -38,6 +39,7 @@ export async function GET(request) {
             totalCourses,
             totalMeetings
         ] = await Promise.all([
+            user.role === 'admin' ? User.countDocuments({ role: 'teacher' }) : Promise.resolve(0),
             user.role === 'admin' ? User.countDocuments({ role: 'teacher', status: 'active' }) : Promise.resolve(0),
             User.countDocuments({ role: 'student', status: 'active' }), // Teachers see all active students for now
             Exam.countDocuments(contentFilter),
@@ -63,10 +65,10 @@ export async function GET(request) {
             {
                 id: 1,
                 title: "Total Teachers",
-                total_number: totalTeachers.toString(),
+                total_number: allTeachersCount.toString(),
                 completed_number: "",
-                progress: "100%",
-                progress_info: `${totalTeachers} Active`,
+                progress: allTeachersCount > 0 ? Math.round((activeTeachersCount / allTeachersCount) * 100) + "%" : "0%",
+                progress_info: `${activeTeachersCount} Active / ${allTeachersCount} Total`,
                 icon: "feather-users",
                 role: 'admin' // Only admin sees teacher analytics
             },
