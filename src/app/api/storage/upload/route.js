@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import { saveToLocalStorage } from '@/utils/localStorage'
 
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300; // Increase timeout to 5 minutes
+
 export async function POST(request) {
     try {
         const formData = await request.formData()

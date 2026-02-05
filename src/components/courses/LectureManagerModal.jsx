@@ -70,7 +70,12 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
 
             xhr.onload = () => {
                 if (xhr.status === 413) {
-                    reject(new Error('File too large. Please upload a smaller file or increase the server upload limit.'));
+                    reject(new Error('File too large (413). Please increase server limits or upload a smaller file.'));
+                    return;
+                }
+
+                if (xhr.status === 504) {
+                    reject(new Error('Gateway Timeout (504). The server took too long to respond.'));
                     return;
                 }
 
@@ -78,8 +83,8 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                 try {
                     result = JSON.parse(xhr.responseText || '{}');
                 } catch (e) {
-                    const text = (xhr.responseText || '').substring(0, 200);
-                    reject(new Error(`Upload failed. Status: ${xhr.status}. Response: ${text}`));
+                    const preview = (xhr.responseText || '').substring(0, 100);
+                    reject(new Error(`Server Error (${xhr.status}). Unexpected response: ${preview}...`));
                     return;
                 }
 
@@ -92,7 +97,12 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
             };
 
             xhr.onerror = () => {
-                reject(new Error('Network error during upload'));
+                console.error('XHR Upload Network Error:', xhr);
+                reject(new Error('Network error during upload. Please check your internet connection and server configuration (e.g., Nginx client_max_body_size).'));
+            };
+
+            xhr.ontimeout = () => {
+                reject(new Error('Upload timed out. The connection took too long.'));
             };
 
             xhr.send(data);

@@ -19,14 +19,14 @@ const IMAGE_COMPRESSION_QUALITY = 80;
 /**
  * Initialize upload directories
  */
-function initializeDirectories() {
+async function initializeDirectories() {
     const directories = [UPLOAD_BASE_DIR, IMAGES_DIR, VIDEOS_DIR, DOCUMENTS_DIR, ASSETS_DIR];
 
-    directories.forEach(dir => {
+    for (const dir of directories) {
         if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+            await fs.promises.mkdir(dir, { recursive: true });
         }
-    });
+    }
 }
 
 /**
@@ -177,7 +177,7 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         }
 
         // Initialize directories if they don't exist
-        initializeDirectories();
+        await initializeDirectories();
 
         let fileBuffer;
         let originalFileName = fileName;
@@ -229,15 +229,15 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
             }
         }
         if (!fs.existsSync(finalDir)) {
-            fs.mkdirSync(finalDir, { recursive: true });
+            await fs.promises.mkdir(finalDir, { recursive: true });
         }
 
         // Generate unique filename
         const uniqueFileName = generateUniqueFileName(originalFileName);
         const filePath = path.join(finalDir, uniqueFileName);
 
-        // Save file
-        fs.writeFileSync(filePath, fileBuffer);
+        // Save file asynchronously
+        await fs.promises.writeFile(filePath, fileBuffer);
 
         // Generate public URL (relative to public directory)
         const relativePath = path.relative(path.join(process.cwd(), 'public'), filePath);
