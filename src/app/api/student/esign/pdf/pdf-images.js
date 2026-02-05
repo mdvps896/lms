@@ -49,7 +49,9 @@ export const drawImage = async (doc, label, imagePath, x, y, w, h, colors) => {
         } else {
             // Option 2: Remote Fetch (Fallback)
             try {
-                const remoteUrl = `https://app.mdconsultancy.in/api/storage/secure-file?path=/${encodeURIComponent(cleanPath)}`;
+                // Use public storage API which doesn't require session auth
+                // This is needed because images might be on production server while PDF is generated locally/elsewhere
+                const remoteUrl = `https://app.mdconsultancy.in/api/storage/file/${cleanPath}`;
                 const res = await fetch(remoteUrl);
                 if (res.ok) {
                     const arrayBuffer = await res.arrayBuffer();
