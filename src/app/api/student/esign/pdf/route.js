@@ -38,10 +38,12 @@ export async function GET(request) {
 
         // Fallback to User images
         let userImages = {};
+        let userProfile = null;
         try {
-            const user = await User.findById(userId).select('esign_images');
+            const user = await User.findById(userId).select('esign_images profileImage');
             if (user) {
                 userImages = user.esign_images || {};
+                userProfile = user.profileImage;
             }
         } catch (err) {
             console.error('Error fetching user images:', err);
@@ -91,7 +93,10 @@ export async function GET(request) {
         // Row 2
         currentY += boxH + 5;
         await drawImage(doc, 'Passport Photo', d.passportPhoto || userImages.passportPhoto, startX, currentY, boxW, boxH, drawer.colors);
-        await drawImage(doc, 'Selfie / Human Check', d.selfiePhoto || userImages.selfiePhoto, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
+
+        // Selfie Fallback Logic: check d.selfiePhoto -> userImages.selfiePhoto -> userProfile -> d.selfie
+        const selfieToUse = d.selfiePhoto || userImages.selfiePhoto || userProfile || d.selfie || userImages.selfie;
+        await drawImage(doc, 'Selfie / Human Check', selfieToUse, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
 
         drawer.yPos = currentY + boxH + 10;
 
