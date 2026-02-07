@@ -88,7 +88,10 @@ export async function GET(request, { params }) {
             title: a.contentTitle,
             startTime: a.startTime,
             duration: a.duration,
-            lastViewed: a.endTime || a.startTime
+            lastViewed: a.endTime || a.startTime,
+            latitude: a.latitude,
+            longitude: a.longitude,
+            locationName: a.locationName
         }));
 
         const details = {

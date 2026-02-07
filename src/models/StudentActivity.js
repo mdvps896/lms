@@ -33,6 +33,18 @@ const StudentActivitySchema = new mongoose.Schema({
         type: Number, // In seconds
         default: 0
     },
+    latitude: {
+        type: Number,
+        default: null
+    },
+    longitude: {
+        type: Number,
+        default: null
+    },
+    locationName: {
+        type: String,
+        default: null
+    },
     metadata: {
         type: mongoose.Schema.Types.Mixed, // flexible for page number, percentage watched, etc.
         default: {}

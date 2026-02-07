@@ -7,7 +7,7 @@ export async function POST(request) {
     try {
         await connectDB();
         const body = await request.json();
-        const { userId, type, contentId, title, action, activityId, duration } = body;
+        const { userId, type, contentId, title, action, activityId, duration, latitude, longitude, locationName } = body;
         const currentUser = await getAuthenticatedUser(request);
 
         if (!currentUser) {
@@ -30,7 +30,10 @@ export async function POST(request) {
                 contentId: contentId,
                 contentTitle: title,
                 startTime: new Date(),
-                duration: 0
+                duration: 0,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null,
+                locationName: locationName || null
             });
             return NextResponse.json({ success: true, activityId: activity._id });
         }
@@ -49,6 +52,12 @@ export async function POST(request) {
                     const diff = (activity.endTime - activity.startTime) / 1000;
                     activity.duration = Math.round(diff);
                 }
+
+                // Update location if provided during end/update
+                if (latitude && !activity.latitude) activity.latitude = parseFloat(latitude);
+                if (longitude && !activity.longitude) activity.longitude = parseFloat(longitude);
+                if (locationName && !activity.locationName) activity.locationName = locationName;
+
                 await activity.save();
                 return NextResponse.json({ success: true, duration: activity.duration });
             }
