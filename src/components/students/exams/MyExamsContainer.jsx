@@ -13,6 +13,7 @@ const MyExamsContainer = () => {
     const [filteredExams, setFilteredExams] = useState([])
     const [subjects, setSubjects] = useState([])
     const [loading, setLoading] = useState(true)
+    const [appLink, setAppLink] = useState('')
     const [filters, setFilters] = useState({
         status: 'all', // all, current, upcoming, completed, live
         type: 'all', // all, regular, live
@@ -31,6 +32,21 @@ const MyExamsContainer = () => {
     useEffect(() => {
         applyFilters()
     }, [exams, filters])
+
+    useEffect(() => {
+        const fetchAppSettings = async () => {
+            try {
+                const response = await fetch('/api/auth/check-app-settings');
+                const data = await response.json();
+                if (data.success && data.data?.appLink) {
+                    setAppLink(data.data.appLink);
+                }
+            } catch (error) {
+                console.error('Error fetching app settings:', error);
+            }
+        };
+        fetchAppSettings();
+    }, []);
 
     const fetchExams = async () => {
         setLoading(true)
@@ -51,7 +67,7 @@ const MyExamsContainer = () => {
                 setExams(data.data)
                 // Debug first exam
                 if (data.data && data.data.length > 0) {
-                    }
+                }
             } else {
                 console.error('Failed to fetch exams:', data.message)
             }
@@ -191,9 +207,13 @@ const MyExamsContainer = () => {
 
                 {/* Exam Grid */}
                 {loading ? (
-                    <ExamSkeletonLoader />
+                    <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                 ) : (
-                    <ExamGrid exams={filteredExams} />
+                    <ExamGrid exams={filteredExams} appLink={appLink} />
                 )}
             </div>
         </>

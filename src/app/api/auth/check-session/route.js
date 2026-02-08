@@ -25,12 +25,21 @@ export async function POST(request) {
             );
         }
 
+        // SECURITY CHECK: Block restricted users
+        if (user.status === 'inactive' || user.status === 'suspended') {
+            return NextResponse.json({
+                success: false,
+                message: `Your account is currently ${user.status}. Please contact the administrator.`,
+                forceLogout: true
+            });
+        }
+
         // MIGRATION FIX: If activeDeviceId is missing, claim this device as active
         if (!user.activeDeviceId) {
             console.log(`[Session Check] User ${userId} has no activeDeviceId, claiming device: ${deviceId}`);
-            await User.findByIdAndUpdate(userId, { 
-                activeDeviceId: deviceId, 
-                lastActiveAt: new Date() 
+            await User.findByIdAndUpdate(userId, {
+                activeDeviceId: deviceId,
+                lastActiveAt: new Date()
             });
             return NextResponse.json({
                 success: true,
@@ -43,7 +52,7 @@ export async function POST(request) {
             console.log(`[Session Check] Device mismatch for user ${userId}`);
             console.log(`  Expected: ${user.activeDeviceId}`);
             console.log(`  Received: ${deviceId}`);
-            
+
             // User is logged in on another device, force logout
             return NextResponse.json({
                 success: false,

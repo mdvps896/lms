@@ -134,6 +134,17 @@ export async function POST(request) {
       );
     }
 
+    // 🔒 SECURITY: Check account status
+    if (user.status === 'inactive' || user.status === 'suspended') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Your account is currently ${user.status}. Please contact the administrator.`
+        },
+        { status: 403 }
+      );
+    }
+
     // Check email verification for students with local auth
     // Skip verification check for Google auth users, admins, and students with 'active' status
     if (user.role === 'student' && user.authProvider === 'local' && !user.emailVerified && user.status !== 'active') {

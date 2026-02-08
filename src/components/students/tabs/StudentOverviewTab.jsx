@@ -172,15 +172,55 @@ const StudentOverviewTab = ({ details, formatDate }) => {
                                                 <FiBookOpen size={20} />
                                             </div>
                                             <div className="flex-grow-1 min-w-0">
-                                                <div className="fw-bold text-dark text-truncate mb-1" title={enrollment.courseId?.title}>
-                                                    {enrollment.courseId?.title || 'Unknown Course'}
-                                                </div>
-                                                <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: '11px' }}>
-                                                    <span title="Enrolled At"><FiCalendar size={10} /> {formatDate(enrollment.enrolledAt)}</span>
-                                                    {enrollment.expiresAt && (
-                                                        <span className="text-danger" title="Expires At"><FiClock size={10} /> {formatDate(enrollment.expiresAt)}</span>
+                                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                                    <div className="fw-bold text-dark text-truncate" title={enrollment.courseId?.title}>
+                                                        {enrollment.courseId?.title}
+                                                        {enrollment.courseId?.duration && (
+                                                            <span className="text-muted ms-1 fw-normal fs-11">
+                                                                ({enrollment.courseId.duration.value} {enrollment.courseId.duration.unit})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {enrollment.progress && (
+                                                        <span className="badge bg-soft-primary text-primary" style={{ fontSize: '10px' }}>
+                                                            {enrollment.progress.percentage}%
+                                                        </span>
                                                     )}
                                                 </div>
+
+                                                {enrollment.progress && (
+                                                    <div className="mb-2">
+                                                        <div className="progress" style={{ height: '10px', borderRadius: '5px' }}>
+                                                            <div
+                                                                className={`progress-bar bg-${enrollment.progress.percentage === 100 ? 'success' : 'primary'}`}
+                                                                role="progressbar"
+                                                                style={{ width: `${enrollment.progress.percentage}%` }}
+                                                                aria-valuenow={enrollment.progress.percentage}
+                                                                aria-valuemin="0"
+                                                                aria-valuemax="100"
+                                                            ></div>
+                                                        </div>
+                                                        <div className="d-flex justify-content-between mt-1 text-muted" style={{ fontSize: '10px' }}>
+                                                            <span>{enrollment.progress.formattedSpent} read</span>
+                                                            {enrollment.expiresAt ? (
+                                                                <span className={new Date(enrollment.expiresAt) < new Date() ? 'text-danger fw-bold' : ''}>
+                                                                    Expires: {formatDate(enrollment.expiresAt)}
+                                                                </span>
+                                                            ) : (
+                                                                <span title="Enrolled Date">{formatDate(enrollment.enrolledAt)}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {!enrollment.progress && (
+                                                    <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: '11px' }}>
+                                                        <span title="Enrolled At"><FiCalendar size={10} /> {formatDate(enrollment.enrolledAt)}</span>
+                                                        {enrollment.expiresAt && (
+                                                            <span className="text-danger" title="Expires At"><FiClock size={10} /> {formatDate(enrollment.expiresAt)}</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

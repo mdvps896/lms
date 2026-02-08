@@ -5,7 +5,7 @@ import PermissionChecker from './PermissionChecker'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
-const ExamCard = ({ exam }) => {
+const ExamCard = ({ exam, appLink }) => {
     const [timeRemaining, setTimeRemaining] = useState('')
     const [examStatus, setExamStatus] = useState('pending')
     const [progressPercentage, setProgressPercentage] = useState(0)
@@ -153,14 +153,20 @@ const ExamCard = ({ exam }) => {
 
                 // Allow starting new attempt
                 return (
-                    <button
-                        className="btn btn-success w-100"
-                        onClick={() => setShowPermissionChecker(true)}
-                        disabled={loadingAttempts}
-                    >
-                        <i className="feather-play me-1"></i>
-                        {loadingAttempts ? 'Loading...' : `Start Exam (${attemptsRemaining} left)`}
-                    </button>
+                    <div className="d-flex flex-column gap-2">
+                        <a
+                            href={appLink || 'https://app.mdconsultancy.in/my-exams'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary w-100"
+                        >
+                            <i className="feather-download me-1"></i>
+                            Download App to Start Exam
+                        </a>
+                        <div className="text-center">
+                            <small className="text-muted">Exam can only be taken on mobile app</small>
+                        </div>
+                    </div>
                 )
 
             case 'completed':

@@ -127,9 +127,6 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                     <TabButton id="pdfs" label="PDF Views" icon={FiFileText} />
                                 </li>
                                 <li className="nav-item">
-                                    <TabButton id="courses" label="Course Views" icon={FiBookOpen} />
-                                </li>
-                                <li className="nav-item">
                                     <TabButton id="esign" label="E-Sign" icon={FiPenTool} />
                                 </li>
                                 <li className="nav-item">
@@ -164,13 +161,6 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                     <StudentActivityLog
                                         activityType="pdf"
                                         data={details.pdfViews}
-                                        formatDate={formatDate}
-                                    />
-                                )}
-                                {activeTab === 'courses' && (
-                                    <StudentActivityLog
-                                        activityType="course"
-                                        data={details.courseViews}
                                         formatDate={formatDate}
                                     />
                                 )}

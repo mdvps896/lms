@@ -2,7 +2,7 @@
 import React from 'react'
 import ExamCard from './ExamCard'
 
-const ExamGrid = ({ exams }) => {
+const ExamGrid = ({ exams, appLink }) => {
     if (exams.length === 0) {
         return (
             <div className="row">
@@ -10,7 +10,7 @@ const ExamGrid = ({ exams }) => {
                     <div className="card">
                         <div className="card-body text-center py-5">
                             <div className="mb-3">
-                                <i className="feather-book-open text-muted" style={{fontSize: '48px'}}></i>
+                                <i className="feather-book-open text-muted" style={{ fontSize: '48px' }}></i>
                             </div>
                             <h4 className="text-muted mb-2">No Exams Found</h4>
                             <p className="text-muted mb-0">
@@ -27,7 +27,7 @@ const ExamGrid = ({ exams }) => {
         <div className="row">
             {exams.map((exam) => (
                 <div key={exam._id} className="col-xxl-4 col-lg-6 col-md-6">
-                    <ExamCard exam={exam} />
+                    <ExamCard exam={exam} appLink={appLink} />
                 </div>
             ))}
         </div>

@@ -44,7 +44,10 @@ export async function GET(request) {
         }
 
         if (includePdfViews) {
-            pdfSessions = await PDFViewSession.find({ user: studentId })
+            pdfSessions = await PDFViewSession.find({
+                user: studentId,
+                duration: { $gte: 60 } // Filter sessions >= 1 min
+            })
                 .sort({ startTime: -1 })
                 .lean();
 

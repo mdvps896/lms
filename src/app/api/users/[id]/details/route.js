@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
         const user = await User.findById(id)
             .select('-password -twoFactorSecret')
             .populate('category', 'name')
-            .populate('enrolledCourses.courseId', 'title thumbnail')
+            .populate('enrolledCourses.courseId', 'title thumbnail duration')
             .lean();
 
         if (!user) {
@@ -53,7 +53,10 @@ export async function GET(request, { params }) {
         }
 
         // Fetch PDF View Sessions from the specialized model
-        const pdfSessions = await PDFViewSession.find({ user: id })
+        const pdfSessions = await PDFViewSession.find({
+            user: id,
+            duration: { $gte: 60 } // Filter sessions >= 1 min
+        })
             .sort({ startTime: -1 })
             .limit(100)
             .lean();
@@ -94,9 +97,46 @@ export async function GET(request, { params }) {
             locationName: a.locationName
         }));
 
+        // Enrich Enrolled Courses with progress data
+        const enrichedEnrolledCourses = await Promise.all((user.enrolledCourses || []).map(async (enrollment) => {
+            if (!enrollment.courseId) return enrollment;
+
+            const courseId = enrollment.courseId._id;
+            const course = await Course.findById(courseId).select('readingDuration curriculum').lean();
+
+            // Calculate total time spent on this course
+            const stats = await PDFViewSession.getTotalCourseTime(id, courseId);
+
+            // Calculate target time in seconds
+            let targetSeconds = 0;
+            if (course?.readingDuration) {
+                const val = course.readingDuration.value || 0;
+                const unit = course.readingDuration.unit || 'hours';
+
+                switch (unit) {
+                    case 'minutes': targetSeconds = val * 60; break;
+                    case 'hours': targetSeconds = val * 3600; break;
+                    case 'days': targetSeconds = val * 86400; break;
+                    case 'months': targetSeconds = val * 2592000; break;
+                    default: targetSeconds = val * 3600;
+                }
+            }
+
+            return {
+                ...enrollment,
+                progress: {
+                    spentSeconds: stats.totalSeconds || 0,
+                    targetSeconds: targetSeconds,
+                    percentage: targetSeconds > 0 ? parseFloat(Math.min(100, (stats.totalSeconds / targetSeconds) * 100).toFixed(1)) : 0,
+                    formattedSpent: stats.formattedTime || '0s'
+                }
+            };
+        }));
+
         const details = {
             user: {
                 ...user,
+                enrolledCourses: enrichedEnrolledCourses,
                 lastActivity // enriching user object
             },
             examStats: {

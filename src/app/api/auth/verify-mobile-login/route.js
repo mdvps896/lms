@@ -59,6 +59,18 @@ export async function POST(request) {
 
         // Find or create user by mobile number
         let user = await User.findOne({ phone: mobile });
+
+        // 🔒 SECURITY: Check account status for existing users
+        if (user && (user.status === 'inactive' || user.status === 'suspended')) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: `Your account is currently ${user.status}. Please contact the administrator.`
+                },
+                { status: 403 }
+            );
+        }
+
         let isNewUser = false;
 
         if (!user) {

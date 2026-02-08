@@ -15,6 +15,7 @@ const MyResultsPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('all'); // all, passed, failed
     const [sortBy, setSortBy] = useState('recent'); // recent, score, attempts
+    const [appLink, setAppLink] = useState('');
 
     useEffect(() => {
         if (!user) {
@@ -28,7 +29,20 @@ const MyResultsPage = () => {
         }
 
         fetchMyExams();
+        fetchAppSettings();
     }, [user]);
+
+    const fetchAppSettings = async () => {
+        try {
+            const response = await fetch('/api/auth/check-app-settings');
+            const data = await response.json();
+            if (data.success && data.data?.appLink) {
+                setAppLink(data.data.appLink);
+            }
+        } catch (error) {
+            console.error('Error fetching app settings:', error);
+        }
+    };
 
     useEffect(() => {
         applyFilters();
@@ -248,8 +262,8 @@ const MyResultsPage = () => {
                                     {exams.length === 0 ? 'No exam results found' : 'No results match your filters'}
                                 </h5>
                                 <p className="text-muted">
-                                    {exams.length === 0 
-                                        ? "You haven't attempted any exams yet." 
+                                    {exams.length === 0
+                                        ? "You haven't attempted any exams yet."
                                         : 'Try adjusting your search or filters.'}
                                 </p>
                                 {exams.length === 0 && (
@@ -295,31 +309,39 @@ const MyResultsPage = () => {
                                                 <span className="fw-bold">
                                                     {exam.lastAttempt.score?.toFixed(2)}%
                                                 </span>
-                                                <span className={`badge ${
-                                                    exam.lastAttempt.resultStatus === 'draft' 
-                                                        ? 'bg-warning' 
-                                                        : exam.lastAttempt.passed 
-                                                        ? 'bg-success' 
-                                                        : 'bg-danger'
-                                                }`}>
-                                                    {exam.lastAttempt.resultStatus === 'draft' 
-                                                        ? 'Under Review' 
-                                                        : exam.lastAttempt.passed 
-                                                        ? 'Passed' 
-                                                        : 'Failed'
+                                                <span className={`badge ${exam.lastAttempt.resultStatus === 'draft'
+                                                        ? 'bg-warning'
+                                                        : exam.lastAttempt.passed
+                                                            ? 'bg-success'
+                                                            : 'bg-danger'
+                                                    }`}>
+                                                    {exam.lastAttempt.resultStatus === 'draft'
+                                                        ? 'Under Review'
+                                                        : exam.lastAttempt.passed
+                                                            ? 'Passed'
+                                                            : 'Failed'
                                                     }
                                                 </span>
                                             </div>
                                         </div>
                                     )}
 
-                                    <Link
-                                        href={`/my-results/${exam._id}`}
-                                        className="btn btn-primary w-100 btn-sm"
-                                    >
-                                        <FiEye className="me-2" size={14} />
-                                        View All Attempts
-                                    </Link>
+                                    <div className="d-flex flex-column gap-2">
+                                        <a
+                                            href={appLink || 'https://app.mdconsultancy.in/my-exams'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-primary w-100 btn-sm"
+                                        >
+                                            <FiEye className="me-2" size={14} />
+                                            Download App to View Results
+                                        </a>
+                                        <div className="text-center">
+                                            <small className="text-muted" style={{ fontSize: '10px' }}>
+                                                Results can only be viewed on mobile app
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
