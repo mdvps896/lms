@@ -106,30 +106,30 @@ const AttemptDetailPage = () => {
     // Helper function to render question text with HTML support
     const renderQuestionText = (text) => {
         if (!text) return null;
-        
+
         const htmlPattern = /<[^>]+>/;
         if (htmlPattern.test(text)) {
             return (
-                <div 
+                <div
                     dangerouslySetInnerHTML={{ __html: text }}
                     style={{ lineHeight: '1.8' }}
                 />
             );
         }
-        
+
         return <span>{text}</span>;
     };
 
     // Helper function to check if answer contains HTML and render it
     const renderAnswer = (answer) => {
         if (!answer) return 'Not answered';
-        
+
         // Check if answer contains HTML tags
         const htmlPattern = /<[^>]+>/;
         if (htmlPattern.test(answer)) {
             // Render as HTML
             return (
-                <div 
+                <div
                     dangerouslySetInnerHTML={{ __html: answer }}
                     style={{
                         padding: '10px',
@@ -141,7 +141,7 @@ const AttemptDetailPage = () => {
                 />
             );
         }
-        
+
         // Render as plain text
         return <strong>{answer}</strong>;
     };
@@ -185,7 +185,7 @@ const AttemptDetailPage = () => {
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to update marks');
             }
@@ -385,17 +385,21 @@ const AttemptDetailPage = () => {
                         {question.options && question.options.length > 0 && (
                             <div className="mb-3">
                                 {question.options.map((option, optIndex) => {
+                                    // Normalize helper for frontend comparison
+                                    const normalize = (val) => val !== null && val !== undefined ? String(val).trim().toLowerCase() : '';
+
                                     // Handle both single and multiple choice answers
-                                    const isUserAnswer = Array.isArray(userAnswer) 
-                                        ? userAnswer.includes(option) 
-                                        : userAnswer === option;
+                                    const isUserAnswer = Array.isArray(userAnswer)
+                                        ? userAnswer.some(ua => normalize(ua) === normalize(option))
+                                        : normalize(userAnswer) === normalize(option);
+
                                     const isCorrectOption = showCorrectAnswers && (
-                                        Array.isArray(correctAnswer) 
-                                            ? correctAnswer.includes(option)
-                                            : correctAnswer === option
+                                        Array.isArray(correctAnswer)
+                                            ? correctAnswer.some(ca => normalize(ca) === normalize(option))
+                                            : normalize(correctAnswer) === normalize(option)
                                     );
 
-                                    let bgClass = '';
+                                    let bgClass = 'bg-white';
                                     let icon = null;
 
                                     if (isCorrectOption) {
@@ -410,6 +414,7 @@ const AttemptDetailPage = () => {
                                         <div
                                             key={optIndex}
                                             className={`p-3 mb-2 border rounded d-flex align-items-center ${bgClass}`}
+                                            style={{ transition: 'all 0.2s' }}
                                         >
                                             <input
                                                 type="radio"
@@ -421,10 +426,12 @@ const AttemptDetailPage = () => {
                                             <span className="flex-grow-1">{option}</span>
                                             {icon}
                                             {isCorrectOption && showCorrectAnswers && (
-                                                <span className="badge bg-success ms-2">Correct</span>
+                                                <span className="badge bg-success ms-2">Correct Answer</span>
                                             )}
-                                            {isUserAnswer && !isCorrectOption && (
-                                                <span className="badge bg-primary ms-2">Selected</span>
+                                            {isUserAnswer && (
+                                                <span className={`badge ${isCorrectOption ? 'bg-success' : 'bg-primary'} ms-2`}>
+                                                    {isCorrectOption ? 'Correct Selection' : 'Your Selection'}
+                                                </span>
                                             )}
                                         </div>
                                     );
@@ -442,7 +449,7 @@ const AttemptDetailPage = () => {
                                             {isCorrect ? 'Correct answer' : 'Incorrect answer'}:
                                         </strong>
                                         <div className="mt-2">
-                                            <div className="mb-2">Your answer:</div>
+                                            <div className="mb-2 fw-semibold">Your Answer:</div>
                                             {renderAnswer(userAnswer)}
                                         </div>
                                         {!isCorrect && correctAnswer && (
@@ -551,7 +558,7 @@ const AttemptDetailPage = () => {
     const correctAnswers = attempt.answers?.filter(a => a.isCorrect).length || 0;
     const incorrectAnswers = attempt.answers?.filter(a => !a.isCorrect).length || 0;
     const totalQuestions = attempt.answers?.length || 0;
-    
+
     // Check if result is in draft status (for students only)
     const isResultDraft = attempt.resultStatus === 'draft' && user?.role === 'student';
 
@@ -586,7 +593,7 @@ const AttemptDetailPage = () => {
                     </div>
                 </div>
             )}
-            
+
             {/* Header */}
             <div className="row mb-4">
                 <div className="col-12">
@@ -617,8 +624,8 @@ const AttemptDetailPage = () => {
                                         </span>
                                     )}
                                     {!editMode ? (
-                                        <button 
-                                            onClick={handleEditToggle} 
+                                        <button
+                                            onClick={handleEditToggle}
                                             className="btn btn-light btn-sm"
                                         >
                                             <FiEdit2 className="me-2" />
@@ -626,15 +633,15 @@ const AttemptDetailPage = () => {
                                         </button>
                                     ) : (
                                         <>
-                                            <button 
-                                                onClick={handleUpdateMarks} 
+                                            <button
+                                                onClick={handleUpdateMarks}
                                                 className="btn btn-success btn-sm"
                                                 disabled={saving}
                                             >
                                                 {saving ? 'Publishing...' : 'Update & Publish'}
                                             </button>
-                                            <button 
-                                                onClick={handleEditToggle} 
+                                            <button
+                                                onClick={handleEditToggle}
                                                 className="btn btn-secondary btn-sm"
                                                 disabled={saving}
                                             >

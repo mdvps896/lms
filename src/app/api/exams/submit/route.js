@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Exam from '@/models/Exam'
 import ExamAttempt from '@/models/ExamAttempt'
-import Question from '@/models/Question'
 
 export async function POST(request) {
     try {
@@ -61,22 +60,20 @@ export async function POST(request) {
         }
 
         // Get all questions for scoring
+        const Question = require('@/models/Question').default
         let questions = []
         if (exam.questionGroups && exam.questionGroups.length > 0) {
-            const Question = require('@/models/Question').default
             questions = await Question.find({
                 questionGroup: { $in: exam.questionGroups.map(g => g._id) },
                 status: 'active'
             }).lean()
         } else {
             // FALLBACK: If no questionGroups, fetch questions by subject
-            const Question = require('@/models/Question').default
             if (exam.subjects && exam.subjects.length > 0) {
-                const fetchedQuestions = await Question.find({
+                questions = await Question.find({
                     subject: { $in: exam.subjects },
                     status: 'active'
                 }).lean()
-                questions = fetchedQuestions
             }
         }
 
@@ -84,59 +81,76 @@ export async function POST(request) {
         let totalScore = 0
         let maxPossibleScore = 0
 
-        for (const question of questions) {
-            maxPossibleScore += question.marks || 1
+        // Normalize helper for string comparison
+        const normalize = (val) => {
+            if (val === null || val === undefined) return '';
+            // Convert to string, strip HTML tags, trim, and lowercase
+            return String(val)
+                .replace(/<[^>]*>/g, '') // Strip HTML tags
+                .trim()
+                .toLowerCase();
+        };
 
-            const userAnswer = answers[question._id.toString()]
+        const scoreResults = questions.map((question) => {
+            const questionId = question._id.toString();
+            const userAnswer = answers[questionId];
+            const marks = question.marks || 1;
+            maxPossibleScore += marks;
 
-            // Get correct answer(s) from options
-            let correctAnswers = [];
-            if (question.options && question.options.length > 0) {
-                correctAnswers = question.options
-                    .filter(opt => opt.isCorrect === true)
-                    .map(opt => opt.text);
-            }
+            const correctOptions = (question.options || [])
+                .filter(opt => opt.isCorrect);
 
+            const correctTexts = correctOptions.map(opt => opt.text);
+            const correctIds = correctOptions.map(opt => opt._id?.toString()).filter(id => id);
+
+            let isCorrect = false;
+
+            const checkMatch = (userAns, targetTexts, targetIds) => {
+                const normUser = normalize(userAns);
+                if (normUser === '') return false;
+
+                // Match by text
+                if (targetTexts.some(t => normalize(t) === normUser)) return true;
+
+                // Match by ID
+                if (targetIds.some(id => id === String(userAns))) return true;
+
+                return false;
+            };
+
+            // Only attempt to score if there's a user answer
             if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
-                let isCorrect = false;
-
-                // Handle multiple choice (single answer)
-                if (question.type === 'mcq' || question.type === 'multiple_choice') {
-                    if (Array.isArray(userAnswer)) {
-                        // If user selected multiple options, check if all are correct
-                        isCorrect = userAnswer.length === correctAnswers.length &&
-                            userAnswer.every(ans => correctAnswers.includes(ans));
-                    } else {
-                        // Single selection
-                        isCorrect = correctAnswers.includes(userAnswer);
+                if (Array.isArray(userAnswer)) {
+                    if (correctOptions.length > 0) {
+                        // For multiple select: all user answers must be correct, and all correct answers must be covered
+                        const matchedCorrectly = userAnswer.every(ua => checkMatch(ua, correctTexts, correctIds));
+                        const allCorrectMatched = correctTexts.every((ct, idx) =>
+                            userAnswer.some(ua => normalize(ua) === normalize(ct)) ||
+                            userAnswer.includes(correctIds[idx])
+                        );
+                        isCorrect = matchedCorrectly && allCorrectMatched;
                     }
-                }
-                // Handle true/false
-                else if (question.type === 'true_false') {
-                    isCorrect = correctAnswers.includes(userAnswer) ||
-                        correctAnswers.includes(String(userAnswer));
-                }
-                // Handle short answer (case-insensitive match)
-                else if (question.type === 'short_answer') {
-                    const userAnswerLower = String(userAnswer).toLowerCase().trim();
-                    isCorrect = correctAnswers.some(ans =>
-                        String(ans).toLowerCase().trim() === userAnswerLower
-                    );
+                } else {
+                    // Single choice or text answer
+                    isCorrect = checkMatch(userAnswer, correctTexts, correctIds);
                 }
 
                 if (isCorrect) {
-                    totalScore += question.marks || 1
+                    totalScore += marks;
                 }
             }
-        }
+
+            return {
+                questionId,
+                isCorrect,
+                marksObtained: isCorrect ? marks : 0,
+                marks
+            };
+        });
 
         // Check if exam has subjective questions
         const hasSubjectiveQuestions = questions.some(q =>
-            q.type === 'short_answer' ||
-            q.type === 'long_answer' ||
-            q.type === 'subjective' ||
-            q.type === 'essay' ||
-            q.type === 'descriptive'
+            ['short_answer', 'long_answer', 'subjective', 'essay', 'descriptive'].includes(q.type?.toLowerCase().replace(/ /g, '_'))
         );
 
         // Calculate percentage
@@ -168,37 +182,8 @@ export async function POST(request) {
     } catch (error) {
         console.error('Error submitting exam:', error)
         return NextResponse.json(
-            { message: 'Internal server error' },
+            { message: 'Internal server error', error: error.message },
             { status: 500 }
         )
-    }
-}
-
-// Helper function to check if answer is correct
-function isAnswerCorrect(question, userAnswer) {
-    if (!question.correctAnswer) return false
-
-    switch (question.type) {
-        case 'multiple-choice':
-            return userAnswer === question.correctAnswer
-
-        case 'multiple-select':
-            if (!Array.isArray(userAnswer) || !Array.isArray(question.correctAnswer)) {
-                return false
-            }
-            return userAnswer.length === question.correctAnswer.length &&
-                userAnswer.every(ans => question.correctAnswer.includes(ans))
-
-        case 'true-false':
-            return userAnswer === question.correctAnswer
-
-        case 'short-answer':
-        case 'essay':
-            // For text answers, we'll need manual review or more sophisticated checking
-            // For now, return false to indicate manual review needed
-            return false
-
-        default:
-            return false
     }
 }

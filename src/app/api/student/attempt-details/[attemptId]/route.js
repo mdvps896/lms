@@ -51,34 +51,34 @@ export async function GET(request, { params }) {
         // Get exam details
         const exam = attempt.exam;
 
-        // Get questions from questionGroups
+        // Get questions from questionGroups (preferred) or subjects (fallback)
         let allQuestions = [];
-        if (exam.questionGroups && exam.questionGroups.length > 0) {
+
+        const hasGroups = exam.questionGroups && exam.questionGroups.length > 0;
+        const hasSubjects = exam.subjects && exam.subjects.length > 0;
+
+        if (hasGroups) {
             try {
-                // Fetch Questions that belong to these question groups
-                const questions = await Question.find({
+                allQuestions = await Question.find({
                     questionGroup: { $in: exam.questionGroups },
                     status: 'active'
                 }).lean();
-
-                allQuestions = questions;
+                console.log(`DEBUG: Found ${allQuestions.length} questions by groups for attempt ${attemptId}`);
             } catch (qError) {
-                console.error('Error fetching questions:', qError);
-                // Continue without questions
+                console.error('Error fetching questions by groups:', qError);
             }
-        } else {
-            // FALLBACK: If no questionGroups, try to fetch questions by subject/category
-            if (exam.subjects && exam.subjects.length > 0) {
-                try {
-                    const questions = await Question.find({
-                        subject: { $in: exam.subjects },
-                        status: 'active'
-                    }).lean();
+        }
 
-                    allQuestions = questions;
-                } catch (qError) {
-                    console.error('Error fetching questions (fallback):', qError);
-                }
+        // Only if no questions found by groups, try subjects
+        if (allQuestions.length === 0 && hasSubjects) {
+            try {
+                allQuestions = await Question.find({
+                    subject: { $in: exam.subjects },
+                    status: 'active'
+                }).lean();
+                console.log(`DEBUG: Found ${allQuestions.length} questions by subjects (fallback) for attempt ${attemptId}`);
+            } catch (qError) {
+                console.error('Error fetching questions by subjects:', qError);
             }
         }
 
@@ -86,23 +86,41 @@ export async function GET(request, { params }) {
         let calculatedScore = 0;
         let calculatedTotalMarks = 0;
 
+        // Match questions and answers
         const answersWithDetails = allQuestions.map((question, idx) => {
             let userAnswer = null;
 
             // Safely get user answer
             if (attempt.answers) {
-                const questionId = question._id.toString();
+                const qIdString = question._id.toString();
 
-                if (attempt.answers instanceof Map) {
-                    userAnswer = attempt.answers.get(questionId);
-                } else if (typeof attempt.answers === 'object') {
-                    userAnswer = attempt.answers[questionId];
+                // Convert Map to Object if needed for easier lookup
+                const answersObj = attempt.answers instanceof Map
+                    ? Object.fromEntries(attempt.answers)
+                    : attempt.answers;
+
+                // 1. Direct lookup by ID string
+                userAnswer = answersObj[qIdString];
+
+                // 2. Fallback: Search all keys (handles ObjectId weirdness in lean objects)
+                if (userAnswer === undefined || userAnswer === null) {
+                    const keys = Object.keys(answersObj);
+                    const matchKey = keys.find(k => k.toString() === qIdString);
+                    if (matchKey) {
+                        userAnswer = answersObj[matchKey];
+                    }
+                }
+
+                // 3. Fallback: Check if indices were used as keys (unlikely but safe)
+                if (userAnswer === undefined || userAnswer === null) {
+                    userAnswer = answersObj[idx.toString()] || answersObj[idx];
                 }
             }
 
             // Find correct answer(s) from options
             let correctAnswer = null;
             const correctAnswers = [];
+            const correctOptionIds = [];
             const optionsArray = [];
 
             if (question.options && question.options.length > 0) {
@@ -110,6 +128,7 @@ export async function GET(request, { params }) {
                     optionsArray.push(opt.text);
                     if (opt.isCorrect) {
                         correctAnswers.push(opt.text);
+                        if (opt._id) correctOptionIds.push(opt._id.toString());
                     }
                 });
 
@@ -121,14 +140,46 @@ export async function GET(request, { params }) {
 
             // For multiple choice, compare arrays; for single choice, compare strings
             let isCorrect = false;
-            if (Array.isArray(userAnswer) && correctAnswers.length > 1) {
-                // Multiple choice - check if arrays match (regardless of order)
-                const sortedUserAnswer = [...userAnswer].sort();
-                const sortedCorrectAnswer = [...correctAnswers].sort();
-                isCorrect = JSON.stringify(sortedUserAnswer) === JSON.stringify(sortedCorrectAnswer);
+
+            // Normalize helper for string comparison
+            const normalize = (val) => {
+                if (val === null || val === undefined) return '';
+                return String(val).replace(/<[^>]*>/g, '').trim().toLowerCase();
+            };
+
+            const checkMatch = (userAns, correctTexts, correctIds) => {
+                const normUser = normalize(userAns);
+                if (normUser === '') return false;
+
+                // Check against text
+                if (correctTexts.some(t => normalize(t) === normUser)) return true;
+
+                // Check against IDs (exact match as IDs don't have HTML/spaces usually)
+                if (correctIds.some(id => id === String(userAns))) return true;
+
+                return false;
+            };
+
+            if (Array.isArray(userAnswer)) {
+                // Multiple selection
+                if (correctAnswers.length === 0) {
+                    isCorrect = false;
+                } else {
+                    // All selected must be correct, and all correct must be selected
+                    const normUserAnswers = userAnswer.map(ua => normalize(ua)).filter(ua => ua !== '');
+
+                    // Fuzzy match each user answer against correct options
+                    const matchedCorrectly = userAnswer.every(ua => checkMatch(ua, correctAnswers, correctOptionIds));
+                    const allCorrectMatched = correctAnswers.every(ca =>
+                        userAnswer.some(ua => normalize(ua) === normalize(ca)) ||
+                        correctOptionIds.some(id => userAnswer.includes(id))
+                    );
+
+                    isCorrect = matchedCorrectly && allCorrectMatched;
+                }
             } else {
-                // Single choice - direct comparison
-                isCorrect = userAnswer !== null && userAnswer !== undefined && userAnswer !== '' && userAnswer === correctAnswers[0];
+                // Single selection
+                isCorrect = userAnswer !== null && userAnswer !== undefined && checkMatch(userAnswer, correctAnswers, correctOptionIds);
             }
             const questionMarks = question.marks || 1;
             let marksObtained = isCorrect ? questionMarks : 0;
@@ -185,8 +236,14 @@ export async function GET(request, { params }) {
 
         // Calculate score percentage using recalculated score for accuracy
         // Prefer calculated score if available, fallback to stored score
-        const actualScore = calculatedTotalMarks > 0 ? calculatedScore : (attempt.score || 0);
+        let actualScore = calculatedScore;
         const actualTotalMarks = calculatedTotalMarks > 0 ? calculatedTotalMarks : (attempt.totalMarks || 1);
+
+        // FALLBACK: If recalculation resulted in 0 but the saved score/percentage is > 0
+        if (calculatedScore === 0 && (attempt.score > 0 || attempt.percentage > 0)) {
+            actualScore = attempt.score || ((attempt.percentage || 0) / 100 * actualTotalMarks);
+        }
+
         const scorePercentage = actualTotalMarks > 0
             ? ((actualScore / actualTotalMarks) * 100)
             : 0;

@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
         await dbConnect();
 
         const { id: examId } = params;
-        
+
         // Get exam details to fetch passing percentage
         const Exam = require('@/models/Exam').default;
         const exam = await Exam.findById(examId).select('passingPercentage').lean();
@@ -44,18 +44,26 @@ export async function GET(request, { params }) {
 
             const student = studentMap.get(userId);
             student.totalAttempts++;
-            
+
             // Calculate time taken in seconds
             let timeTakenInSeconds = 0;
             if (attempt.submittedAt && attempt.startedAt) {
                 timeTakenInSeconds = Math.floor((new Date(attempt.submittedAt) - new Date(attempt.startedAt)) / 1000);
             }
-            
+
             // Calculate correct and wrong answers
             const totalQuestions = attempt.totalMarks || 0;
-            const correctAnswers = Math.round(attempt.score || 0);
-            const wrongAnswers = totalQuestions - correctAnswers;
-            
+            const percentage = attempt.percentage || 0;
+            let correctAnswers = Math.round(attempt.score || 0);
+
+            // FALLBACK: If score is 0 but percentage is > 0, it means score wasn't saved correctly
+            // but percentage was. derive correctAnswers from percentage for display.
+            if (correctAnswers === 0 && percentage > 0 && totalQuestions > 0) {
+                correctAnswers = Math.round((percentage / 100) * totalQuestions);
+            }
+
+            const wrongAnswers = Math.max(0, totalQuestions - correctAnswers);
+
             // Add formatted attempt
             student.attempts.push({
                 _id: attempt._id,
