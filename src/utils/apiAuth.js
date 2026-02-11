@@ -112,3 +112,35 @@ export async function requirePermission(request, permission) {
         { status: 403 }
     );
 }
+
+/**
+ * Verifies if the user is an admin or the owner of the resource.
+ * @param {Request} request 
+ * @param {string} ownerId 
+ * @returns {NextResponse|null} Error response if unauthorized, null if authorized.
+ */
+export async function requireAdminOrOwner(request, ownerId) {
+    const user = await getAuthenticatedUser(request);
+
+    if (!user) {
+        return NextResponse.json(
+            { success: false, error: 'Unauthorized: Login required' },
+            { status: 401 }
+        );
+    }
+
+    // Admin has full access
+    if (user.role === 'admin') {
+        return null; // Authorized
+    }
+
+    // Check ownership
+    if (user.id === ownerId || user._id === ownerId) {
+        return null; // Authorized
+    }
+
+    return NextResponse.json(
+        { success: false, error: 'Forbidden: Access denied' },
+        { status: 403 }
+    );
+}

@@ -70,8 +70,11 @@ export async function GET(request) {
         // 3. Get exam recordings (from DB)
         // Pass userId if restriction applies (Recordings are still strictly filtered by ownership)
         const examRecordings = await getExamRecordings(isTeacherOwn ? user.id : null)
-        // ... (rest of the merging logic)
 
+        // 4. Get Free Material selfies (from DB)
+        const freeMaterialSelfies = await getFreeMaterialSelfies()
+
+        // ... (rest of the merging logic)
         // Deduplicate and merge: Prefer examRecordings (rich metadata) but fill size from localFiles
         const localFilesMap = new Map();
         localFiles.forEach(file => localFilesMap.set(file.path, file));
@@ -107,7 +110,7 @@ export async function GET(request) {
         const uniqueLocalFiles = Array.from(localFilesMap.values());
 
         // Merge all sources
-        const allFiles = [...uniqueLocalFiles, ...finalExamRecordings]
+        const allFiles = [...uniqueLocalFiles, ...finalExamRecordings, ...freeMaterialSelfies]
 
         return NextResponse.json({
             success: true,
@@ -115,7 +118,8 @@ export async function GET(request) {
             count: allFiles.length,
             sources: {
                 local: localFiles.length,
-                examRecordings: examRecordings.length
+                examRecordings: examRecordings.length,
+                freeMaterials: freeMaterialSelfies.length
             }
         })
     } catch (error) {
@@ -290,6 +294,58 @@ async function getExamRecordings(teacherId = null) {
     } catch (error) {
         console.error('Error fetching exam recordings:', error)
         return []
+    }
+}
+
+/**
+ * Get Free Material selfies from database
+ */
+async function getFreeMaterialSelfies() {
+    try {
+        const SelfieCapture = (await import('@/models/SelfieCapture')).default
+        const FreeMaterial = (await import('@/models/FreeMaterial')).default
+        const User = (await import('@/models/User')).default
+
+        const dummyCourseId = '000000000000000000000000';
+
+        const selfies = await SelfieCapture.find({
+            course: dummyCourseId
+        })
+            .populate('user', 'name email')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Get unique material IDs to fetch titles
+        const materialIds = [...new Set(selfies.map(s => s.lectureId))].filter(id => id && id.length === 24);
+        const materials = await FreeMaterial.find({ _id: { $in: materialIds } }).select('title').lean();
+        const matMap = {};
+        materials.forEach(m => matMap[m._id.toString()] = m.title);
+
+        return selfies.map(selfie => {
+            const userName = selfie.user?.name || 'Unknown Student';
+            const matTitle = matMap[selfie.lectureId] || 'Unknown Material';
+
+            return {
+                _id: selfie._id,
+                name: `🤳 Free Material Selfie - ${matTitle} (${userName})`,
+                originalName: `Selfie-${matTitle}-${userName}-${selfie._id}.jpg`,
+                path: selfie.imageUrl,
+                imageUrl: selfie.imageUrl,
+                relativePath: selfie.imagePath === 'cloudinary' ? selfie.imageUrl : selfie.imageUrl, // For deletion/preview
+                size: 0, // Cloudinary size not stored
+                createdAt: selfie.createdAt,
+                modifiedAt: selfie.createdAt,
+                type: 'image',
+                source: 'cloudinary',
+                category: 'free-material',
+                materialId: selfie.lectureId,
+                studentName: userName,
+                userId: selfie.user?._id
+            };
+        });
+    } catch (error) {
+        console.error('Error fetching free material selfies:', error);
+        return [];
     }
 }
 

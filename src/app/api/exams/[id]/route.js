@@ -38,7 +38,6 @@ export async function GET(req, { params }) {
         // Populate questions for all users (students need them to take the test!)
         // Only difference: admins/teachers might see additional metadata in the future
         if (exam.questionGroups && exam.questionGroups.length > 0) {
-            console.log(`DEBUG: Exam ${params.id} has ${exam.questionGroups.length} question groups`);
             // Create a new array to store question groups with questions
             const populatedGroups = [];
             let totalFound = 0;
@@ -47,7 +46,6 @@ export async function GET(req, { params }) {
                 const group = exam.questionGroups[i];
                 // Handle both populated object and unpopulated ID
                 const groupId = group._id || group;
-                console.log(`DEBUG: Processing group ${i}: ${groupId} (${group.name || 'unpopulated'})`);
 
                 // Fetch actual questions
                 const questions = await Question.find({
@@ -55,7 +53,6 @@ export async function GET(req, { params }) {
                     status: 'active'
                 }).lean();
 
-                console.log(`DEBUG: Found ${questions.length} questions for group ${groupId}`);
                 totalFound += questions.length;
 
                 // Create a new object with questions included
@@ -65,11 +62,8 @@ export async function GET(req, { params }) {
                 });
             }
 
-            console.log(`DEBUG: Total questions found for exam ${params.id}: ${totalFound}`);
             // Replace the questionGroups array with the populated one
             exam.questionGroups = populatedGroups;
-        } else {
-            console.log(`DEBUG: Exam ${params.id} has NO question groups`);
         }
 
         // Fetch attempts

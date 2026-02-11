@@ -3,19 +3,8 @@
 import React, { useState } from 'react'
 import { Grid, Image, Video, Music, FileText, File, MoreHorizontal, Search, X, ChevronUp, ChevronDown, List } from 'feather-icons-react'
 
-const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, setViewMode }) => {
+const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, setViewMode, itemsPerPage, onItemsPerPageChange }) => {
     const [showAdvanced, setShowAdvanced] = useState(false)
-
-    const fileTypes = [
-        { value: 'all', label: 'All Files', icon: Grid },
-        { value: 'image', label: 'Images', icon: Image },
-        { value: 'video', label: 'Videos', icon: Video },
-        { value: 'audio', label: 'Audio', icon: Music },
-        { value: 'pdf', label: 'PDF', icon: FileText },
-        { value: 'document', label: 'Documents', icon: File },
-        { value: 'exam-recording', label: 'Exam Recordings', icon: Video },
-        { value: 'other', label: 'Other', icon: MoreHorizontal }
-    ]
 
     const sortOptions = [
         { value: 'name-asc', label: 'Name (A-Z)' },
@@ -25,10 +14,6 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
         { value: 'size-large', label: 'Largest First' },
         { value: 'size-small', label: 'Smallest First' }
     ]
-
-    const handleTypeFilter = (type) => {
-        setFilters({ ...filters, type })
-    }
 
     const handleSearch = (e) => {
         setFilters({ ...filters, search: e.target.value })
@@ -42,7 +27,7 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
         setFilters({
             type: 'all',
             search: '',
-            sort: 'name-asc'
+            sort: 'date-new'
         })
     }
 
@@ -58,7 +43,7 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="Search by name, exam, student, or recording ID (e.g., sc-3hr-j8e-#@-1)..."
+                            placeholder="Search by name, exam, student, or recording ID..."
                             value={filters.search}
                             onChange={handleSearch}
                         />
@@ -99,11 +84,6 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                 </div>
             </div>
 
-            {/* File Type Filter - Moved to Sidebar */}
-            {/* <div className="d-flex flex-wrap gap-2 mb-3">
-               ... moved to sidebar ...
-            </div> */}
-
             {/* Advanced Filters */}
             {showAdvanced && (
                 <div className="card mb-3">
@@ -113,7 +93,7 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                                 <label className="form-label">Sort By</label>
                                 <select
                                     className="form-select"
-                                    value={filters.sort || 'name-asc'}
+                                    value={filters.sort || 'date-new'}
                                     onChange={handleSortChange}
                                 >
                                     {sortOptions.map(option => (
@@ -137,12 +117,27 @@ const FileFilter = ({ filters, setFilters, totalFiles, filteredCount, viewMode, 
                 </div>
             )}
 
-            {/* Results Count */}
+            {/* Results Count and Pagination Controls */}
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <span className="text-muted">
+                <div className="d-flex align-items-center gap-3">
+                    <span className="text-muted fw-medium">
                         Showing {filteredCount} of {totalFiles} files
                     </span>
+                    <div className="d-flex align-items-center gap-2 border-start ps-3">
+                        <span className="text-muted small">Show:</span>
+                        <select
+                            className="form-select form-select-sm"
+                            style={{ width: '80px' }}
+                            value={itemsPerPage}
+                            onChange={(e) => onItemsPerPageChange(e.target.value)}
+                        >
+                            <option value="10">10</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="300">300</option>
+                            <option value="500">500</option>
+                        </select>
+                    </div>
                 </div>
                 {(filters.search || filters.type !== 'all') && (
                     <button

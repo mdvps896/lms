@@ -14,6 +14,11 @@ export async function POST(request) {
         const { action, sessionId, userId, courseId, lectureId, lectureName, pdfUrl, pdfName, currentPage, totalPages, latitude, longitude, locationName, activeDuration } = body;
         const currentUser = await getAuthenticatedUser(request);
 
+        // Normalize courseId for Free Materials
+        const isFreeMaterial = courseId === 'free_material';
+        const dummyCourseId = '000000000000000000000000';
+        const effectiveCourseId = isFreeMaterial ? dummyCourseId : courseId;
+
         if (!currentUser) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
@@ -34,7 +39,7 @@ export async function POST(request) {
             case 'start':
                 const newSession = await PDFViewSession.create({
                     user: userId,
-                    course: courseId,
+                    course: effectiveCourseId,
                     lectureId,
                     lectureName: lectureName || 'Untitled Lecture',
                     pdfUrl: pdfUrl || '',

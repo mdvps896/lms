@@ -28,13 +28,18 @@ export async function GET(request, { params }) {
 
         if (!sessionId) {
             return NextResponse.json(
-                { success: false, message: 'Session ID is required' },
+                { success: false, message: 'Session/Attempt ID is required' },
                 { status: 400 }
             );
         }
 
-        // Fetch all selfies for this session
-        const selfies = await SelfieCapture.find({ sessionId })
+        // Fetch selfies - try both sessionId (for PDFs) and attemptId (for Exams)
+        const selfies = await SelfieCapture.find({
+            $or: [
+                { sessionId },
+                { attemptId: sessionId } // The param could be an attemptId for exam selfies
+            ]
+        })
             .sort({ createdAt: 1 }) // Chronological order
             .select('imageUrl captureType currentPage createdAt metadata')
             .lean();

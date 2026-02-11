@@ -301,26 +301,13 @@ const QuestionList = () => {
     };
 
     const handleAddQuestion = async () => {
-        console.log('🔵 handleAddQuestion called');
-        console.log('🔵 User Role:', userRole);
-        console.log('🔵 User Info:', userInfo);
-
         // Check if teacher has reached question limit
         if (userRole === 'teacher' && userInfo) {
             const questionLimit = userInfo.questionLimit;
-            console.log('🟡 Teacher detected. Question Limit:', questionLimit);
-
             // If teacher has a limit set (not null or 0)
             if (questionLimit && questionLimit > 0) {
-                console.log('🟡 Limit is set. Checking current question count...');
-
                 const currentCount = userInfo.questionCount || 0;
-                console.log('🟡 Current Count:', currentCount);
-                console.log('🟡 Question Limit:', questionLimit);
-                console.log('🟡 Limit Reached?', currentCount >= questionLimit);
-
                 if (currentCount >= questionLimit) {
-                    console.log('🔴 LIMIT REACHED! Showing error and blocking modal.');
                     Swal.fire({
                         icon: 'error',
                         title: 'Question Limit Reached',
@@ -331,20 +318,15 @@ const QuestionList = () => {
                         `,
                         confirmButtonText: 'OK'
                     });
-                    console.log('🔴 Returning early - modal should NOT open');
                     return; // Don't open the modal
                 } else {
-                    console.log('🟢 Limit NOT reached. Proceeding to open modal.');
-                }
+                    }
             } else {
-                console.log('🟢 No limit set or limit is 0. Proceeding to open modal.');
-            }
+                }
         } else {
-            console.log('🟢 Not a teacher or no user info. Proceeding to open modal.');
-        }
+            }
 
         // If no limit or limit not reached, open the modal
-        console.log('🟢 Opening modal...');
         setShowAddModal(true);
     };
 

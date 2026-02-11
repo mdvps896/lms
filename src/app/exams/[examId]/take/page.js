@@ -16,6 +16,7 @@ import ExamInstructionsModal from '@/components/exams/take/ExamInstructionsModal
 import RecordingManager from '@/utils/recordingManager';
 import ServerSideLiveStream from '@/utils/serverSideLiveStream';
 import ExamChatBox from '@/components/exams/ExamChatBox';
+import ExamAttendanceTracker from '@/utils/examAttendanceTracker';
 // import LocalStreamView from '@/components/exams/take/LocalStreamView';  // Disabled for student exam
 
 export default function TakeExamPage() {
@@ -53,6 +54,7 @@ export default function TakeExamPage() {
     const tabSwitchCountRef = useRef(null);
     const recordingManagerRef = useRef(null);
     const liveStreamManagerRef = useRef(null);
+    const attendanceTrackerRef = useRef(null);
 
     // Handle permission allow
     const handlePermissionAllow = async () => {
@@ -107,6 +109,16 @@ export default function TakeExamPage() {
                 toast.warn('Live streaming failed, but recording continues');
                 // Don't fail exam if streaming fails
             }
+            // Start Attendance Tracker
+            const courseId = exam?.courseId || (exam?.category?.name === 'Free Material' ? 'free_material' : 'unknown');
+            attendanceTrackerRef.current = new ExamAttendanceTracker({
+                attemptId,
+                examId: params.examId,
+                userId: user._id || user.id,
+                courseId: courseId,
+                interval: exam?.settings?.faceVerification?.intervalCheck * 60000 || 300000 // use exam setting or 5m
+            });
+            attendanceTrackerRef.current.start(streams.camera);
         } else {
             toast.error('Failed to start recording: ' + result.error);
             setPermissionDenied(true);
@@ -345,6 +357,11 @@ export default function TakeExamPage() {
             // Stop live streaming
             if (liveStreamManagerRef.current) {
                 liveStreamManagerRef.current.stopStreaming();
+            }
+
+            // Stop attendance tracker
+            if (attendanceTrackerRef.current) {
+                attendanceTrackerRef.current.stop();
             }
         };
     }, []);

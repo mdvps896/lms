@@ -40,7 +40,6 @@ export const drawImage = async (doc, label, imagePath, x, y, w, h, colors) => {
             const imgBuffer = fs.readFileSync(absolutePath);
             imgData = imgBuffer.toString('base64');
             const ext = path.extname(absolutePath).substring(1).toUpperCase();
-            // Support basic web formats
             if (ext === 'PNG') format = 'PNG';
             if (ext === 'JPG' || ext === 'JPEG') format = 'JPEG';
             if (ext === 'WEBP') format = 'WEBP';
@@ -49,9 +48,14 @@ export const drawImage = async (doc, label, imagePath, x, y, w, h, colors) => {
         } else {
             // Option 2: Remote Fetch (Fallback)
             try {
-                // Use public storage API which doesn't require session auth
-                // This is needed because images might be on production server while PDF is generated locally/elsewhere
-                const remoteUrl = `https://app.mdconsultancy.in/api/storage/file/${cleanPath}`;
+                // Determine the correct remote URL
+                let remoteUrl;
+                if (imagePath.startsWith('http')) {
+                    remoteUrl = imagePath; // Use absolute URL directly
+                } else {
+                    remoteUrl = `https://app.mdconsultancy.in/api/storage/file/${cleanPath}`;
+                }
+
                 const res = await fetch(remoteUrl);
                 if (res.ok) {
                     const arrayBuffer = await res.arrayBuffer();

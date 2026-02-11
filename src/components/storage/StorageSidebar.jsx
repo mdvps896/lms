@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Grid, Image, Video, Music, FileText, File, MoreHorizontal, HardDrive } from 'feather-icons-react'
+import { Grid, Image, Video, Music, FileText, File, MoreHorizontal, HardDrive, Camera } from 'feather-icons-react'
 
 const StorageSidebar = ({ filters, setFilters, totalFiles, storageStatus }) => {
   const fileTypes = [
@@ -12,6 +12,7 @@ const StorageSidebar = ({ filters, setFilters, totalFiles, storageStatus }) => {
     { value: 'pdf', label: 'PDF', icon: FileText },
     { value: 'document', label: 'Documents', icon: File },
     { value: 'exam-recording', label: 'Exam Recordings', icon: Video },
+    { value: 'free-material', label: 'Free Materials', icon: Camera },
     { value: 'other', label: 'Other', icon: MoreHorizontal }
   ]
 
@@ -27,8 +28,30 @@ const StorageSidebar = ({ filters, setFilters, totalFiles, storageStatus }) => {
             <HardDrive className="me-2 text-primary" size={20} />
             My Storage
           </h5>
-          {/* Optional: Add Upload Button here if desired for "New" action style */}
         </div>
+
+        {storageStatus && (
+          <div className="p-4 border-bottom bg-light">
+            <h6 className="text-uppercase small fw-bold text-muted mb-3">Total Storage Used</h6>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="small text-muted">Usage</span>
+              <span className="small fw-bold">{storageStatus.total?.sizeFormatted || '0 B'}</span>
+            </div>
+            <div className="d-flex justify-content-between small text-muted mb-3">
+              <span>{storageStatus.total?.count || 0} Total Files</span>
+            </div>
+            <div className="progress" style={{ height: '6px' }}>
+              <div
+                className="progress-bar bg-primary"
+                role="progressbar"
+                style={{ width: '100%' }}
+                aria-valuenow="100"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+          </div>
+        )}
 
         <div className="p-3">
           <p className="text-muted text-uppercase small fw-bold px-3 mb-2">File Types</p>
@@ -58,28 +81,6 @@ const StorageSidebar = ({ filters, setFilters, totalFiles, storageStatus }) => {
             })}
           </div>
         </div>
-
-        {storageStatus && (
-          <div className="p-4 mt-auto border-top">
-            <div className="d-flex justify-content-between mb-2">
-              <span className="small text-muted">Storage Used</span>
-              <span className="small fw-bold">{storageStatus.totalSizeFormatted}</span>
-            </div>
-            {/* Displaying a small progress bar (assuming 5GB limit for visual context, even if local is unlimited) */}
-            <div className="progress" style={{ height: '6px' }}>
-              <div
-                className="progress-bar bg-primary"
-                role="progressbar"
-                style={{
-                  width: `${Math.min(100, (storageStatus.totalSizeBytes / (5 * 1024 * 1024 * 1024)) * 100)}%`
-                }}
-              ></div>
-            </div>
-            <div className="mt-2">
-              <span className="small text-muted">{storageStatus.fileCount} total files</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

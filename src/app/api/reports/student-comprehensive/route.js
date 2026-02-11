@@ -38,7 +38,7 @@ export async function GET(request) {
 
         if (includeExams) {
             examAttempts = await ExamAttempt.find({ user: studentId })
-                .populate('exam', 'title')
+                .populate('exam', 'name')
                 .sort({ createdAt: -1 })
                 .lean();
         }
@@ -134,6 +134,19 @@ export async function GET(request) {
         doc.setFont('helvetica', 'normal');
         doc.text(student.email, 20, yPos + 14);
 
+        // Join Date
+        const joinDate = student.admissionDate || student.createdAt;
+        if (joinDate) {
+            const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' };
+            const formattedJoinDate = new Intl.DateTimeFormat('en-IN', dateOptions).format(new Date(joinDate));
+
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(40, 40, 40);
+            doc.text('Join Date:', pageWidth - 60, yPos + 6);
+            doc.setFont('helvetica', 'normal');
+            doc.text(formattedJoinDate, pageWidth - 37, yPos + 6);
+        }
+
         yPos += 35;
 
         // --- Helper for Section Titles & Tables ---
@@ -166,8 +179,13 @@ export async function GET(request) {
             // Format Duration Helper
             const fmtDur = (s) => {
                 if (!s) return '0 min';
-                const m = Math.floor(s / 60);
-                return `${Math.max(1, m)} min`;
+                const mTotal = Math.floor(s / 60);
+                if (mTotal < 60) {
+                    return `${Math.max(1, mTotal)} min`;
+                }
+                const h = Math.floor(mTotal / 60);
+                const m = mTotal % 60;
+                return `${h} hr ${m} min`;
             };
 
             const tableBody = Object.values(pdfGroups).map(g => [
@@ -186,7 +204,24 @@ export async function GET(request) {
                 styles: { fontSize: 10, cellPadding: 3 },
                 margin: { left: 14, right: 14 }
             });
-            yPos = doc.lastAutoTable.finalY + 15;
+            yPos = doc.lastAutoTable.finalY + 8;
+
+            // Total Duration Summary Line
+            const totalSecs = Object.values(pdfGroups).reduce((acc, g) => acc + (g.duration || 0), 0);
+            if (totalSecs > 0) {
+                const totalMin = Math.floor(totalSecs / 60);
+                const h = Math.floor(totalMin / 60);
+                const m = totalMin % 60;
+                const totalStr = h > 0 ? `Total: ${h}h ${m}m` : `Total: ${m}m`;
+
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(220, 53, 69); // Red to match section
+                doc.text(totalStr, pageWidth - 14, yPos, { align: 'right' });
+                yPos += 10;
+            } else {
+                yPos += 7;
+            }
         }
 
         // 4. Course Activity (Green)
@@ -237,7 +272,7 @@ export async function GET(request) {
                 startY: yPos,
                 head: [['Exam Title', 'Date', 'Score', 'Status']],
                 body: examAttempts.map(att => [
-                    att.exam?.title || 'Unknown Exam',
+                    att.exam?.name || 'Unknown Exam',
                     new Date(att.startedAt).toLocaleDateString(),
                     `${att.score} / ${att.totalMarks}`,
                     att.status

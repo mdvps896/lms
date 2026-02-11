@@ -300,8 +300,9 @@ export async function GET(request) {
         }
 
         const pdfOutput = doc.output('arraybuffer');
+        const buffer = Buffer.from(pdfOutput);
 
-        return new NextResponse(pdfOutput, {
+        return new NextResponse(buffer, {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `attachment; filename="${(submission.personalDetails?.fullName || 'esign').replace(/\s+/g, '_')}_ESign.pdf"`,

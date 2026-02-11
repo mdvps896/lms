@@ -4,8 +4,9 @@ import React, { useState } from 'react'
 import FileCard from './FileCard'
 import FileListItem from './FileListItem'
 import StorageSkeleton from './StorageSkeleton'
-import { Folder, Trash2 } from 'feather-icons-react'
+import { Folder, Trash2, Download } from 'feather-icons-react'
 import Swal from 'sweetalert2'
+import { exportFilesAsZip } from '@/utils/exportUtils'
 
 const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) => {
     const [selectedFiles, setSelectedFiles] = useState(new Set())
@@ -84,6 +85,41 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
             }
         }
     }
+    const handleBulkExport = async () => {
+        if (selectedFiles.size === 0) return
+
+        const selectedFileData = files.filter(f =>
+            selectedFiles.has(f.path || f.publicId || f.url || f._id)
+        )
+
+        try {
+            Swal.fire({
+                title: 'Preparing Export...',
+                text: 'Please wait while we bundle your files.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading()
+                }
+            })
+
+            await exportFilesAsZip(selectedFileData, `storage-export-${Date.now()}.zip`)
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Export Ready!',
+                text: 'Your ZIP file has been generated and download started.',
+                timer: 2000,
+                showConfirmButton: false
+            })
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Export Failed',
+                text: 'An error occurred while preparing the ZIP file.'
+            })
+        }
+    }
+
     if (loading) {
         return <StorageSkeleton viewMode={viewMode} />
     }
@@ -100,87 +136,111 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
         )
     }
 
-    if (viewMode === 'list') {
-        return (
-            <div className="table-responsive mt-3">
-                <table className="table table-hover">
-                    <thead>
-                        <tr>
-                            <th style={{ width: '50px' }}>Type</th>
-                            <th>Name</th>
-                            <th style={{ width: '120px' }}>Size</th>
-                            <th style={{ width: '150px' }}>Date</th>
-                            <th style={{ width: '150px' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {files.map((file) => (
-                            <FileListItem
-                                key={file.path || file.publicId || file.url || file._id}
-                                file={file}
-                                onDelete={onDelete}
-                                onRefresh={onRefresh}
-                            />
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )
-    }
-
     return (
         <>
-            {/* Bulk Actions Bar */}
+            {/* Bulk Actions Bar - Common for both views */}
             {selectedFiles.size > 0 && (
                 <div className="alert alert-info d-flex justify-content-between align-items-center mb-3">
                     <div>
                         <strong>{selectedFiles.size}</strong> file(s) selected
                     </div>
-                    <button
-                        className="btn btn-danger btn-sm d-flex align-items-center gap-2"
-                        onClick={handleBulkDelete}
-                        disabled={isDeleting}
-                    >
-                        <Trash2 size={16} />
-                        {isDeleting ? 'Deleting...' : 'Delete Selected'}
-                    </button>
-                </div>
-            )}
-
-            {/* Select All Checkbox for Grid View */}
-            {viewMode === 'grid' && files.length > 0 && (
-                <div className="mb-3">
-                    <div className="form-check">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="selectAll"
-                            checked={selectedFiles.size === files.length && files.length > 0}
-                            onChange={handleSelectAll}
-                        />
-                        <label className="form-check-label" htmlFor="selectAll">
-                            Select All ({files.length} files)
-                        </label>
+                    <div className="d-flex gap-2">
+                        <button
+                            className="btn btn-outline-info btn-sm d-flex align-items-center gap-2"
+                            onClick={handleBulkExport}
+                        >
+                            <Download size={16} />
+                            Export Selected
+                        </button>
+                        <button
+                            className="btn btn-danger btn-sm d-flex align-items-center gap-2"
+                            onClick={handleBulkDelete}
+                            disabled={isDeleting}
+                        >
+                            <Trash2 size={16} />
+                            {isDeleting ? 'Deleting...' : 'Delete Selected'}
+                        </button>
                     </div>
                 </div>
             )}
 
-            <div className="row g-3 mt-3">
-                {files.map((file) => {
-                    const fileId = file.path || file.publicId || file.url || file._id
-                    return (
-                        <div key={fileId} className="col-home-5 col-xl-3 col-lg-4 col-md-6 mb-3">
-                            <FileCard
-                                file={file}
-                                onDelete={onDelete}
-                                onRefresh={onRefresh}
-                                isSelected={selectedFiles.has(fileId)}
-                                onSelect={() => handleSelectFile(fileId)}
-                            />
+            {viewMode === 'list' ? (
+                <div className="table-responsive mt-3">
+                    <table className="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '40px' }}>
+                                    <div className="form-check p-0 d-flex justify-content-center">
+                                        <input
+                                            className="form-check-input ms-0"
+                                            type="checkbox"
+                                            checked={selectedFiles.size === files.length && files.length > 0}
+                                            onChange={handleSelectAll}
+                                        />
+                                    </div>
+                                </th>
+                                <th style={{ width: '50px' }}>Type</th>
+                                <th>Name</th>
+                                <th style={{ width: '120px' }}>Size</th>
+                                <th style={{ width: '150px' }}>Date</th>
+                                <th style={{ width: '150px' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {files.map((file) => {
+                                const fileId = file.path || file.publicId || file.url || file._id
+                                return (
+                                    <FileListItem
+                                        key={fileId}
+                                        file={file}
+                                        onDelete={onDelete}
+                                        onRefresh={onRefresh}
+                                        isSelected={selectedFiles.has(fileId)}
+                                        onSelect={() => handleSelectFile(fileId)}
+                                    />
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <>
+                    {/* Select All Checkbox for Grid View */}
+                    {files.length > 0 && (
+                        <div className="mb-3">
+                            <div className="form-check">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="selectAll"
+                                    checked={selectedFiles.size === files.length && files.length > 0}
+                                    onChange={handleSelectAll}
+                                />
+                                <label className="form-check-label" htmlFor="selectAll">
+                                    Select All ({files.length} files)
+                                </label>
+                            </div>
                         </div>
-                    )
-                })}
-            </div>
+                    )}
+
+                    <div className="row g-3 mt-3">
+                        {files.map((file) => {
+                            const fileId = file.path || file.publicId || file.url || file._id
+                            return (
+                                <div key={fileId} className="col-home-5 col-xl-3 col-lg-4 col-md-6 mb-3">
+                                    <FileCard
+                                        file={file}
+                                        onDelete={onDelete}
+                                        onRefresh={onRefresh}
+                                        isSelected={selectedFiles.has(fileId)}
+                                        onSelect={() => handleSelectFile(fileId)}
+                                    />
+                                </div>
+                            )
+                        })}
+                    </div>
+                </>
+            )}
         </>
     )
 }

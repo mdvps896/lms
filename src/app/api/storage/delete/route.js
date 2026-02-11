@@ -1,36 +1,60 @@
-import { NextResponse } from 'next/server'
-import { deleteFromLocalStorage } from '@/utils/localStorage'
-import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth'
+import { NextResponse } from 'next/server';
+import { deleteFromLocalStorage } from '@/utils/localStorage';
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 export async function POST(request) {
     try {
-        const body = await request.json()
-        const { filePath, publicId } = body
+        const body = await request.json();
+        const { filePath, publicId, items } = body; // items: [{ path, publicId, isCloudinary }]
 
         // Security Check
         const authError = await requirePermission(request, 'manage_storage');
         if (authError) return authError;
 
         const user = await getAuthenticatedUser(request);
-        // If teacher has 'own' scope, they cannot delete files as we don't track file ownership explicitly yet.
-        // This prevents them from deleting other people's files.
         if (user && user.role === 'teacher' && (user.accessScope || 'own') === 'own') {
             return NextResponse.json({ success: false, message: 'Access Denied: Teachers with "Manage Own" scope cannot delete general files.' }, { status: 403 });
         }
 
-        if (!filePath && !publicId && (!Array.isArray(body?.filePaths) || body.filePaths.length === 0)) {
-            return NextResponse.json(
-                { success: false, message: 'File path, Public ID, or filePaths array is required' },
-                { status: 400 }
-            )
-        }
+        // Handle bulk deletion (New 'items' array or legacy 'filePaths')
+        const itemsToDelete = items || (body.filePaths ? body.filePaths.map(p => ({ path: p })) : []);
 
-        // Handle bulk deletion if filePaths array is provided
-        if (Array.isArray(body?.filePaths)) {
+        if (itemsToDelete.length > 0) {
             const results = [];
-            for (const path of body.filePaths) {
-                const result = await deleteFromLocalStorage(path);
-                results.push({ path, success: result.success, message: result.message });
+            for (const item of itemsToDelete) {
+                let success = false;
+                let msg = '';
+
+                try {
+                    if (item.isCloudinary && item.publicId) {
+                        // Delete from Cloudinary
+                        await new Promise((resolve, reject) => {
+                            cloudinary.uploader.destroy(item.publicId, (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            });
+                        });
+                        success = true;
+                        msg = 'Deleted from Cloudinary';
+                    } else if (item.path) {
+                        // Delete from Local Storage
+                        const result = await deleteFromLocalStorage(item.path);
+                        success = result.success;
+                        msg = result.message;
+                    }
+                } catch (e) {
+                    msg = e.message;
+                }
+
+                results.push({ path: item.path, publicId: item.publicId, success, message: msg });
             }
 
             const successCount = results.filter(r => r.success).length;
@@ -39,6 +63,14 @@ export async function POST(request) {
                 message: `Deleted ${successCount} of ${results.length} files`,
                 results
             });
+        }
+
+        // Single file delete (Legacy support)
+        if (!filePath && !publicId) {
+            return NextResponse.json(
+                { success: false, message: 'File path, Public ID, or items array is required' },
+                { status: 400 }
+            );
         }
 
         const pathToDelete = filePath || publicId;

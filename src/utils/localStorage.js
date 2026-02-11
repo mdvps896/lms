@@ -530,6 +530,7 @@ export async function listFiles(folder = '', type = 'all') {
  */
 export async function getStorageStatus() {
     try {
+        const PUBLIC_DIR = path.join(process.cwd(), 'public');
         initializeDirectories();
 
         const getDirectorySize = (dirPath) => {
@@ -555,15 +556,14 @@ export async function getStorageStatus() {
             return { size: totalSize, count: fileCount };
         };
 
+        // Scan the entire public directory for total usage
+        const total = getDirectorySize(PUBLIC_DIR);
+
+        // Get specific stats for main categories for the UI
         const images = getDirectorySize(IMAGES_DIR);
         const videos = getDirectorySize(VIDEOS_DIR);
         const documents = getDirectorySize(DOCUMENTS_DIR);
         const assets = getDirectorySize(ASSETS_DIR);
-
-        const total = {
-            size: images.size + videos.size + documents.size + assets.size,
-            count: images.count + videos.count + documents.count + assets.count
-        };
 
         return {
             total: {

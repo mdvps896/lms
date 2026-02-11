@@ -26,6 +26,37 @@ export async function GET(request, { params }) {
             return NextResponse.json({ success: false, message: 'File path is required' }, { status: 400 });
         }
 
+        // Handle remote URLs (e.g. Cloudinary)
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            // ONLY Admin can access proxied remote URLs (usually selfies/external assets)
+            if (!isAdmin) {
+                return NextResponse.json(
+                    { success: false, message: 'Access denied. Proxied remote files are admin-only.' },
+                    { status: 403 }
+                );
+            }
+
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) throw new Error('Failed to fetch remote file');
+
+                const remoteBuffer = await response.arrayBuffer();
+                const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+                return new NextResponse(remoteBuffer, {
+                    headers: {
+                        'Content-Type': contentType,
+                        'Cache-Control': 'private, max-age=3600',
+                        'Content-Disposition': `inline; filename="${path.basename(filePath)}"`
+                    }
+                });
+            } catch (error) {
+                console.error('Remote fetch error:', error);
+                return NextResponse.json({ success: false, message: 'Failed to proxy remote file' }, { status: 502 });
+            }
+        }
+
+        // Local file logic
         const isCourseVideo = filePath.includes('/courses/videos/');
         const isPublicAsset = filePath.startsWith('uploads/materials/') || filePath.startsWith('uploads/categories/') || filePath.startsWith('uploads/subjects/') || filePath.startsWith('uploads/courses/');
 

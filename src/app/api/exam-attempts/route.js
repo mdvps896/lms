@@ -10,7 +10,7 @@ export async function POST(req) {
         await dbConnect();
 
         const body = await req.json();
-        const { examId, answers, timeTaken, userId } = body;
+        const { examId, answers, timeTaken, userId, isFreeMaterial } = body;
         const currentUser = await getAuthenticatedUser(req);
 
         if (!currentUser) {
@@ -96,6 +96,7 @@ export async function POST(req) {
                 status: 'submitted',
                 startedAt: startedAt,
                 submittedAt: submittedAt,
+                isFreeMaterial: isFreeMaterial || false,
             });
 
             return NextResponse.json({

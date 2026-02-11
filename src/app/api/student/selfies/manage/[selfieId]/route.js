@@ -5,6 +5,14 @@ import { requireAdmin } from '@/utils/apiAuth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 export async function DELETE(request, { params }) {
     try {
         await connectDB();
@@ -31,18 +39,32 @@ export async function DELETE(request, { params }) {
             );
         }
 
-        // Delete the file from filesystem if it exists
+        // Handle Image Deletion
         if (selfie.imagePath) {
             try {
-                // If it's a relative path starting with /, make it absolute relative to public
-                let fullPath = selfie.imagePath;
-                if (!path.isAbsolute(fullPath)) {
-                    fullPath = path.join(process.cwd(), 'public', fullPath);
+                // Check if it's a Cloudinary URL
+                if (selfie.imagePath.includes('cloudinary.com') || selfie.imagePath.startsWith('http')) {
+                    // Extract public_id for Cloudinary deletion
+                    // Format: .../upload/v<version>/<public_id>.<ext>
+                    const matches = selfie.imagePath.match(/\/upload\/(?:v\d+\/)?(.+)$/);
+                    if (matches && matches[1]) {
+                        // Remove extension to get public_id
+                        const publicIdWithExt = matches[1];
+                        const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf('.'));
+
+                        await cloudinary.uploader.destroy(publicId);
+                    }
+                } else {
+                    // Local File Deletion
+                    let fullPath = selfie.imagePath;
+                    if (!path.isAbsolute(fullPath)) {
+                        fullPath = path.join(process.cwd(), 'public', fullPath);
+                    }
+                    await unlink(fullPath);
                 }
-                await unlink(fullPath);
-            } catch (unlinkError) {
-                console.error('Error deleting file:', unlinkError);
-                // Continue with DB deletion even if file deletion fails
+            } catch (deleteError) {
+                console.error('Error deleting file/resource:', deleteError);
+                // Continue with DB deletion even if image deletion fails
             }
         }
 

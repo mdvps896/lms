@@ -10,6 +10,7 @@ import StudentExamsTab from './tabs/StudentExamsTab'
 import StudentActivityLog from './tabs/StudentActivityLog'
 import StudentESignTab from './tabs/StudentESignTab'
 import StudentProgressTab from './tabs/StudentProgressTab'
+import StudentFreeMaterialsTab from './tabs/StudentFreeMaterialsTab'
 import { generateStudentReport } from '@/utils/studentReportGenerator'
 import StudentReportModal from './StudentReportModal'
 import { useSettings } from '@/contexts/SettingsContext'
@@ -132,6 +133,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 <li className="nav-item">
                                     <TabButton id="progress" label="Progress Tracking" icon={FiCheckCircle} />
                                 </li>
+                                <li className="nav-item">
+                                    <TabButton id="free_materials" label="Free Materials" icon={FiFileText} />
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -169,6 +173,12 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 )}
                                 {activeTab === 'progress' && (
                                     <StudentProgressTab studentId={student.id} />
+                                )}
+                                {activeTab === 'free_materials' && (
+                                    <StudentFreeMaterialsTab
+                                        studentId={student.id}
+                                        freeMaterialViews={details.freeMaterialViews}
+                                    />
                                 )}
                             </div>
                         ) : null}

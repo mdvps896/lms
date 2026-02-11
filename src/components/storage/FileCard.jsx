@@ -42,12 +42,12 @@ const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...
     }
 
     const getSecureUrl = (filePath) => {
-        // Return the URL as-is
-        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-            return filePath
-        }
-        // Ensure path starts with /
-        const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
+        if (!filePath) return ''
+        // Ensure path starts with / only if it's NOT an external URL
+        const normalizedPath = (filePath.startsWith('http://') || filePath.startsWith('https://'))
+            ? filePath
+            : (filePath.startsWith('/') ? filePath : '/' + filePath)
+
         return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
     }
 
@@ -257,12 +257,17 @@ const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...
                         {file.name}
                     </h6>
                     <div className="d-flex gap-1">
-                        <span className="badge bg-success text-white" style={{ fontSize: '0.7rem' }}>
-                            📁 Local
+                        <span className={`badge ${file.source === 'cloudinary' ? 'bg-info' : 'bg-success'} text-white`} style={{ fontSize: '0.7rem' }}>
+                            {file.source === 'cloudinary' ? '☁️ Cloud' : '📁 Local'}
                         </span>
                         {file.category === 'exam-recording' && (
                             <span className="badge bg-primary text-white" style={{ fontSize: '0.7rem' }}>
                                 📹 Recording
+                            </span>
+                        )}
+                        {file.category === 'free-material' && (
+                            <span className="badge bg-warning text-dark" style={{ fontSize: '0.7rem' }}>
+                                🤳 Free Material
                             </span>
                         )}
                     </div>
@@ -304,6 +309,17 @@ const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...
                                 <span className="badge bg-info text-white ms-1" style={{ fontSize: '0.65rem' }}>
                                     {file.recordingId || file.cameraRecordingId || file.screenRecordingId}
                                 </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Free Material details */}
+                {file.category === 'free-material' && (
+                    <div className="mb-2">
+                        {file.studentName && (
+                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                <strong>Student:</strong> {file.studentName}
                             </div>
                         )}
                     </div>

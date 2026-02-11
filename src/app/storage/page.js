@@ -18,7 +18,7 @@ const StoragePage = () => {
     const [filteredFiles, setFilteredFiles] = useState([])
     const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
     const [currentPage, setCurrentPage] = useState(1)
-    const [itemsPerPage] = useState(24) // 24 items per page for grid, adjustable
+    const [itemsPerPage, setItemsPerPage] = useState(50) // Default to 50 items per page
     const [filters, setFilters] = useState({
         type: 'all',
         search: '',
@@ -83,6 +83,10 @@ const StoragePage = () => {
                 // For exam recordings, check category first
                 if (filters.type === 'exam-recording') {
                     return file.category === 'exam-recording'
+                }
+
+                if (filters.type === 'free-material') {
+                    return file.category === 'free-material'
                 }
 
                 const fileType = file.type || getFileType(file.name)
@@ -192,6 +196,11 @@ const StoragePage = () => {
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber)
         window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    const handleItemsPerPageChange = (count) => {
+        setItemsPerPage(parseInt(count))
+        setCurrentPage(1) // Reset to first page
     }
 
     return (
@@ -311,6 +320,8 @@ const StoragePage = () => {
                                             filteredCount={filteredFiles.length}
                                             viewMode={viewMode}
                                             setViewMode={setViewMode}
+                                            itemsPerPage={itemsPerPage}
+                                            onItemsPerPageChange={handleItemsPerPageChange}
                                         />
 
                                         <MediaGrid

@@ -51,8 +51,7 @@ export async function GET(request, { params }) {
                     .lean();
 
                 if (student.enrolledCourses[0]?.courseId) {
-                    console.log('Enrolled course found');
-                }
+                    }
             } catch (err) {
                 console.error('Populate error:', err);
             }

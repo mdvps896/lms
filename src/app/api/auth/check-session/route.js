@@ -36,7 +36,6 @@ export async function POST(request) {
 
         // MIGRATION FIX: If activeDeviceId is missing, claim this device as active
         if (!user.activeDeviceId) {
-            console.log(`[Session Check] User ${userId} has no activeDeviceId, claiming device: ${deviceId}`);
             await User.findByIdAndUpdate(userId, {
                 activeDeviceId: deviceId,
                 lastActiveAt: new Date()
@@ -49,10 +48,6 @@ export async function POST(request) {
 
         // Check if the device ID matches the active device
         if (user.activeDeviceId !== deviceId) {
-            console.log(`[Session Check] Device mismatch for user ${userId}`);
-            console.log(`  Expected: ${user.activeDeviceId}`);
-            console.log(`  Received: ${deviceId}`);
-
             // User is logged in on another device, force logout
             return NextResponse.json({
                 success: false,

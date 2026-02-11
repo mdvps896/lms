@@ -55,13 +55,18 @@ export async function GET(request, { params }) {
         // Fetch PDF View Sessions from the specialized model
         const pdfSessions = await PDFViewSession.find({
             user: id,
-            duration: { $gte: 60 } // Filter sessions >= 1 min
+            duration: { $gte: 5 } // Lowered from 60s to 5s as per new requirement
         })
             .sort({ startTime: -1 })
-            .limit(100)
+            .limit(150)
             .lean();
 
-        const pdfViews = pdfSessions.map(session => {
+        const dummyCourseId = '000000000000000000000000';
+
+        const pdfViews = [];
+        const freeMaterialViews = [];
+
+        pdfSessions.forEach(session => {
             const durationInSeconds = session.duration || 0;
             const startTime = new Date(session.startTime);
 
@@ -73,7 +78,7 @@ export async function GET(request, { params }) {
                 endTime = session.lastActiveTime || session.endTime || session.startTime;
             }
 
-            return {
+            const viewData = {
                 id: session._id,
                 title: session.pdfName || session.lectureName || 'Untitled PDF',
                 startTime: session.startTime,
@@ -84,6 +89,12 @@ export async function GET(request, { params }) {
                 locationName: session.locationName,
                 selfieCount: session.selfieCount || 0
             };
+
+            if (session.course.toString() === dummyCourseId) {
+                freeMaterialViews.push(viewData);
+            } else {
+                pdfViews.push(viewData);
+            }
         });
 
         const courseViews = activities.map(a => ({
@@ -152,9 +163,13 @@ export async function GET(request, { params }) {
                 score: attempt.score,
                 totalMarks: attempt.totalMarks,
                 percentage: attempt.percentage,
-                result: attempt.percentage >= (attempt.exam?.passingPercentage ?? 40) ? 'Pass' : 'Fail'
+                result: attempt.percentage >= (attempt.exam?.passingPercentage ?? 40) ? 'Pass' : 'Fail',
+                isFreeMaterial: attempt.isFreeMaterial,
+                timeTaken: attempt.timeTaken || 0, // in seconds
+                selfieCount: attempt.verification?.faceVerification?.periodicChecks?.length || 0
             })),
             pdfViews: pdfViews,
+            freeMaterialViews: freeMaterialViews,
             courseViews: courseViews
         };
 

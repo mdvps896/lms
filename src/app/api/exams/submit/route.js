@@ -7,7 +7,7 @@ export async function POST(request) {
     try {
         await connectDB()
 
-        const { attemptId, sessionToken, answers, examId } = await request.json()
+        const { attemptId, sessionToken, answers, examId, timeTaken } = await request.json()
 
         if (!attemptId || !sessionToken || !examId) {
             return NextResponse.json(
@@ -167,6 +167,7 @@ export async function POST(request) {
         attempt.percentage = Math.round(percentage * 100) / 100
         attempt.hasSubjectiveQuestions = hasSubjectiveQuestions
         attempt.resultStatus = hasSubjectiveQuestions ? 'draft' : 'published'
+        attempt.timeTaken = timeTaken || 0 // Save time taken in seconds
 
         await attempt.save()
 

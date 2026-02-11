@@ -18,7 +18,7 @@ export default function StartExamPage() {
     // Check if user came from my-exams page
     useEffect(() => {
         const allowedAccess = sessionStorage.getItem(`exam_access_${params.examId}`);
-        
+
         if (!allowedAccess) {
             toast.error('Please access the exam from My Exams page');
             router.push('/my-exams');
@@ -69,8 +69,8 @@ export default function StartExamPage() {
         }
 
         // Check if verification is required
-        const needsVerification = exam?.settings?.faceVerification?.enabled || 
-                                 exam?.settings?.identityVerification?.enabled;
+        const needsVerification = exam?.settings?.faceVerification?.enabled ||
+            exam?.settings?.identityVerification?.enabled;
 
         if (needsVerification) {
             setShowVerification(true);
@@ -83,7 +83,7 @@ export default function StartExamPage() {
 
     const handleVerificationComplete = (data) => {
         setVerificationData(data);
-        
+
         // Check if authorized
         if (data.isAuthorized) {
             proceedToExam(data.verificationId);
@@ -102,6 +102,19 @@ export default function StartExamPage() {
         setStartingExam(true);
 
         try {
+            // Get location if possible
+            let location = { latitude: null, longitude: null, locationName: null };
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                });
+                location.latitude = pos.coords.latitude;
+                location.longitude = pos.coords.longitude;
+                location.locationName = "Web Browser";
+            } catch (locErr) {
+                console.warn('Location capture failed:', locErr);
+            }
+
             const response = await fetch('/api/exams/start-session', {
                 method: 'POST',
                 headers: {
@@ -110,7 +123,8 @@ export default function StartExamPage() {
                 body: JSON.stringify({
                     examId: params.examId,
                     userId: user._id || user.id,
-                    verificationId
+                    verificationId,
+                    ...location
                 }),
             });
 

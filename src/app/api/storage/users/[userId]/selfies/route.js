@@ -23,16 +23,26 @@ export async function GET(request, { params }) {
             .lean()
 
         // Format the response
-        const formattedSelfies = selfies.map(selfie => ({
-            ...selfie,
-            name: `Selfie - ${new Date(selfie.createdAt).toLocaleString()}`,
-            path: selfie.imageUrl,
-            type: 'image',
-            size: 0, // Size usually not stored in SelfieCapture
-            createdAt: selfie.createdAt,
-            courseName: selfie.course?.title || 'Unknown Course',
-            captureType: selfie.captureType
-        }))
+        const dummyId = '000000000000000000000000';
+        const formattedSelfies = selfies.map(selfie => {
+            const isFreeMaterial =
+                selfie.course?._id?.toString() === dummyId ||
+                selfie.course?.toString() === dummyId ||
+                selfie.captureType?.includes('free_material');
+
+            return {
+                ...selfie,
+                name: `Selfie - ${new Date(selfie.createdAt).toLocaleString()}`,
+                path: selfie.imageUrl,
+                type: 'image',
+                size: 0,
+                createdAt: selfie.createdAt,
+                courseName: isFreeMaterial ? 'Free Material' : (selfie.course?.title || 'Unknown Course'),
+                captureType: selfie.captureType,
+                // Ensure course ID is preserved even if populate failed
+                course: selfie.course?._id || selfie.course || dummyId
+            };
+        })
 
         return NextResponse.json({
             success: true,

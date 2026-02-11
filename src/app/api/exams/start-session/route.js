@@ -9,17 +9,27 @@ export async function POST(request) {
     try {
         await connectDB()
 
-        const currentUser = getAuthenticatedUser(request);
+        const currentUser = await getAuthenticatedUser(request); // Added await
         if (!currentUser) {
+            console.error('❌ [EXAM START] Unauthorized: No user found');
             return NextResponse.json(
                 { message: 'Unauthorized: Login required' },
                 { status: 401 }
             )
         }
 
-        const { examId, userId, verificationId } = await request.json()
+        const {
+            examId,
+            userId,
+            verificationId,
+            latitude,
+            longitude,
+            locationName,
+            isFreeMaterial = false
+        } = await request.json()
 
         if (!examId || !userId) {
+            console.error('❌ [EXAM START] Missing examId or userId');
             return NextResponse.json(
                 { message: 'Exam ID and User ID are required' },
                 { status: 400 }
@@ -27,14 +37,14 @@ export async function POST(request) {
         }
 
         // Security Check: Ensure user is starting session for themselves
-        const currentUserId = currentUser.id || currentUser._id;
-        if (userId !== currentUserId) {
+        const currentUserId = currentUser.id || currentUser._id?.toString();
+        if (userId !== currentUserId && userId !== currentUserId.toString()) {
+            console.error('❌ [EXAM START] User ID mismatch! Current:', currentUserId, 'Request:', userId);
             return NextResponse.json(
                 { message: 'Unauthorized: Cannot start exam for another user' },
                 { status: 403 }
             )
         }
-
         // Validate exam exists and is active
         const exam = await Exam.findById(examId).populate('subjects category')
         if (!exam) {
@@ -63,7 +73,8 @@ export async function POST(request) {
         }
 
         // Check user's category matches exam category
-        if (user.category.toString() !== exam.category._id.toString()) {
+        // Bypass for free materials
+        if (!isFreeMaterial && user.category.toString() !== exam.category._id.toString()) {
             return NextResponse.json(
                 { message: 'You are not authorized to take this exam' },
                 { status: 403 }
@@ -138,6 +149,10 @@ export async function POST(request) {
             startedAt: now,
             endTime,
             status: 'active',
+            latitude: latitude ? parseFloat(latitude) : null,
+            longitude: longitude ? parseFloat(longitude) : null,
+            locationName: locationName || null,
+            isFreeMaterial,
             answers: []
         })
 
@@ -152,6 +167,9 @@ export async function POST(request) {
             status: 'active',
             ipAddress,
             userAgent,
+            latitude: latitude ? parseFloat(latitude) : null,
+            longitude: longitude ? parseFloat(longitude) : null,
+            locationName: locationName || null,
             totalMarks: exam.totalMarks,
             answers: new Map(),
             isActive: true,

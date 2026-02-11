@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { exportFilesAsZip } from '@/utils/exportUtils';
+import Swal from 'sweetalert2';
 
 const UserSelfiesModal = ({ user, show, onClose }) => {
     const [selfies, setSelfies] = useState([]);
@@ -6,12 +8,25 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
     const [selectedImage, setSelectedImage] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
     const [deleting, setDeleting] = useState(false);
+    const [activeTab, setActiveTab] = useState('all'); // 'all', 'courses', 'free_materials'
+    const [subTab, setSubTab] = useState('pdf'); // 'pdf', 'test' - for free_materials
+
+    const getSecureUrl = (filePath) => {
+        if (!filePath) return ''
+        // Ensure path starts with / only if it's NOT an external URL
+        const normalizedPath = (filePath.startsWith('http://') || filePath.startsWith('https://'))
+            ? filePath
+            : (filePath.startsWith('/') ? filePath : '/' + filePath)
+
+        return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
+    }
 
     useEffect(() => {
         if (show && user) {
             fetchSelfies();
             setSelectedImage(null);
             setSelectedIds([]);
+            setActiveTab('all');
         }
     }, [show, user]);
 
@@ -36,37 +51,147 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
         );
     };
 
+    // Filter Logic
+    const filteredSelfies = selfies.filter(selfie => {
+        const dummyId = '000000000000000000000000';
+        // Check if it is a free material selfie
+        // Our backend uses dummyId for course AND sets captureType.
+        // Also check if course is 'free_material' string just in case.
+        const isFreeMaterial =
+            selfie.course === dummyId ||
+            selfie.course?._id === dummyId ||
+            selfie.courseName === 'Free Material' ||
+            selfie.course === 'free_material' ||
+            selfie.metadata?.isFreeMaterial === true;
+
+        if (activeTab === 'courses') return !isFreeMaterial;
+        if (activeTab === 'free_materials') {
+            if (!isFreeMaterial) return false;
+
+            const isTestSelfie = selfie.captureType?.startsWith('test_');
+            if (subTab === 'test') return isTestSelfie;
+            return !isTestSelfie; // Default to PDF for free_materials
+        }
+        return true;
+    });
+
     const toggleSelectAll = () => {
-        if (selectedIds.length === selfies.length) {
+        if (selectedIds.length === filteredSelfies.length && filteredSelfies.length > 0) {
             setSelectedIds([]);
         } else {
-            setSelectedIds(selfies.map(s => s._id));
+            setSelectedIds(filteredSelfies.map(s => s._id));
         }
     };
 
-    const handleDelete = async (filePaths) => {
-        if (!confirm(`Are you sure you want to delete ${filePaths.length} image(s)? This action cannot be undone.`)) return;
+    const handleExport = async (ids) => {
+        const selectedSelfies = selfies.filter(s => ids.includes(s._id));
+
+        try {
+            Swal.fire({
+                title: 'Preparing Export...',
+                text: `Bundling ${ids.length} selfies.`,
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const exportData = selectedSelfies.map(s => ({
+                path: s.imageUrl,
+                name: `${user.name}_${s.courseName || 'selfie'}_${new Date(s.createdAt).getTime()}.jpg`
+            }));
+
+            await exportFilesAsZip(exportData, `${user.name}-selfies-${Date.now()}.zip`);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Export Ready!',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Export Failed',
+                text: 'An error occurred while preparing the ZIP file.'
+            });
+        }
+    };
+
+    const handleDelete = async (ids) => {
+        const result = await Swal.fire({
+            title: 'Delete Selected Images?',
+            text: `Are you sure you want to delete ${ids.length} image(s)?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete them!'
+        });
+
+        if (!result.isConfirmed) return;
 
         setDeleting(true);
         try {
+            // Prepare items for deletion
+            const itemsToDelete = ids.map(id => {
+                const selfie = selfies.find(s => s._id === id);
+                if (!selfie) return null;
+
+                const isCloudinary = selfie.imagePath === 'cloudinary' || selfie.course === '000000000000000000000000';
+
+                let publicId = null;
+                if (isCloudinary && selfie.imageUrl) {
+                    try {
+                        const regex = /\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/;
+                        const match = selfie.imageUrl.match(regex);
+                        if (match && match[1]) {
+                            publicId = match[1];
+                        }
+                    } catch (e) {
+                        console.error('Failed to extract public ID', e);
+                    }
+                }
+
+                return {
+                    path: selfie.imagePath,
+                    publicId: publicId,
+                    isCloudinary: isCloudinary,
+                    id: selfie._id // Include ID for accurate record deletion if needed
+                };
+            }).filter(item => item !== null);
+
             const response = await fetch('/api/storage/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePaths })
+                body: JSON.stringify({ items: itemsToDelete })
             });
 
             const data = await response.json();
             if (data.success) {
-                // Remove deleted items from local state
-                setSelfies(prev => prev.filter(s => !filePaths.includes(s.relativePath)));
+                setSelfies(prev => prev.filter(s => !ids.includes(s._id)));
                 setSelectedIds([]);
-                alert(data.message || 'Deleted successfully');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Deleted!',
+                    text: data.message || 'Images deleted successfully',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             } else {
-                alert(data.message || 'Failed to delete');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: data.message || 'Failed to delete images'
+                });
             }
         } catch (error) {
             console.error('Delete error:', error);
-            alert('An error occurred while deleting');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while deleting'
+            });
         } finally {
             setDeleting(false);
         }
@@ -78,8 +203,8 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
             <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div className="modal-content" style={{ maxHeight: '90vh' }}>
-                    <div className="modal-header d-flex justify-content-between align-items-center">
-                        <div className="d-flex align-items-center">
+                    <div className="modal-header d-flex justify-content-between align-items-center flex-wrap">
+                        <div className="d-flex align-items-center mb-2 mb-md-0">
                             {user.profileImage ? (
                                 <img
                                     src={user.profileImage}
@@ -99,7 +224,7 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                             )}
                             <div>
                                 <h5 className="modal-title mb-0">{user.name}'s Selfies</h5>
-                                <small className="text-muted">{selfies.length} potential selfies found</small>
+                                <small className="text-muted">{selfies.length} total captures</small>
                             </div>
                         </div>
 
@@ -110,28 +235,87 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                                         className="btn btn-sm btn-outline-secondary"
                                         onClick={toggleSelectAll}
                                     >
-                                        {selectedIds.length === selfies.length ? 'Deselect All' : 'Select All'}
+                                        {selectedIds.length === filteredSelfies.length && filteredSelfies.length > 0 ? 'Deselect All' : 'Select All'} ({selectedIds.length}/{filteredSelfies.length})
                                     </button>
                                     {selectedIds.length > 0 && (
-                                        <button
-                                            className="btn btn-sm btn-danger"
-                                            onClick={() => {
-                                                const paths = selfies
-                                                    .filter(s => selectedIds.includes(s._id))
-                                                    .map(s => s.relativePath);
-                                                handleDelete(paths);
-                                            }}
-                                            disabled={deleting}
-                                        >
-                                            <i className="fas fa-trash-alt me-1"></i>
-                                            Delete ({selectedIds.length})
-                                        </button>
+                                        <div className="d-flex gap-2">
+                                            <button
+                                                className="btn btn-sm btn-outline-info"
+                                                onClick={() => handleExport(selectedIds)}
+                                            >
+                                                <i className="fas fa-download me-1"></i>
+                                                Export ({selectedIds.length})
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-danger"
+                                                onClick={() => {
+                                                    handleDelete(selectedIds);
+                                                }}
+                                                disabled={deleting}
+                                            >
+                                                <i className="fas fa-trash-alt me-1"></i>
+                                                Delete ({selectedIds.length})
+                                            </button>
+                                        </div>
                                     )}
                                 </>
                             )}
                             <button type="button" className="btn-close" onClick={onClose}></button>
                         </div>
                     </div>
+
+                    {/* TABS */}
+                    <div className="px-3 pt-3 border-bottom">
+                        <ul className="nav nav-tabs border-0">
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeTab === 'all' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('all')}
+                                >
+                                    All
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeTab === 'courses' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('courses')}
+                                >
+                                    Courses
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link ${activeTab === 'free_materials' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('free_materials')}
+                                >
+                                    Free Materials
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {activeTab === 'free_materials' && (
+                        <div className="px-3 pt-2 bg-light border-bottom">
+                            <ul className="nav nav-pills nav-fill bg-white p-1 rounded-pill shadow-sm" style={{ maxWidth: '300px' }}>
+                                <li className="nav-item">
+                                    <button
+                                        className={`nav-link rounded-pill py-1 ${subTab === 'pdf' ? 'active' : ''}`}
+                                        onClick={() => setSubTab('pdf')}
+                                    >
+                                        PDF
+                                    </button>
+                                </li>
+                                <li className="nav-item">
+                                    <button
+                                        className={`nav-link rounded-pill py-1 ${subTab === 'test' ? 'active' : ''}`}
+                                        onClick={() => setSubTab('test')}
+                                    >
+                                        Test
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="modal-body p-4 bg-light">
                         {loading ? (
@@ -140,14 +324,14 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                                     <span className="visually-hidden">Loading...</span>
                                 </div>
                             </div>
-                        ) : selfies.length === 0 ? (
+                        ) : filteredSelfies.length === 0 ? (
                             <div className="text-center p-5">
                                 <i className="fas fa-camera-retro fa-3x text-muted mb-3"></i>
-                                <p className="text-muted">No selfies found for this user.</p>
+                                <p className="text-muted">No selfies found for this view.</p>
                             </div>
                         ) : (
                             <div className="row g-3">
-                                {selfies.map((selfie) => (
+                                {filteredSelfies.map((selfie) => (
                                     <div key={selfie._id} className="col-12 col-sm-6 col-md-4 col-lg-3">
                                         <div className={`card h-100 shadow-sm border-0 position-relative group-hover ${selectedIds.includes(selfie._id) ? 'border border-primary' : ''}`}>
                                             {/* Checkbox for Selection */}
@@ -170,7 +354,7 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                                                     style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleDelete([selfie.relativePath]);
+                                                        handleDelete([selfie._id]);
                                                     }}
                                                     title="Delete this image"
                                                 >
@@ -182,15 +366,16 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                                                 className="ratio ratio-4x3 cursor-pointer overflow-hidden rounded-top"
                                                 onClick={() => setSelectedImage(selfie)}
                                             >
-                                                <SelfieImage src={selfie.imageUrl} />
+                                                <SelfieImage src={getSecureUrl(selfie.imageUrl)} />
                                             </div>
                                             <div className="card-body p-2" onClick={() => toggleSelect(selfie._id)} style={{ cursor: 'pointer' }}>
                                                 <div className="d-flex justify-content-between align-items-start small">
                                                     <div>
                                                         <span className={`badge ${selfie.captureType === 'enrollment' ? 'bg-success' :
-                                                            selfie.captureType === 'pdf_periodic' ? 'bg-info' : 'bg-warning'
+                                                            selfie.captureType?.startsWith('test_') ? 'bg-danger' :
+                                                                selfie.captureType === 'pdf_periodic' ? 'bg-info' : 'bg-warning'
                                                             } mb-1`}>
-                                                            {selfie.captureType?.replace('_', ' ')}
+                                                            {selfie.captureType?.startsWith('test_') ? 'Test' : selfie.captureType?.replace('_', ' ')}
                                                         </span>
                                                         <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                                                             {new Date(selfie.createdAt).toLocaleDateString()}
@@ -199,11 +384,6 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                                                             {new Date(selfie.createdAt).toLocaleTimeString()}
                                                         </div>
                                                     </div>
-                                                    {selfie.courseName && (
-                                                        <span className="badge bg-light text-dark text-truncate" style={{ maxWidth: '80px' }} title={selfie.courseName}>
-                                                            {selfie.courseName}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -227,7 +407,7 @@ const UserSelfiesModal = ({ user, show, onClose }) => {
                         onClick={() => setSelectedImage(null)}
                     ></button>
                     <img
-                        src={selectedImage.imageUrl}
+                        src={getSecureUrl(selectedImage.imageUrl)}
                         alt="Full View"
                         style={{ maxHeight: '90vh', maxWidth: '90vw', objectFit: 'contain' }}
                         className="rounded shadow-lg"

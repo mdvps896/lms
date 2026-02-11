@@ -15,16 +15,21 @@ const selfieCaptureSchema = new mongoose.Schema({
     },
     lectureId: {
         type: String,
-        required: true
+        required: false // Made optional for exam selfies
     },
     sessionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'PDFViewSession',
         index: true
     },
+    attemptId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ExamAttempt',
+        index: true
+    },
     captureType: {
         type: String,
-        enum: ['enrollment', 'pdf_initial', 'pdf_periodic'],
+        enum: ['enrollment', 'pdf_initial', 'pdf_periodic', 'test_initial', 'test_periodic', 'exam_initial', 'exam_periodic'],
         required: true
     },
     imagePath: {
@@ -54,6 +59,7 @@ const selfieCaptureSchema = new mongoose.Schema({
 // Indexes for faster queries
 selfieCaptureSchema.index({ user: 1, course: 1, createdAt: -1 });
 selfieCaptureSchema.index({ sessionId: 1, createdAt: 1 });
+selfieCaptureSchema.index({ attemptId: 1, createdAt: 1 });
 selfieCaptureSchema.index({ user: 1, captureType: 1 });
 
 const SelfieCapture = mongoose.models.SelfieCapture || mongoose.model('SelfieCapture', selfieCaptureSchema);

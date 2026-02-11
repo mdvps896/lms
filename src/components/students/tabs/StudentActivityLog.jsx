@@ -5,10 +5,11 @@ import SelfieViewerModal from '../SelfieViewerModal'
 const StudentActivityLog = ({ activityType, data, formatDate }) => {
     // activityType: 'pdf' or 'course'
     const isPdf = activityType === 'pdf';
-    const title = isPdf ? 'PDF Reading History' : 'Course Viewing History';
-    const Icon = isPdf ? FiFileText : FiBookOpen;
-    const color = isPdf ? 'danger' : 'success';
-    const emptyText = isPdf ? 'No PDF views recorded yet' : 'No Course views recorded yet';
+    const isFree = activityType === 'free_material';
+    const title = isFree ? 'Free Material History' : isPdf ? 'PDF Reading History' : 'Course Viewing History';
+    const Icon = isFree ? FiFileText : isPdf ? FiFileText : FiBookOpen;
+    const color = isFree ? 'primary' : isPdf ? 'danger' : 'success';
+    const emptyText = isFree ? 'No free material sessions recorded yet' : isPdf ? 'No PDF views recorded yet' : 'No Course views recorded yet';
 
     const [expandedId, setExpandedId] = useState(null);
     const [selfieModal, setSelfieModal] = useState({ show: false, sessionId: null });
@@ -105,7 +106,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                 <th className="text-muted small text-uppercase">Duration</th>
                                                                 <th className="text-muted small text-uppercase">Time (Start - End)</th>
                                                                 <th className="text-muted small text-uppercase">Location</th>
-                                                                {isPdf && <th className="text-end pe-5 text-muted small text-uppercase">Actions</th>}
+                                                                {(isPdf || isFree) && <th className="text-end pe-5 text-muted small text-uppercase">Actions</th>}
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -156,7 +157,7 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                                                                             <span className="text-muted fs-11">Not Available</span>
                                                                         )}
                                                                     </td>
-                                                                    {isPdf && (
+                                                                    {(isPdf || isFree) && (
                                                                         <td className="text-end pe-5">
                                                                             <button
                                                                                 className="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-2"

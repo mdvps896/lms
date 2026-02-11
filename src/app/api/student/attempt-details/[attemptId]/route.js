@@ -63,7 +63,6 @@ export async function GET(request, { params }) {
                     questionGroup: { $in: exam.questionGroups },
                     status: 'active'
                 }).lean();
-                console.log(`DEBUG: Found ${allQuestions.length} questions by groups for attempt ${attemptId}`);
             } catch (qError) {
                 console.error('Error fetching questions by groups:', qError);
             }
@@ -76,7 +75,6 @@ export async function GET(request, { params }) {
                     subject: { $in: exam.subjects },
                     status: 'active'
                 }).lean();
-                console.log(`DEBUG: Found ${allQuestions.length} questions by subjects (fallback) for attempt ${attemptId}`);
             } catch (qError) {
                 console.error('Error fetching questions by subjects:', qError);
             }

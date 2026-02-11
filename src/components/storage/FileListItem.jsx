@@ -4,7 +4,7 @@ import React from 'react'
 import Swal from 'sweetalert2'
 import { Eye, Copy, Trash2, Image as ImageIcon, Video, Music, FileText, File } from 'feather-icons-react'
 
-const FileListItem = ({ file, onDelete, onRefresh }) => {
+const FileListItem = ({ file, onDelete, onRefresh, isSelected, onSelect }) => {
 
     const getFileIcon = (type) => {
         switch (type) {
@@ -42,12 +42,12 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
     }
 
     const getSecureUrl = (filePath) => {
-        // Return the URL as-is
-        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-            return filePath
-        }
-        // Ensure path starts with /
-        const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath
+        if (!filePath) return ''
+        // Ensure path starts with / only if it's NOT an external URL
+        const normalizedPath = (filePath.startsWith('http://') || filePath.startsWith('https://'))
+            ? filePath
+            : (filePath.startsWith('/') ? filePath : '/' + filePath)
+
         return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`
     }
 
@@ -106,7 +106,18 @@ const FileListItem = ({ file, onDelete, onRefresh }) => {
     const IconComponent = getFileIcon(file.type)
 
     return (
-        <tr className="file-list-item">
+        <tr className={`file-list-item ${isSelected ? 'table-primary' : ''}`}>
+            <td>
+                <div className="form-check p-0 d-flex justify-content-center">
+                    <input
+                        className="form-check-input ms-0"
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={onSelect}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            </td>
             <td>
                 <IconComponent size={20} color="#6c757d" />
             </td>

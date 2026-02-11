@@ -79,28 +79,21 @@ export async function POST(request) {
         const fileExtension = selfieFile.name.split('.').pop() || 'jpg';
         const fileName = `${captureType}_${timestamp}.${fileExtension}`;
 
-        // CHECK IF FREE MATERIAL OR EXAM ATTEMPT
+        // CHECK IF FREE MATERIAL
         const isFreeMaterial = courseId === 'free_material';
-        const isExamAttempt = attemptId && attemptId !== 'null' && attemptId !== '';
 
-        if (isFreeMaterial || isExamAttempt) {
-            // Upload to Cloudinary (for free materials and exam attempts)
+        if (isFreeMaterial) {
+            // Upload to Cloudinary
             const bytes = await selfieFile.arrayBuffer();
             const buffer = Buffer.from(bytes);
-
-            // Determine folder based on type
-            const folder = isExamAttempt
-                ? `exam-selfies/${attemptId}`
-                : `free_materials/selfies/${userIdStr}`;
 
             // Use simple upload_stream
             const uploadResult = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
-                        folder: folder,
+                        folder: `free_materials/selfies/${userIdStr}`,
                         public_id: `${captureType}_${timestamp}`,
-                        resource_type: 'image',
-                        format: 'jpg'
+                        resource_type: 'image'
                     },
                     (error, result) => {
                         if (error) reject(error);
@@ -192,6 +185,7 @@ export async function POST(request) {
                 isFreeMaterial: isFreeMaterial // Store flag in metadata if helpful
             }
         });
+
         // Update PDFViewSession or ExamAttempt if sessionId/attemptId provided
         const idToUpdate = attemptId || sessionId;
         if (idToUpdate && mongoose.Types.ObjectId.isValid(idToUpdate)) {
@@ -209,35 +203,21 @@ export async function POST(request) {
                     // If not PDF, try ExamAttempt
                     const examAttempt = await ExamAttempt.findById(idToUpdate);
                     if (examAttempt) {
-                        // Initialize verification structure if it doesn't exist
-                        if (!examAttempt.verification) {
-                            examAttempt.verification = {};
-                        }
-                        if (!examAttempt.verification.faceVerification) {
-                            examAttempt.verification.faceVerification = {
-                                enabled: false,
-                                verified: false,
-                                periodicChecks: []
-                            };
-                        }
-                        if (!examAttempt.verification.faceVerification.periodicChecks) {
-                            examAttempt.verification.faceVerification.periodicChecks = [];
-                        }
-
-                        // Push the selfie data
-                        examAttempt.verification.faceVerification.periodicChecks.push({
-                            capturedAt: new Date(),
-                            selfieImage: relativePath,
-                            verificationScore: 100 // Placeholder
-                        });
-
-                        await examAttempt.save();
+                        // Check if it has verification structure
+                        if (examAttempt.verification?.faceVerification) {
+                            examAttempt.verification.faceVerification.periodicChecks.push({
+                                capturedAt: new Date(),
+                                selfieImage: relativePath,
+                                verificationScore: 100 // Placeholder
+                            });
+                            await examAttempt.save();
                         } else {
                         }
-                } else {
+                    } else {
                     }
+                } else {
+                }
             } catch (sessionErr) {
-                console.error(`❌ [SELFIE UPLOAD] Error updating Session/Attempt ${idToUpdate}:`, sessionErr);
             }
         } else {
         }
@@ -254,7 +234,6 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('Error uploading selfie:', error);
         return NextResponse.json(
             { success: false, message: 'Failed to upload selfie', error: error.message },
             { status: 500 }

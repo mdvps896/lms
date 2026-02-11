@@ -165,6 +165,15 @@ const examAttemptSchema = new mongoose.Schema({
     userAgent: {
         type: String
     },
+    latitude: {
+        type: Number
+    },
+    longitude: {
+        type: Number
+    },
+    locationName: {
+        type: String
+    },
     browserInfo: {
         name: String,
         version: String,
@@ -190,6 +199,10 @@ const examAttemptSchema = new mongoose.Schema({
         default: 'published'
     },
     hasSubjectiveQuestions: {
+        type: Boolean,
+        default: false
+    },
+    isFreeMaterial: {
         type: Boolean,
         default: false
     }

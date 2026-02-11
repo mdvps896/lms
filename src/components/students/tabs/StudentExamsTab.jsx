@@ -22,8 +22,8 @@ const StudentExamsTab = ({ details, formatDate }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {details.attempts && details.attempts.length > 0 ? (
-                                    details.attempts.map((attempt) => (
+                                {details.attempts && details.attempts.filter(a => !a.isFreeMaterial).length > 0 ? (
+                                    details.attempts.filter(a => !a.isFreeMaterial).map((attempt) => (
                                         <tr key={attempt.id}>
                                             <td className="ps-4 fw-medium text-dark">
                                                 {attempt.examTitle}

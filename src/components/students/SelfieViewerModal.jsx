@@ -107,9 +107,13 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
 
                                             {/* Badge for capture type */}
                                             <div className="position-absolute top-0 start-0 m-2">
-                                                <span className={`badge ${selfie.captureType === 'pdf_initial' ? 'bg-success' : 'bg-primary'
+                                                <span className={`badge ${selfie.captureType === 'pdf_initial' || selfie.captureType === 'exam_initial'
+                                                    ? 'bg-success'
+                                                    : 'bg-primary'
                                                     } fs-10 opacity-75`}>
-                                                    {selfie.captureType === 'pdf_initial' ? 'Entry' : 'Middle'}
+                                                    {selfie.captureType === 'pdf_initial' ? 'Entry' :
+                                                        selfie.captureType === 'exam_initial' ? 'Initial' :
+                                                            selfie.captureType === 'exam_periodic' ? 'Periodic' : 'Middle'}
                                                 </span>
                                                 {selfie.metadata?.locationName && (
                                                     <span className="badge bg-dark fs-10 opacity-75 ms-1" title={selfie.metadata.locationName}>
@@ -179,8 +183,15 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                             style={{ maxHeight: '85vh', maxWidth: '90vw' }}
                         />
                         <div className="mt-4 text-white">
-                            <h5 className="mb-1">{selectedImage.captureType === 'pdf_initial' ? 'Initial Attendance' : 'Periodic Check'}</h5>
-                            <p className="opacity-75 mb-2">Captured on Page {selectedImage.currentPage} at {new Date(selectedImage.createdAt).toLocaleString()}</p>
+                            <h5 className="mb-1">
+                                {selectedImage.captureType === 'pdf_initial' ? 'Initial Attendance' :
+                                    selectedImage.captureType === 'exam_initial' ? 'Initial Exam Selfie' :
+                                        selectedImage.captureType === 'exam_periodic' ? 'Periodic Exam Check' : 'Periodic Check'}
+                            </h5>
+                            <p className="opacity-75 mb-2">
+                                {selectedImage.currentPage ? `Captured on Page ${selectedImage.currentPage} at ` : 'Captured at '}
+                                {new Date(selectedImage.createdAt).toLocaleString()}
+                            </p>
                             {selectedImage.metadata?.locationName && (
                                 <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
                                     <FiMapPin className="text-success" />
