@@ -178,9 +178,13 @@ const defaultSettings = {
     }
 };
 
+import { getAuthenticatedUser } from '@/utils/apiAuth';
+
 export async function GET(request) {
-    const authError = await requireAdmin(request);
-    if (authError) return authError;
+    // Attempt to authenticate, but don't block if not logged in
+    const user = await getAuthenticatedUser(request);
+    const isAdmin = user && user.role === 'admin';
+
     try {
         await connectDB();
         const db = require('mongoose').connection.db;
@@ -192,10 +196,57 @@ export async function GET(request) {
             settings = defaultSettings;
         }
 
+        // Return full settings for Admin
+        if (isAdmin) {
+            return NextResponse.json({
+                success: true,
+                data: settings
+            });
+        }
+
+        // Return sanitized/public settings for everyone else (Public/Students)
+        const publicSettings = {
+            general: settings.general,
+            authPages: settings.authPages,
+            themeDesign: settings.themeDesign,
+            resultDisplay: settings.resultDisplay,
+            certificateSettings: settings.certificateSettings,
+            rollNumberSettings: settings.rollNumberSettings,
+            pdfSelfieSettings: settings.pdfSelfieSettings,
+            whatsappSupport: settings.whatsappSupport,
+            socialMediaLinks: settings.socialMediaLinks,
+            // Expose only safe integration keys (e.g., Client IDs, Site Keys)
+            integrations: {
+                googleOAuth: {
+                    enabled: settings.integrations?.googleOAuth?.enabled,
+                    clientId: settings.integrations?.googleOAuth?.clientId
+                },
+                recaptcha: {
+                    enabled: settings.integrations?.recaptcha?.enabled,
+                    siteKey: settings.integrations?.recaptcha?.siteKey
+                },
+                razorpay: {
+                    enabled: settings.integrations?.razorpay?.enabled,
+                    keyId: settings.integrations?.razorpay?.keyId,
+                    currency: settings.integrations?.razorpay?.currency
+                },
+                phonepe: {
+                    enabled: settings.integrations?.phonepe?.enabled,
+                    env: settings.integrations?.phonepe?.env
+                },
+                offlinePayments: {
+                    enabled: settings.integrations?.offlinePayments?.enabled,
+                    message: settings.integrations?.offlinePayments?.message
+                }
+            },
+            authSettings: settings.authSettings || {}
+        };
+
         return NextResponse.json({
             success: true,
-            data: settings
+            data: publicSettings
         });
+
     } catch (error) {
         console.error('Error fetching settings:', error);
         return NextResponse.json({

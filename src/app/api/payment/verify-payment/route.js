@@ -263,7 +263,7 @@ export async function POST(request) {
             course: courseId,
             razorpayOrderId: razorpay_order_id,
             razorpayPaymentId: razorpay_payment_id,
-            amount: amount,
+            amount: amount !== undefined ? amount : (course.price || 0),
             originalPrice: course.price || 0,
             status: 'success'
         });

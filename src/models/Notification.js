@@ -11,12 +11,16 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'course_purchase', 'general'],
+        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'course_purchase', 'general', 'new_user_registration'],
         required: true,
     },
+    targetRole: { // 'admin', 'student' etc. - useful for broadcasting
+        type: String,
+        default: null
+    },
     data: {
-        type: mongoose.Schema.Types.Map,
-        of: String
+        type: mongoose.Schema.Types.Mixed, // Changed from Map to Mixed to support any object structure
+        default: {}
     },
     recipients: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

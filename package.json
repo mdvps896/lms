@@ -27,6 +27,7 @@
     "apexcharts": "^4.3.0",
     "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.3",
+    "bson": "^7.2.0",
     "cloudinary": "^2.8.0",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",

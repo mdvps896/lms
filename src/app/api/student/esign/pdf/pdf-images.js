@@ -1,50 +1,67 @@
+import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-// Helper to handle image rendering (now async)
+// Helper to handle image rendering (now async with compression)
 export const drawImage = async (doc, label, imagePath, x, y, maxW, fixedH, colors, options = {}) => {
     let imgData = null;
     let format = 'JPEG';
     let finalW = maxW;
     let finalH = fixedH;
 
-    // 1. Fetch/Read Image First if it exists
     if (imagePath) {
         try {
-            let cleanPath = imagePath;
-            if (cleanPath.startsWith('/api/storage/file/')) {
-                cleanPath = cleanPath.replace('/api/storage/file/', '');
-            } else if (cleanPath.startsWith('/')) {
-                cleanPath = cleanPath.substring(1);
-            }
-            cleanPath = decodeURIComponent(cleanPath);
+            let buffer = null;
 
-            const absolutePath = path.join(process.cwd(), 'public', cleanPath);
-
-            if (fs.existsSync(absolutePath)) {
-                const imgBuffer = fs.readFileSync(absolutePath);
-                imgData = imgBuffer.toString('base64');
-                const ext = path.extname(absolutePath).substring(1).toUpperCase();
-                if (ext === 'PNG') format = 'PNG';
-                if (ext === 'JPG' || ext === 'JPEG') format = 'JPEG';
-                if (ext === 'WEBP') format = 'WEBP';
+            // 1. Get Buffer from Base64 or File or URL
+            if (imagePath.startsWith('data:image')) {
+                buffer = Buffer.from(imagePath.split(',')[1], 'base64');
             } else {
-                try {
-                    let remoteUrl = imagePath.startsWith('http')
+                let cleanPath = imagePath;
+                if (cleanPath.startsWith('/api/storage/file/')) {
+                    cleanPath = cleanPath.replace('/api/storage/file/', '');
+                } else if (cleanPath.startsWith('/')) {
+                    cleanPath = cleanPath.substring(1);
+                }
+                cleanPath = decodeURIComponent(cleanPath);
+
+                const absolutePath = path.join(process.cwd(), 'public', cleanPath);
+
+                if (fs.existsSync(absolutePath)) {
+                    buffer = fs.readFileSync(absolutePath);
+                } else {
+                    const remoteUrl = imagePath.startsWith('http')
                         ? imagePath
                         : `https://app.mdconsultancy.in/api/storage/file/${cleanPath}`;
 
-                    const res = await fetch(remoteUrl);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                    const res = await fetch(remoteUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
                     if (res.ok) {
                         const arrayBuffer = await res.arrayBuffer();
-                        const buffer = Buffer.from(arrayBuffer);
-                        imgData = buffer.toString('base64');
-                        const contentType = res.headers.get('content-type');
-                        if (contentType && contentType.includes('png')) format = 'PNG';
-                        else if (contentType && contentType.includes('webp')) format = 'WEBP';
+                        buffer = Buffer.from(arrayBuffer);
                     }
-                } catch (remoteErr) {
-                    // Silently fail
+                }
+            }
+
+            // 2. Compress & Resize using Sharp
+            if (buffer) {
+                try {
+                    // Resize to a maximum width of 1000px and convert to JPEG with 80% quality
+                    // This DRASTICALLY reduces file size while maintaining clarity for a PDF
+                    const compressedBuffer = await sharp(buffer)
+                        .resize({ width: 1000, withoutEnlargement: true })
+                        .jpeg({ quality: 80 })
+                        .toBuffer();
+
+                    imgData = compressedBuffer.toString('base64');
+                    format = 'JPEG';
+                } catch (sharpErr) {
+                    console.error("Sharp compression failed, using raw buffer:", sharpErr);
+                    imgData = buffer.toString('base64');
                 }
             }
 
@@ -72,7 +89,7 @@ export const drawImage = async (doc, label, imagePath, x, y, maxW, fixedH, color
 
     doc.setDrawColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
     doc.setLineWidth(0.1);
-    doc.rect(x, y, finalW, finalH); // Draw border with final calculated width
+    doc.rect(x, y, finalW, finalH);
 
     if (!imgData) {
         doc.setFont('helvetica', 'italic');
@@ -82,5 +99,5 @@ export const drawImage = async (doc, label, imagePath, x, y, maxW, fixedH, color
         doc.addImage(imgData, format, x + 0.5, y + 0.5, finalW - 1, finalH - 1);
     }
 
-    return finalW; // Return final width for potential repositioning of other elements
+    return finalW;
 };

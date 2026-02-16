@@ -6,7 +6,7 @@ import connectDB from './mongodb';
  * Generic email sending utility
  * Fetches SMTP settings from the database
  */
-export const sendEmail = async ({ to, subject, html, text }) => {
+export const sendEmail = async ({ to, subject, html, text, attachments }) => {
     try {
         await connectDB();
 
@@ -47,7 +47,10 @@ export const sendEmail = async ({ to, subject, html, text }) => {
             },
             tls: {
                 rejectUnauthorized: false
-            }
+            },
+            connectionTimeout: 10000, // 10s
+            greetingTimeout: 10000,    // 10s
+            socketTimeout: 20000      // 20s
         });
 
         // Send mail
@@ -57,6 +60,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
             subject,
             html,
             text: text || html.replace(/<[^>]*>?/gm, ''), // Simple html to text fallback
+            attachments: attachments || []
         });
 
         return true;

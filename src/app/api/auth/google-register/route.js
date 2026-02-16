@@ -92,6 +92,16 @@ export async function POST(request) {
 
         }
 
+        if (isNewUser) {
+            // Send Admin Notification (Async - do not block response)
+            try {
+                const { sendAdminNewUserRegistryNotification } = await import('@/lib/sendAdminNotification');
+                sendAdminNewUserRegistryNotification(user);
+            } catch (notifErr) {
+                console.error('Failed to trigger admin notification:', notifErr);
+            }
+        }
+
         // Generate proper JWT Token using auth utility
         const token = await signToken({
             userId: user._id.toString(),

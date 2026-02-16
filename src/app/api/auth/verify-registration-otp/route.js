@@ -100,6 +100,14 @@ export async function POST(request) {
             role: user.role
         });
 
+        // Send Admin Notification (Async - do not block response)
+        try {
+            const { sendAdminNewUserRegistryNotification } = await import('@/lib/sendAdminNotification');
+            sendAdminNewUserRegistryNotification(user);
+        } catch (notifErr) {
+            console.error('Failed to trigger admin notification:', notifErr);
+        }
+
         return NextResponse.json({
             success: true,
             message: 'Email verified successfully! Registration complete.',

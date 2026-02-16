@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FiCheckCircle, FiClock, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiDownload, FiAlertCircle, FiMail } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import SendESignEmailModal from '../modals/SendESignEmailModal';
 
 const StudentESignTab = ({ studentId }) => {
     const [statusData, setStatusData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [approving, setApproving] = useState(false);
+    const [showEmailModal, setShowEmailModal] = useState(false);
 
     useEffect(() => {
         fetchStatus();
@@ -152,8 +154,15 @@ const StudentESignTab = ({ studentId }) => {
                         rel="noopener noreferrer"
                         className="btn btn-outline-primary d-flex align-items-center gap-2"
                     >
-                        <FiDownload /> Download Submitted PDF
+                        <FiDownload /> DOWNLOAD SUBMITTED PDF
                     </a>
+
+                    <button
+                        onClick={() => setShowEmailModal(true)}
+                        className="btn btn-primary d-flex align-items-center gap-2"
+                    >
+                        <FiMail /> SEND MAIL
+                    </button>
 
                     {!isApproved && !isRejected && (
                         <>
@@ -188,6 +197,14 @@ const StudentESignTab = ({ studentId }) => {
                     </div>
                 )}
             </div>
+
+            <SendESignEmailModal
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                studentId={studentId}
+                studentEmail={statusData.data?.personalDetails?.email}
+                studentName={statusData.data?.personalDetails?.fullName}
+            />
         </div>
     );
 };

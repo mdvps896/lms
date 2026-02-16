@@ -101,7 +101,7 @@ export class PDFDrawer {
             if (i < splitValue.length - 1) this.yPos += 6;
         }
 
-        this.yPos += 8;
+        this.yPos += 12;
     }
 
     drawSelectedItem(item) {
@@ -134,15 +134,19 @@ export class PDFDrawer {
             if (i < splitItem.length - 1) this.yPos += 6;
         }
 
-        this.yPos += 7;
+        this.yPos += 10;
     }
 
-    drawWrappedText(text, indent = 0) {
+    drawWrappedText(text, indent = 0, options = {}) {
         this.checkPageBreak(10);
 
-        this.doc.setFontSize(10);
-        this.doc.setTextColor(this.colors.textMain[0], this.colors.textMain[1], this.colors.textMain[2]);
-        this.doc.setFont('helvetica', 'normal');
+        const fontSize = options.fontSize || 10;
+        const fontStyle = options.fontStyle || 'normal';
+        const textColor = options.textColor || this.colors.textMain;
+
+        this.doc.setFontSize(fontSize);
+        this.doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        this.doc.setFont('helvetica', fontStyle);
 
         const lines = this.doc.splitTextToSize(text, this.pageWidth - this.margin - this.margin - indent);
 
@@ -152,7 +156,7 @@ export class PDFDrawer {
             if (i < lines.length - 1) this.yPos += 5;
         }
 
-        this.yPos += 8;
+        this.yPos += 12;
     }
 
     // New helper: Get current layout state
@@ -168,5 +172,66 @@ export class PDFDrawer {
     // New helper: Update yPos manually if needed (e.g. after images)
     setY(y) {
         this.yPos = y;
+    }
+
+    drawKeyValueTable(tableData) {
+        this.checkPageBreak(20);
+
+        const startX = this.margin;
+        const col1Width = 65; // Label column width
+        const col2Width = this.pageWidth - (this.margin * 2) - col1Width;
+        const padding = 3;
+        const lineHeight = 5;
+
+        // Table Header Line (Optional, maybe just start drawing rows)
+        this.doc.setDrawColor(200, 200, 200);
+        this.doc.setLineWidth(0.1);
+
+        tableData.forEach((row, index) => {
+            const label = row.label || '';
+            const value = (row.value !== undefined && row.value !== null) ? String(row.value) : 'N/A';
+
+            this.doc.setFontSize(10);
+
+            // Calculate height based on wrapped text
+            this.doc.setFont('helvetica', 'bold');
+            const labelLines = this.doc.splitTextToSize(label, col1Width - (padding * 2));
+
+            this.doc.setFont('helvetica', 'normal'); // Value font
+            const valueLines = this.doc.splitTextToSize(value, col2Width - (padding * 2));
+
+            const maxLines = Math.max(labelLines.length, valueLines.length);
+            const rowHeight = (maxLines * lineHeight) + (padding * 3); // Extra padding
+
+            // Check if row fits, else new page
+            if (this.yPos + rowHeight > this.pageHeight - 20) {
+                this.doc.addPage();
+                this.yPos = 25;
+            }
+
+            // Draw Background for alternate rows (optional)
+            // if (index % 2 === 0) {
+            //     this.doc.setFillColor(245, 245, 245);
+            //     this.doc.rect(startX, this.yPos, col1Width + col2Width, rowHeight, 'F');
+            // }
+
+            // Draw Cell Borders
+            this.doc.rect(startX, this.yPos, col1Width, rowHeight); // Label Box
+            this.doc.rect(startX + col1Width, this.yPos, col2Width, rowHeight); // Value Box
+
+            // Draw Label Content
+            this.doc.setFont('helvetica', 'bold');
+            this.doc.setTextColor(this.colors.secondary[0], this.colors.secondary[1], this.colors.secondary[2]);
+            this.doc.text(labelLines, startX + padding, this.yPos + padding + lineHeight - 1);
+
+            // Draw Value Content
+            this.doc.setFont('helvetica', 'normal');
+            this.doc.setTextColor(this.colors.textMain[0], this.colors.textMain[1], this.colors.textMain[2]);
+            this.doc.text(valueLines, startX + col1Width + padding, this.yPos + padding + lineHeight - 1);
+
+            this.yPos += rowHeight;
+        });
+
+        this.yPos += 15; // Space after table
     }
 }
