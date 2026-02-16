@@ -43,7 +43,6 @@ export class PDFDrawer {
                 this.doc.text(title || 'SERVICE APPLICATION', this.pageWidth / 2, 25, { align: 'center' });
             }
         } catch (e) {
-            console.error('Header image error:', e);
             this.doc.setFillColor(this.colors.secondary[0], this.colors.secondary[1], this.colors.secondary[2]);
             this.doc.rect(0, 0, this.pageWidth, 40, 'F');
             this.doc.text(title || 'SERVICE APPLICATION', this.pageWidth / 2, 25, { align: 'center' });
@@ -82,10 +81,8 @@ export class PDFDrawer {
     }
 
     drawField(label, value) {
-        if (this.yPos > this.pageHeight - 20) {
-            this.doc.addPage();
-            this.yPos = 25;
-        }
+        this.checkPageBreak(15);
+
         this.doc.setFontSize(10);
         this.doc.setTextColor(this.colors.textLight[0], this.colors.textLight[1], this.colors.textLight[2]);
         this.doc.setFont('helvetica', 'bold');
@@ -96,52 +93,66 @@ export class PDFDrawer {
         this.doc.setFontSize(11);
 
         const splitValue = this.doc.splitTextToSize(value || 'N/A', this.pageWidth - this.margin - 75);
-        this.doc.text(splitValue, this.margin + 65, this.yPos);
 
-        this.yPos += (splitValue.length * 6) + 3;
+        // Draw line by line to handle page breaks for very long fields
+        for (let i = 0; i < splitValue.length; i++) {
+            this.checkPageBreak(8);
+            this.doc.text(splitValue[i], this.margin + 65, this.yPos);
+            if (i < splitValue.length - 1) this.yPos += 6;
+        }
+
+        this.yPos += 8;
     }
 
     drawSelectedItem(item) {
-        if (this.yPos > this.pageHeight - 15) {
-            this.doc.addPage();
-            this.yPos = 25;
-        }
+        this.checkPageBreak(12);
 
         // Draw Green Checkbox
         const boxSize = 4;
         const x = this.margin + 5;
-        const y = this.yPos - boxSize + 1; // Align box with text baseline approx
+        const y = this.yPos - boxSize + 1;
 
         this.doc.setFillColor(this.colors.primary[0], this.colors.primary[1], this.colors.primary[2]);
-        this.doc.rect(x, y, boxSize, boxSize, 'F'); // Filled green square
+        this.doc.rect(x, y, boxSize, boxSize, 'F');
 
         // Draw White Checkmark
         this.doc.setDrawColor(255, 255, 255);
         this.doc.setLineWidth(0.4);
-        this.doc.line(x + 0.8, y + 2, x + 1.6, y + 2.8); // Short leg
-        this.doc.line(x + 1.6, y + 2.8, x + 3.2, y + 0.8); // Long leg
+        this.doc.line(x + 0.8, y + 2, x + 1.6, y + 2.8);
+        this.doc.line(x + 1.6, y + 2.8, x + 3.2, y + 0.8);
 
         // Draw Text
         this.doc.setFontSize(11);
         this.doc.setTextColor(this.colors.textMain[0], this.colors.textMain[1], this.colors.textMain[2]);
         this.doc.setFont('helvetica', 'bold');
 
-        this.doc.text(item, x + boxSize + 3, this.yPos);
+        const splitItem = this.doc.splitTextToSize(item, this.pageWidth - this.margin - boxSize - 15);
+
+        for (let i = 0; i < splitItem.length; i++) {
+            if (i > 0) this.checkPageBreak(8);
+            this.doc.text(splitItem[i], x + boxSize + 3, this.yPos);
+            if (i < splitItem.length - 1) this.yPos += 6;
+        }
+
         this.yPos += 7;
     }
 
     drawWrappedText(text, indent = 0) {
-        if (this.yPos > this.pageHeight - 15) {
-            this.doc.addPage();
-            this.yPos = 25;
-        }
+        this.checkPageBreak(10);
+
         this.doc.setFontSize(10);
         this.doc.setTextColor(this.colors.textMain[0], this.colors.textMain[1], this.colors.textMain[2]);
         this.doc.setFont('helvetica', 'normal');
 
         const lines = this.doc.splitTextToSize(text, this.pageWidth - this.margin - this.margin - indent);
-        this.doc.text(lines, this.margin + indent, this.yPos);
-        this.yPos += (lines.length * 5) + 3;
+
+        for (let i = 0; i < lines.length; i++) {
+            this.checkPageBreak(8);
+            this.doc.text(lines[i], this.margin + indent, this.yPos);
+            if (i < lines.length - 1) this.yPos += 5;
+        }
+
+        this.yPos += 8;
     }
 
     // New helper: Get current layout state

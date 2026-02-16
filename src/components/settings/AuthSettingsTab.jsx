@@ -14,6 +14,9 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
         app: {
             enableRegistration: settings?.authSettings?.app?.enableRegistration ?? true,
             enableMobileOTP: settings?.authSettings?.app?.enableMobileOTP ?? false,
+            smsProvider: settings?.authSettings?.app?.smsProvider ?? 'firebase',
+            twoFactorApiKey: settings?.authSettings?.app?.twoFactorApiKey ?? '',
+            twoFactorTemplateName: settings?.authSettings?.app?.twoFactorTemplateName ?? '',
             allowEmailAuth: settings?.authSettings?.app?.allowEmailAuth ?? true,
             allowGoogleAuth: settings?.authSettings?.app?.allowGoogleAuth ?? true,
             enableForgotPassword: settings?.authSettings?.app?.enableForgotPassword ?? true
@@ -228,14 +231,67 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                         </div>
 
                         {formData.app.enableMobileOTP && (
-                            <div className="alert alert-info mt-3">
-                                <strong>ℹ️ Mobile OTP Flow:</strong>
-                                <ul className="mb-0 mt-2 small">
-                                    <li>Users enter mobile number to receive OTP</li>
-                                    <li>OTP verification automatically logs in existing users or registers new users</li>
-                                    <li>Email and Google login remain available as alternative options</li>
-                                    <li>No password required for mobile OTP users</li>
-                                </ul>
+                            <div className="card bg-light border-0 mb-3">
+                                <div className="card-body">
+                                    <h6 className="fw-bold mb-3">SMS Gateway Configuration</h6>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold">Select SMS Provider</label>
+                                        <select
+                                            className="form-select"
+                                            value={formData.app.smsProvider}
+                                            onChange={(e) => handleChange('app', 'smsProvider', e.target.value)}
+                                        >
+                                            <option value="firebase">SMS (Firebase - Recommended)</option>
+                                            <option value="2factor">2FA (2Factor.in SMS Gateway)</option>
+                                        </select>
+                                        <div className="form-text">
+                                            {formData.app.smsProvider === 'firebase'
+                                                ? 'Uses Firebase Phone Authentication. Ensure Google Services JSON is updated in the app.'
+                                                : 'Uses 2Factor.in SMS Gateway. Requires an active account and API Key.'}
+                                        </div>
+                                    </div>
+
+                                    {formData.app.smsProvider === '2factor' && (
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label fw-bold">2Factor.in API Key <span className="text-danger">*</span></label>
+                                                <input
+                                                    type="password"
+                                                    className="form-control"
+                                                    placeholder="Enter API Key"
+                                                    value={formData.app.twoFactorApiKey}
+                                                    onChange={(e) => handleChange('app', 'twoFactorApiKey', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label fw-bold">Template Name (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="e.g. MY_OTP_TEMP"
+                                                    value={formData.app.twoFactorTemplateName}
+                                                    onChange={(e) => handleChange('app', 'twoFactorTemplateName', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-12">
+                                                <div className="form-text mt-0">
+                                                    Using 2Factor.in API. If Template Name is left blank, the system will use the default <strong>AUTOGEN</strong> template.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="alert alert-info mt-3 mb-0">
+                                        <strong>ℹ️ Mobile OTP Flow:</strong>
+                                        <ul className="mb-0 mt-2 small">
+                                            <li>Users enter mobile number to receive OTP via {formData.app.smsProvider === 'firebase' ? 'Firebase' : '2Factor.in'}</li>
+                                            <li>OTP verification automatically logs in existing users or registers new users</li>
+                                            <li>Email and Google login remain available as alternative options</li>
+                                            <li>No password required for mobile OTP users</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>

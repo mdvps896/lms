@@ -25,7 +25,7 @@ export async function POST(request) {
 
         // Check if already submitted
         const existing = await ESignSubmission.findOne({ user: userId });
-        if (existing) {
+        if (existing && existing.adminStatus !== 'Rejected') {
             return NextResponse.json({
                 success: false,
                 message: 'You have already submitted the E-Sign form. Multiple submissions are not allowed.'
@@ -35,6 +35,31 @@ export async function POST(request) {
         // Validate mandatory fields (Basic validation)
         if (!signature || !signature.clientName) {
             return NextResponse.json({ success: false, message: 'Digital Signature is required' }, { status: 400 });
+        }
+
+        if (existing && existing.adminStatus === 'Rejected') {
+            // Update existing instead of creating new
+            existing.personalDetails = personalDetails;
+            existing.documents = documents;
+            existing.selections = selections;
+            existing.signature = signature;
+            existing.adminStatus = 'Pending';
+            existing.pdfGenerated = false;
+            await existing.save();
+
+            // Sync to User model (keeping existing logic)
+            if (documents) {
+                const User = (await import('@/models/User')).default;
+                await User.findByIdAndUpdate(userId, {
+                    $set: { 'esign_images': documents }
+                });
+            }
+
+            return NextResponse.json({
+                success: true,
+                message: 'E-Sign form updated successfully',
+                submissionId: existing._id
+            });
         }
 
         // Create new submission

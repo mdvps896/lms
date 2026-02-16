@@ -27,7 +27,8 @@ const FreeMaterialSchema = new mongoose.Schema({
         url: { type: String, required: true },
         publicId: { type: String }, // For Cloudinary
         type: { type: String, default: 'file' }, // 'pdf', 'video', 'image', 'other'
-        size: { type: Number }
+        size: { type: Number },
+        isDownloadable: { type: Boolean, default: false }
     }],
     testId: {
         type: mongoose.Schema.Types.ObjectId,

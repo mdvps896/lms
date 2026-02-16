@@ -18,18 +18,25 @@ export async function POST(request) {
 
         // If firebaseToken is provided, use Firebase verification (optional backward compatibility)
         if (firebaseToken) {
+            // ... (existing firebase logic)
             const verificationResult = await verifyFirebaseToken(firebaseToken);
-            if (!verificationResult.success) {
-                return NextResponse.json(
-                    { success: false, message: 'Invalid Firebase token' },
-                    { status: 401 }
-                );
-            }
+            // ...
             mobile = verificationResult.phoneNumber.replace(/^\+91/, '');
         }
         // Otherwise use 2Factor.in verification
         else if (mobileNumber && otp && sessionId) {
-            const apiKey = process.env.TWOTACTOR_API_KEY;
+            // Fetch settings to get dynamic API key
+            const Settings = require('@/models/Settings').default;
+            const settings = await Settings.findOne();
+            const apiKey = settings?.authSettings?.app?.twoFactorApiKey || process.env.TWOFACTOR_API_KEY;
+
+            if (!apiKey) {
+                return NextResponse.json(
+                    { success: false, message: 'SMS Gateway configuration missing' },
+                    { status: 500 }
+                );
+            }
+
             const verifyUrl = `https://2factor.in/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${otp}`;
 
             try {
@@ -42,7 +49,7 @@ export async function POST(request) {
                         { status: 401 }
                     );
                 }
-                // Verification successful, mobile is already in mobileNumber
+                mobile = mobileNumber; // Ensure mobile is set
             } catch (error) {
                 console.error('2Factor Verification Error:', error);
                 return NextResponse.json(

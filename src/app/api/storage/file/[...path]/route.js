@@ -25,7 +25,8 @@ export async function GET(request, { params }) {
             return new NextResponse('Is a directory', { status: 400 });
         }
 
-        const fileBuffer = fs.readFileSync(fullPath);
+        const fileSize = stat.size;
+        const range = request.headers.get('range');
 
         // Determine content type
         const ext = path.extname(fullPath).toLowerCase();
@@ -48,10 +49,52 @@ export async function GET(request, { params }) {
 
         const contentType = contentTypes[ext] || 'application/octet-stream';
 
-        return new NextResponse(fileBuffer, {
+        // Handle partial content (Video streaming)
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunksize = (end - start) + 1;
+            const fileStream = fs.createReadStream(fullPath, { start, end });
+
+            const webStream = new ReadableStream({
+                start(controller) {
+                    fileStream.on('data', (chunk) => controller.enqueue(chunk));
+                    fileStream.on('end', () => controller.close());
+                    fileStream.on('error', (err) => controller.error(err));
+                },
+                cancel() { fileStream.destroy(); },
+            });
+
+            return new NextResponse(webStream, {
+                status: 206,
+                headers: {
+                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunksize.toString(),
+                    'Content-Type': contentType,
+                    'Access-Control-Allow-Origin': '*',
+                    'Cache-Control': 'public, max-age=3600'
+                }
+            });
+        }
+
+        // Handle full content (Download / Small files)
+        const fileStream = fs.createReadStream(fullPath);
+        const webStream = new ReadableStream({
+            start(controller) {
+                fileStream.on('data', (chunk) => controller.enqueue(chunk));
+                fileStream.on('end', () => controller.close());
+                fileStream.on('error', (err) => controller.error(err));
+            },
+            cancel() { fileStream.destroy(); },
+        });
+
+        return new NextResponse(webStream, {
             headers: {
                 'Content-Type': contentType,
-                'Content-Length': stat.size.toString(),
+                'Content-Length': fileSize.toString(),
+                'Accept-Ranges': 'bytes', // Crucial for players to know range is supported
                 'Cache-Control': 'public, max-age=31536000, immutable'
             }
         });

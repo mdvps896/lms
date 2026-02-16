@@ -1,8 +1,8 @@
 import mongoose from 'mongoose'
 
-if (process.env.NODE_ENV !== 'production') {
-    delete mongoose.models.Category;
-}
+// if (process.env.NODE_ENV !== 'production') {
+//     delete mongoose.models.Category;
+// }
 
 const CategorySchema = new mongoose.Schema({
     name: {

@@ -25,7 +25,7 @@ export async function GET(request) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        const submission = await ESignSubmission.findOne({ user: userId }).select('createdAt adminStatus pdfGenerated');
+        const submission = await ESignSubmission.findOne({ user: userId });
 
         if (submission) {
             return NextResponse.json({
@@ -33,7 +33,8 @@ export async function GET(request) {
                 submitted: true,
                 submissionDate: submission.createdAt,
                 status: submission.adminStatus,
-                pdfGenerated: submission.pdfGenerated
+                pdfGenerated: submission.pdfGenerated,
+                data: submission
             });
         }
 

@@ -46,7 +46,7 @@ export async function GET(request) {
                 userProfile = user.profileImage;
             }
         } catch (err) {
-            console.error('Error fetching user images:', err);
+            // Silently fail
         }
 
         const doc = new jsPDF();
@@ -72,10 +72,11 @@ export async function GET(request) {
 
         // --- Uploaded Documents ---
         const boxW = 75;
-        const boxH = 45;
+        const boxH = 55;
         const gap = 5;
 
-        if (drawer.yPos + 15 + boxH > drawer.pageHeight - 20) {
+        // Check if there's enough room for TITLE + ONE ROW (approx 75 units)
+        if (drawer.yPos + 75 > drawer.pageHeight - 20) {
             doc.addPage();
             drawer.yPos = 25;
         }
@@ -90,15 +91,52 @@ export async function GET(request) {
         await drawImage(doc, 'Passport Front', d.passportFront || userImages.passportFront, startX, currentY, boxW, boxH, drawer.colors);
         await drawImage(doc, 'Passport Back', d.passportBack || userImages.passportBack, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
 
-        // Row 2
-        currentY += boxH + 5;
+        // Row 2 Setup
+        currentY += boxH + 10;
+
+        // Check if Row 2 fits, if not, move to next page
+        if (currentY + boxH + 8 > drawer.pageHeight - 15) {
+            doc.addPage();
+            currentY = 25;
+        }
+
         await drawImage(doc, 'Passport Photo', d.passportPhoto || userImages.passportPhoto, startX, currentY, boxW, boxH, drawer.colors);
 
-        // Selfie Fallback Logic: check d.selfiePhoto -> userImages.selfiePhoto -> userProfile -> d.selfie
+        // Selfie Fallback Logic
         const selfieToUse = d.selfiePhoto || userImages.selfiePhoto || userProfile || d.selfie || userImages.selfie;
-        await drawImage(doc, 'Selfie / Human Check', selfieToUse, startX + boxW + gap, currentY, boxW, boxH, drawer.colors);
+        const selfieX = startX + boxW + gap;
+        const actualSelfieW = await drawImage(doc, 'Selfie / Human Check', selfieToUse, selfieX, currentY, boxW, boxH, drawer.colors, { autoWidth: true });
 
-        drawer.yPos = currentY + boxH + 10;
+        // Add Timestamp below Selfie (at bottom as requested)
+        if (selfieToUse) {
+            try {
+                const sigDate = (submission.signature && submission.signature.date)
+                    ? submission.signature.date
+                    : (submission.updatedAt || new Date());
+                const dateObj = new Date(sigDate);
+
+                if (!isNaN(dateObj.getTime())) {
+                    const pad = (n) => n.toString().padStart(2, '0');
+                    const dStr = `${pad(dateObj.getDate())}/${pad(dateObj.getMonth() + 1)}/${dateObj.getFullYear()}`;
+                    const hh = dateObj.getHours();
+                    const mm = pad(dateObj.getMinutes());
+                    const ampm = hh >= 12 ? 'PM' : 'AM';
+                    const h12 = hh % 12 || 12;
+                    const tStr = `${h12}:${mm} ${ampm}`;
+
+                    doc.setFontSize(8);
+                    doc.setTextColor(drawer.colors.secondary[0], drawer.colors.secondary[1], drawer.colors.secondary[2]);
+                    doc.setFont('helvetica', 'bold');
+                    // Center the text under the ACTUAL width of the selfie
+                    doc.text(`VERIFIED ON: ${dStr} ${tStr}`, selfieX + (actualSelfieW / 2), currentY + boxH + 5, { align: 'center' });
+                    doc.setFont('helvetica', 'normal');
+                }
+            } catch (err) {
+                // Silently fail
+            }
+        }
+
+        drawer.yPos = currentY + boxH + 15; // Space after documents row
 
         // --- Service Selections ---
         drawer.drawSectionTitle('Service Selection Details');
@@ -168,8 +206,10 @@ export async function GET(request) {
         drawer.yPos += 5;
 
         drawer.drawSectionTitle('LEGAL DISCLAIMER (INDIA COMPLIANCE)');
-        drawer.drawWrappedText('MD Consultancy is a private consultancy / coaching & documentation support service provider. We are NOT a government body, NOT a visa issuing authority, and NOT affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
-        drawer.drawWrappedText('All services are provided on the client\'s request and depend on official rules, portal systems, authority verification, and timelines.');
+        drawer.drawWrappedText('MD Consultancy is a private consultancy and documentation support service provider.');
+        drawer.drawWrappedText('We are not a government authority and not affiliated with DHA / DOH / MOH / Prometric / DataFlow / PSV authorities.');
+        drawer.drawWrappedText('All approvals and decisions are subject to official authority rules and verification.');
+        drawer.drawWrappedText('We are not responsible for rejection, delay, government rule changes, or technical portal issues.');
         drawer.yPos += 5;
 
         if (declarations.declarationAccepted || ca.paymentAccordingToWork || ca.thirdPartyFeesSeparate) {
@@ -177,22 +217,27 @@ export async function GET(request) {
 
             if (declarations.declarationAccepted) {
                 doc.setFont('helvetica', 'bold');
-                drawer.drawWrappedText(`I, ${submission.personalDetails?.fullName || '___________________________________________'} (Client Name), confirm that I am voluntarily taking services from MD Consultancy.`);
+                drawer.drawWrappedText(`I, ${submission.personalDetails?.fullName || '___________________________________________'}, confirm that I am voluntarily taking services from MD Consultancy.`);
                 doc.setFont('helvetica', 'normal');
 
                 drawer.drawWrappedText('Terms & Conditions:', 0);
 
                 const terms = [
-                    '1. I have provided true and genuine documents/information to MD Consultancy.',
-                    '2. I understand DHA / Prometric / DataFlow / PSV processes are controlled by official authorities, and outcomes depend on authority verification and my performance.',
-                    '3. MD Consultancy provides professional guidance, coaching, documentation support, and process assistance only.',
-                    '4. I clearly understand that PASS / JOB / VISA is NOT guaranteed by MD Consultancy.',
-                    '5. Any delay or rejection due to authority timelines, wrong/incomplete documents, eligibility issues, technical portal problems, or third-party policies is not the direct responsibility of MD Consultancy.',
-                    '6. I authorize MD Consultancy to submit my information/documents wherever required for official processing, booking, verification, and consultation purposes.',
-                    '7. I understand third-party charges (authority fees, exam fees, visa fees, ticket/courier charges, etc.) are separate and payable by me as per actuals.',
-                    '8. I understand service fees are charged for work done. Once work has started (Booking, DataFlow, documentation, coaching, etc.), fees may be non-refundable as per policy.',
-                    '9. I agree that all communication on WhatsApp / Email will be treated as valid proof of consent and updates.',
-                    '10. MD Consultancy will maintain confidentiality of my documents and will share them only when required for official processing.',
+                    '1. I have provided true and genuine documents and information to MD Consultancy.',
+                    '2. MD Consultancy provides professional guidance, coaching, documentation support, and process assistance only.',
+                    '3. I clearly understand that PASS / JOB / VISA / LICENSE approval is NOT guaranteed by MD Consultancy.',
+                    '4. Authority decisions (DHA / DOH / MOH / Prometric / DataFlow / PSV etc.) are final.',
+                    '5. Any delay or rejection due to authority timelines, rule changes, incomplete documents, or technical issues is not the responsibility of MD Consultancy.',
+                    '6. Third-party charges (exam fees, embassy fees, authority portal fees, ticket charges etc.) are separate and non-refundable.',
+                    '7. Service fees are charged for work done and may be non-refundable once process starts.',
+                    '8. Document Authenticity: All documents submitted by me are genuine. If any document is fake, forged, or misleading, I shall be solely responsible for legal consequences.',
+                    '9. Criminal Liability: MD Consultancy does not create or modify any government document. Any legal issue arising from submitted documents is my responsibility.',
+                    '10. Digital Communication Validity: WhatsApp chats, emails, call recordings, and payment confirmations shall be treated as valid legal proof of consent.',
+                    '11. Chargeback & False Complaint Protection: I agree not to raise false payment disputes or baseless complaints after service initiation. Legal recovery action may be taken.',
+                    '12. Defamation Protection: False allegations or social media defamation against MD Consultancy may result in legal action.',
+                    '13. Jurisdiction Clause: Any dispute shall be subject to Bhavnagar, Gujarat jurisdiction only.',
+                    '14. I authorize MD Consultancy to submit my documents wherever required for official processing, booking, and verification.',
+                    '15. MD Consultancy will maintain confidentiality of my documents and share them only for official processing.',
                 ];
 
                 terms.forEach(term => drawer.drawWrappedText(term, 5));
@@ -214,7 +259,8 @@ export async function GET(request) {
         }
 
         if (declarations.refundPolicy) {
-            drawer.drawSectionTitle('Refund Policy Acknowledgement');
+            drawer.drawSectionTitle('REFUND POLICY (STRICT)');
+            drawer.drawWrappedText('Once any service process has started (Eligibility, DataFlow, Exam Booking, Documentation, Coaching, Visa Process etc.), service fees are non-refundable. Third-party fees are completely non-refundable.');
             if (declarations.refundPolicy.startedNonRefundable) drawer.drawSelectedItem('Understood: Fees non-refundable once work starts.');
             if (declarations.refundPolicy.cancelNoRefund) drawer.drawSelectedItem('Understood: No refund on cancellation.');
             if (declarations.refundPolicy.thirdPartyNonRefundable) drawer.drawSelectedItem('Understood: Third-party fees are non-refundable.');
@@ -258,7 +304,7 @@ export async function GET(request) {
                 doc.addImage(stampBase64, 'JPEG', drawer.pageWidth - 70, drawer.yPos, 45, 45);
             }
         } catch (e) {
-            console.error('Stamp embed error:', e);
+            // Silently fail
         }
 
         doc.setFontSize(11);
@@ -310,7 +356,6 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        console.error('Error generating esign pdf:', error);
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 }

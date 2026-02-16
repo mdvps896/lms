@@ -21,6 +21,8 @@ export async function GET(request) {
             })
             .sort({ createdAt: -1 });
 
+        console.log(`GET /api/free-materials: Found ${materials.length} materials`); // DEBUG LOG
+
         const transformedMaterials = await Promise.all(materials.map(async (material) => {
             const materialObj = material.toObject();
 
@@ -101,9 +103,14 @@ export async function POST(request) {
                             title: file.title || uploadResult.originalName,
                             url: `/api/storage/file${uploadResult.url}`,
                             type: fileType,
-                            size: uploadResult.size
+                            size: uploadResult.size,
+                            isDownloadable: file.isDownloadable || false
                         });
                     } else if (file.url) {
+                        // Ensure type is set for manual URLs
+                        if (!file.type) {
+                            file.type = materialType === 'video' ? 'video' : 'file';
+                        }
                         processedFiles.push(file);
                     }
                 }

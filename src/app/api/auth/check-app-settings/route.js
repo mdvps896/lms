@@ -31,6 +31,7 @@ export async function GET() {
         const appSettings = {
             enableRegistration: settings.authSettings?.app?.enableRegistration ?? true,
             enableMobileOTP: settings.authSettings?.app?.enableMobileOTP ?? false,
+            smsProvider: settings.authSettings?.app?.smsProvider ?? 'firebase',
             allowEmailAuth: settings.authSettings?.app?.allowEmailAuth ?? true,
             allowGoogleAuth: settings.authSettings?.app?.allowGoogleAuth ?? true,
             // Include payment integration settings for mobile app

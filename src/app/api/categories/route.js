@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 // GET - Get all categories
 export async function GET(request) {
     try {
+        console.log('🔹 accessing GET /api/categories - Real DB Mode');
         await connectDB()
 
         const { searchParams } = new URL(request.url)
@@ -33,12 +34,13 @@ export async function GET(request) {
             }
         } else {
             // Student filtering - only show live content
-            // Be more lenient to handle legacy records where fields might be missing
             query.status = { $ne: 'inactive' }
             query.isPublished = { $ne: false }
         }
 
+        console.log('🔹 querying categories with:', query);
         const categories = await Category.find(query).sort({ name: 1 })
+        console.log(`🔹 found ${categories.length} categories`);
 
         return NextResponse.json({
             success: true,
@@ -56,6 +58,7 @@ export async function GET(request) {
 
 // POST - Create new category
 export async function POST(request) {
+    // Only admins/teachers with permission can create
     const authError = await requirePermission(request, 'manage_academic');
     if (authError) return authError;
 

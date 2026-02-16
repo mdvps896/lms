@@ -174,6 +174,9 @@ const settingsSchema = new mongoose.Schema({
         app: {
             enableRegistration: { type: Boolean, default: true },
             enableMobileOTP: { type: Boolean, default: false },
+            smsProvider: { type: String, enum: ['firebase', '2factor'], default: 'firebase' }, // Added dynamic provider
+            twoFactorApiKey: { type: String, default: '' }, // Added API Key for 2Factor
+            twoFactorTemplateName: { type: String, default: '' }, // Added Template Name for 2Factor
             allowEmailAuth: { type: Boolean, default: true },
             allowGoogleAuth: { type: Boolean, default: true },
             enableForgotPassword: { type: Boolean, default: true }

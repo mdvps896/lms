@@ -59,10 +59,21 @@ export async function PUT(request, { params }) {
                         url: `/api/storage/file${uploadResult.url}`,
                         publicId: uploadResult.fileName, // Using filename as ID for deletion
                         type: file.type || 'file',
-                        size: uploadResult.size
+                        size: uploadResult.size,
+                        isDownloadable: file.isDownloadable || false // Added isDownloadable
                     });
                 } else if (file.publicId || file.url) {
-                    // Existing file kept
+                    // Existing file kept OR New Manual URL
+                    if (!file.publicId && !file.type) {
+                        // Likely a new manual URL, infer type
+                        // We don't have materialType variable easily here without fetching or checking params, 
+                        // but we can default to 'file'. Or assume frontend sends it? 
+                        // Frontend doesn't currently send 'type' in file object.
+                        // Let's default to 'file' or try to guess from URL extension?
+                        const ext = file.url.split('.').pop().toLowerCase();
+                        if (['mp4', 'webm', 'mkv'].includes(ext)) file.type = 'video';
+                        else file.type = 'file';
+                    }
                     finalFiles.push(file);
                     // Mark as kept so we don't delete it
                     if (file.publicId) oldFilesMap.delete(file.publicId);

@@ -51,18 +51,38 @@ export async function POST(request) {
             isNewUser = true;
         }
 
+        // Check SMS Provider Setting
+        const smsProvider = settings?.authSettings?.app?.smsProvider || 'firebase';
+
+        // If provider is configured as Firebase in backend, but this API is called, 
+        // it means the client is either old or expecting backend-triggered OTP (which Firebase doesn't do via this API usually).
+        // For backward compatibility or if client enforces checking:
+        if (smsProvider === 'firebase') {
+            // For Firebase, we just return success so client can proceed with client-side auth
+            // checks for user existence are already done above
+            return NextResponse.json({
+                success: true,
+                message: 'Proceed with Firebase Auth',
+                isNewUser,
+                provider: 'firebase'
+            });
+        }
+
         // Send OTP via 2Factor.in
-        const apiKey = process.env.TWOTACTOR_API_KEY;
+        // Prioritize API key from settings, then env
+        const apiKey = settings?.authSettings?.app?.twoFactorApiKey || process.env.TWOFACTOR_API_KEY;
+
         if (!apiKey) {
             return NextResponse.json(
-                { success: false, message: 'SMS Gateway not configured' },
+                { success: false, message: 'SMS Gateway not configured (API Key missing)' },
                 { status: 500 }
             );
         }
 
         try {
-            // Try using the default system template if no custom template is approved
-            const twoFactorUrl = `https://2factor.in/API/V1/${apiKey}/SMS/${mobile}/AUTOGEN`;
+            // Use custom template if provided, else AUTOGEN
+            const templateName = settings?.authSettings?.app?.twoFactorTemplateName || 'AUTOGEN';
+            const twoFactorUrl = `https://2factor.in/API/V1/${apiKey}/SMS/${mobile}/${templateName}`;
             const otpResponse = await fetch(twoFactorUrl);
             const otpData = await otpResponse.json();
 
@@ -77,7 +97,8 @@ export async function POST(request) {
                 success: true,
                 message: 'OTP sent successfully',
                 sessionId: otpData.Details, // We need this to verify later
-                isNewUser
+                isNewUser,
+                provider: '2factor'
             });
         } catch (smsError) {
             console.error('SMS Gateway Error:', smsError);
