@@ -67,7 +67,7 @@ const MeetingFormModal = ({ isOpen, onClose, meeting, onSave }) => {
     // Fetch lists
     const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/categories');
+            const res = await fetch('/api/academic-categories');
             const data = await res.json();
             if (data.success) {
                 setCategories(data.data.map(c => ({ value: c._id, label: c.name })));

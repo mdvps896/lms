@@ -123,6 +123,32 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 9.6,
+        name: "banners",
+        path: "/banners",
+        icon: 'feather-layout',
+        roles: ['admin', 'teacher'],
+        permission: 'manage_content',
+        dropdownMenu: []
+    },
+    {
+        id: 9.7,
+        name: "blogs",
+        path: "/blogs",
+        icon: 'feather-edit',
+        roles: ['admin', 'teacher'],
+        permission: 'manage_content',
+        dropdownMenu: []
+    },
+    {
+        id: 9.75,
+        name: "News Ticker",
+        path: "/news-ticker",
+        icon: 'feather-type',
+        roles: ['admin'],
+        dropdownMenu: []
+    },
+    {
         id: 9.8,
         name: "Free Materials",
         path: "/free-materials",

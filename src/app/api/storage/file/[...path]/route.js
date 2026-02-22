@@ -95,7 +95,10 @@ export async function GET(request, { params }) {
                 'Content-Type': contentType,
                 'Content-Length': fileSize.toString(),
                 'Accept-Ranges': 'bytes', // Crucial for players to know range is supported
-                'Cache-Control': 'public, max-age=31536000, immutable'
+                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Range'
             }
         });
 

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // GET - Get all categories
 export async function GET(request) {
     try {
-        console.log('🔹 accessing GET /api/categories - Real DB Mode');
+        console.log('🔹 accessing GET /api/academic-categories - Real DB Mode');
         await connectDB()
 
         const { searchParams } = new URL(request.url)

@@ -39,7 +39,7 @@ const EditCategoryModal = ({ show, category, onClose, onSuccess }) => {
         setLoading(true)
 
         try {
-            const response = await fetch(`/api/categories/${category.id}`, {
+            const response = await fetch(`/api/academic-categories/${category.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),

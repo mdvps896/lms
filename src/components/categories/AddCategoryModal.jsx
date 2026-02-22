@@ -28,7 +28,7 @@ const AddCategoryModal = ({ show, onClose, onSuccess }) => {
         setLoading(true)
 
         try {
-            const response = await fetch('/api/categories', {
+            const response = await fetch('/api/academic-categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),

@@ -31,7 +31,7 @@ const CategoryList = () => {
     const loadCategories = async () => {
         setLoading(true)
         try {
-            const response = await fetch('/api/categories?format=admin')
+            const response = await fetch('/api/academic-categories?format=admin')
             const data = await response.json()
 
             if (data.success) {
@@ -144,7 +144,7 @@ const CategoryList = () => {
 
                     for (const category of importedCategories) {
                         try {
-                            const response = await fetch('/api/categories', {
+                            const response = await fetch('/api/academic-categories', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(category),
@@ -192,7 +192,7 @@ const CategoryList = () => {
 
         if (result.isConfirmed) {
             try {
-                const response = await fetch(`/api/categories/${category.id}`, {
+                const response = await fetch(`/api/academic-categories/${category.id}`, {
                     method: 'DELETE',
                 })
 
@@ -363,7 +363,7 @@ const CategoryList = () => {
                                                         checked={category.isPublished}
                                                         onChange={async () => {
                                                             try {
-                                                                const res = await fetch(`/api/categories/${category.id}`, {
+                                                                const res = await fetch(`/api/academic-categories/${category.id}`, {
                                                                     method: 'PUT',
                                                                     headers: { 'Content-Type': 'application/json' },
                                                                     body: JSON.stringify({

@@ -66,43 +66,9 @@ export async function GET(req, { params }) {
             exam.questionGroups = populatedGroups;
         }
 
-        // Fetch attempts
-        // If student, only their own attempts.
-        // If teacher/admin, all attempts (subject to exam visibility which we checked above).
-
-        let attemptQuery = {
-            exam: params.id,
-            status: { $in: ['submitted', 'expired'] }
-        };
-
-        if (user && user.role === 'student') {
-            attemptQuery.user = user.id || user._id;
-        } else if (!user) {
-            attemptQuery = null; // Public - no attempts
-        }
-        // Admin/Teacher see all attempts for this exam (since we already verified they can see the exam)
-
-        let attempts = [];
-        if (attemptQuery) {
-            attempts = await ExamAttempt.find(attemptQuery)
-                .populate('user', 'name email')
-                .select('user score passed timeTaken status submittedAt updatedAt answers')
-                .lean();
-        }
-
-        // Add attempts array
-        exam.attempts = attempts.map(attempt => ({
-            userId: attempt.user?._id,
-            userName: attempt.user?.name || 'Student',
-            userEmail: attempt.user?.email || '',
-            score: attempt.score || 0,
-            passed: attempt.passed || false,
-            timeTaken: attempt.timeTaken || 0,
-            status: attempt.status,
-            submittedAt: attempt.submittedAt || attempt.updatedAt,
-            updatedAt: attempt.updatedAt,
-            answers: attempt.answers || [] // Answers might be sensitive if they reveal correct ones, but these are USER answers.
-        }));
+        // Add empty attempts array for backward compatibility with UI if needed,
+        // but avoid heavy population. Admin should use analytics page for results.
+        exam.attempts = [];
 
         return NextResponse.json({ success: true, data: exam });
     } catch (error) {

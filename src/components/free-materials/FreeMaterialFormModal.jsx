@@ -67,7 +67,7 @@ const FreeMaterialFormModal = ({ isOpen, onClose, material, onSave }) => {
     // Fetchers
     const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/categories');
+            const res = await fetch('/api/academic-categories');
             if (!res.ok) {
                 console.error(`Categories fetch failed: ${res.status} ${res.statusText}`);
                 // Try to read text if json fails

@@ -19,7 +19,7 @@ const CategorySelectionModal = ({ show, userId, onCategorySelected }) => {
         setLoading(true)
         setError(null)
         try {
-            const response = await fetch('/api/categories')
+            const response = await fetch('/api/academic-categories')
             const data = await response.json()
 
             if (data.success) {

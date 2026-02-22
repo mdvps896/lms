@@ -11,6 +11,8 @@ import './Exam.js';
 import './ExamAttempt.js';
 import './Notification.js';
 import './Settings.js';
+import './Blog.js';
+import './Banner.js';
 
 // Re-export models for convenience
 export { default as Category } from './Category.js';
@@ -22,3 +24,5 @@ export { default as Exam } from './Exam.js';
 export { default as ExamAttempt } from './ExamAttempt.js';
 export { default as Notification } from './Notification.js';
 export { default as Settings } from './Settings.js';
+export { default as Blog } from './Blog.js';
+export { default as Banner } from './Banner.js';

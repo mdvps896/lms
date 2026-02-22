@@ -56,7 +56,7 @@ const QuestionGroupList = () => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/categories');
+            const res = await fetch('/api/academic-categories');
             const data = await res.json();
             if (data.success) {
                 setCategories(data.data.filter(c => c.status === 'active'));

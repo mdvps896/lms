@@ -84,7 +84,7 @@ const AddQuestionModal = ({ show, onClose, onAdd }) => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/categories?status=active');
+            const res = await fetch('/api/academic-categories?status=active');
             const data = await res.json();
             if (data.success) setCategories(data.data);
         } catch (error) {

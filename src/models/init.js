@@ -13,6 +13,8 @@ import Notification from './Notification.js';
 import Settings from './Settings.js';
 import FreeMaterial from './FreeMaterial.js';
 import Course from './Course.js';
+import Blog from './Blog.js';
+import Banner from './Banner.js';
 
 // Export all models for convenience
 export {
@@ -26,7 +28,9 @@ export {
     Notification,
     Settings,
     FreeMaterial,
-    Course
+    Course,
+    Blog,
+    Banner
 };
 
 // Also export default as an object for easy access
@@ -41,5 +45,8 @@ export default {
     Notification,
     Settings,
     FreeMaterial,
-    Course
+    Course,
+    Blog,
+    Banner
 };
+

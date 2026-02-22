@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash, FiCreditCard, FiCamera, FiShare2 } from 'react-icons/fi';
+import { FiSettings, FiUser, FiMonitor, FiEdit, FiShield, FiMail, FiLogIn, FiLink, FiBell, FiAward, FiHash, FiCreditCard, FiCamera, FiShare2, FiZap } from 'react-icons/fi';
 import GeneralSettings from '../../components/settings/GeneralSettings';
 import AuthPagesSettings from '../../components/settings/AuthPagesSettings';
 import ResultDisplaySettings from '../../components/settings/ResultDisplaySettings';
@@ -14,6 +14,7 @@ import RollNumberSettings from '../../components/settings/RollNumberSettings';
 import PdfSelfieSettings from '../../components/settings/PdfSelfieSettings';
 import AuthSettingsTab from '../../components/settings/AuthSettingsTab';
 import SocialMediaSettings from '../../components/settings/SocialMediaSettings';
+import NewsTickerSettings from '../../components/settings/NewsTickerSettings';
 import SettingsSkeleton from '../../components/settings/SettingsSkeleton';
 import { toast } from 'react-toastify';
 
@@ -101,6 +102,12 @@ const SettingsPage = () => {
             label: 'Social Media',
             icon: <FiShare2 className="me-2" />,
             component: SocialMediaSettings
+        },
+        {
+            id: 'news-ticker',
+            label: 'News Ticker',
+            icon: <FiZap className="me-2" />,
+            component: NewsTickerSettings
         }
     ];
 

@@ -34,11 +34,16 @@ export async function GET(request, { params }) {
         // 1. Fetch Attempt with populated data
         const attempt = await ExamAttempt.findById(id)
             .populate('user', 'name email parentName rollNumber')
-            .populate('exam', 'name');
+            .populate('exam', 'name passingPercentage');
 
         if (!attempt) {
             return NextResponse.json({ success: false, message: 'Attempt not found' }, { status: 404 });
         }
+
+        // --- Calculate Pass/Fail Fallback ---
+        // If 'passed' isn't set (legacy data), determine it from percentage
+        const passingThreshold = attempt.exam?.passingPercentage || 50;
+        const isPassed = attempt.passed !== undefined ? attempt.passed : (attempt.percentage >= passingThreshold);
 
         // Security: Students can only access their own certificate, unless admin/teacher
         const userId = currentUser.id || currentUser._id?.toString();
@@ -179,7 +184,7 @@ export async function GET(request, { params }) {
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(...colors.textMain);
-        const passText = attempt.passed ? "has successfully passed the examination for" : "has appeared for the examination for";
+        const passText = isPassed ? "has successfully passed the examination for" : "has appeared for the examination for";
         doc.text(passText, width / 2, y, { align: "center" });
 
         y += 10;
@@ -217,7 +222,7 @@ export async function GET(request, { params }) {
             { label: "SCORE", value: `${(attempt.percentage || 0).toFixed(1)}%` },
             { label: "MARKS", value: `${attempt.score}/${attempt.totalMarks}` },
             { label: "ROLL NO", value: rollNo }, // Real Roll No
-            { label: "RESULT", value: attempt.passed ? "PASSED" : "FAILED" }
+            { label: "RESULT", value: isPassed ? "PASSED" : "FAILED" }
         ];
 
         stats.forEach((stat, i) => {

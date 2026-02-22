@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+if (process.env.NODE_ENV !== 'production') {
+    delete mongoose.models.Notification;
+}
+
 const notificationSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -11,7 +15,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'course_purchase', 'general', 'new_user_registration'],
+        enum: ['exam_created', 'exam_started', 'exam_ended', 'exam_updated', 'course_purchase', 'general', 'new_user_registration', 'new_blog'],
         required: true,
     },
     targetRole: { // 'admin', 'student' etc. - useful for broadcasting

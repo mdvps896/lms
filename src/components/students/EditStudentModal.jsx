@@ -51,7 +51,7 @@ const EditStudentModal = ({ show, student, onClose, onSuccess }) => {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch('/api/categories?status=active')
+            const response = await fetch('/api/academic-categories?status=active')
             const data = await response.json()
             if (data.success) setCategories(data.data)
         } catch (error) {

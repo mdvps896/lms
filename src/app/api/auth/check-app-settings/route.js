@@ -56,7 +56,8 @@ export async function GET() {
                 enabled: settings.whatsappSupport?.enabled ?? false,
                 primaryMethod: settings.whatsappSupport?.primaryMethod ?? 'chat'
             },
-            appLink: settings.general?.appLink ?? ''
+            appLink: settings.general?.appLink ?? '',
+            socialMediaLinks: (settings.socialMediaLinks || []).filter(link => link.enabled !== false),
         };
 
         return NextResponse.json({

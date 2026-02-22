@@ -28,7 +28,7 @@ const AddTeacherModal = ({ show, onClose, onSuccess }) => {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch('/api/categories')
+            const response = await fetch('/api/academic-categories')
             const data = await response.json()
             if (data.success) {
                 setCategories(data.data)

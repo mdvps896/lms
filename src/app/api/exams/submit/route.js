@@ -158,6 +158,9 @@ export async function POST(request) {
 
         // Update ExamAttempt with final submission
         const submittedAt = new Date()
+        const passingPercentage = exam.passingPercentage || 0
+        const passed = percentage >= passingPercentage
+
         attempt.status = 'submitted'
         attempt.isActive = false
         attempt.submittedAt = submittedAt
@@ -165,6 +168,7 @@ export async function POST(request) {
         attempt.score = totalScore
         attempt.totalMarks = maxPossibleScore
         attempt.percentage = Math.round(percentage * 100) / 100
+        attempt.passed = passed
         attempt.hasSubjectiveQuestions = hasSubjectiveQuestions
         attempt.resultStatus = hasSubjectiveQuestions ? 'draft' : 'published'
         attempt.timeTaken = timeTaken || 0 // Save time taken in seconds

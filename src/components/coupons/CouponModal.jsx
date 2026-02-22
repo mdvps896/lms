@@ -65,7 +65,7 @@ export default function CouponModal({ show, onHide, coupon, onSuccess }) {
             // Fetch all data
             const [coursesRes, categoriesRes, studentsRes] = await Promise.all([
                 fetch('/api/courses'),
-                fetch('/api/categories'),
+                fetch('/api/academic-categories'),
                 fetch('/api/students').catch(() => null) // Handle students API not existing
             ]);
 

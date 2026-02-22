@@ -68,7 +68,7 @@ const ExamForm = ({ type, initialData }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const catsRes = await fetch('/api/categories').then(r => r.json());
+                const catsRes = await fetch('/api/academic-categories').then(r => r.json());
                 if (catsRes.success) setCategories(catsRes.data.map(c => ({ value: c._id, label: c.name })));
             } catch (error) {
                 toast.error('Failed to load form data');

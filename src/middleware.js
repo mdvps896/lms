@@ -30,7 +30,9 @@ export async function middleware(request) {
         '/api/settings', // Often public
         '/api/upload', // Sometimes public or protected? Let's protect, but maybe it breaks image uploads?
         // Assuming upload endpoints are protected purely by this.
-        '/api/storage/demo-video' // Allow file streaming without explicit token (endpoint does its own checks if needed, or is public)
+        '/api/storage/demo-video', // Allow file streaming without explicit token (endpoint does its own checks if needed, or is public)
+        '/api/news-ticker', // Public news ticker for mobile app
+        '/api/blogs', // Public blogs list and individual blog for mobile app
     ]
 
     // Check if the current path is a public route

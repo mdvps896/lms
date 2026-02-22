@@ -240,7 +240,7 @@ const QuestionList = () => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/categories?status=active');
+            const res = await fetch('/api/academic-categories?status=active');
             if (!res.ok) return;
 
             const text = await res.text();

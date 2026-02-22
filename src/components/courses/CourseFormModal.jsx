@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
+import MediaLibraryModal from '../MediaLibraryModal';
+import { FiImage, FiVideo } from 'react-icons/fi';
 
 export default function CourseFormModal({ course, onClose, onSave }) {
     const [categories, setCategories] = useState([]);
@@ -12,32 +14,60 @@ export default function CourseFormModal({ course, onClose, onSave }) {
     const [thumbnailFile, setThumbnailFile] = useState(null);
     const [demoVideoFile, setDemoVideoFile] = useState(null);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        category: '',
-        subjects: [],
-        durationValue: 1,
-        durationUnit: 'months',
-        thumbnail: '',     // Will store the final URL
-        demoVideo: '',     // Will store the final URL
-        price: 0,
-        originalPrice: 0,
-        isFree: false,
-        gstEnabled: false,
-        gstPercentage: 18,
-        description: '',
-        hasCertificate: false,
-        language: 'English',
-        readingDurationValue: 0,
-        readingDurationUnit: 'hours',
-        status: 'active'
+    // Modal states
+    const [isThumbnailMediaOpen, setIsThumbnailMediaOpen] = useState(false);
+    const [isVideoMediaOpen, setIsVideoMediaOpen] = useState(false);
+
+    const [formData, setFormData] = useState(() => {
+        if (course) {
+            return {
+                title: course.title || '',
+                category: course.category?._id || course.category || '',
+                subjects: course.subjects ? course.subjects.map(s => (typeof s === 'object' ? s._id : s)) : [],
+                durationValue: course.duration?.value || 1,
+                durationUnit: course.duration?.unit || 'months',
+                thumbnail: course.thumbnail || '',
+                demoVideo: course.demoVideo || '',
+                price: course.price || 0,
+                originalPrice: course.originalPrice || 0,
+                isFree: course.isFree || false,
+                gstEnabled: course.gstEnabled || false,
+                gstPercentage: course.gstPercentage || 18,
+                description: course.description || '',
+                hasCertificate: course.hasCertificate || false,
+                language: course.language || 'English',
+                readingDurationValue: course.readingDuration?.value || 0,
+                readingDurationUnit: course.readingDuration?.unit || 'hours',
+                status: course.status || 'active'
+            };
+        }
+        return {
+            title: '',
+            category: '',
+            subjects: [],
+            durationValue: 1,
+            durationUnit: 'months',
+            thumbnail: '',     // Will store the final URL
+            demoVideo: '',     // Will store the final URL
+            price: 0,
+            originalPrice: 0,
+            isFree: false,
+            gstEnabled: false,
+            gstPercentage: 18,
+            description: '',
+            hasCertificate: false,
+            language: 'English',
+            readingDurationValue: 0,
+            readingDurationUnit: 'hours',
+            status: 'active'
+        };
     });
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const [catRes, subRes] = await Promise.all([
-                    fetch('/api/categories'),
+                    fetch('/api/academic-categories'),
                     fetch('/api/subjects')
                 ]);
                 const catData = await catRes.json();
@@ -46,6 +76,8 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                 setCategories(catData.data || catData || []);
                 setAllSubjects(subData.data || subData || []);
 
+                // Pre-filling is now handled by the initial state of formData
+                // But we update it if course prop changes (though modal is usually fresh)
                 if (course) {
                     setFormData({
                         title: course.title || '',
@@ -474,93 +506,144 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                                 </div>
                             </div>
 
-                            {/* Thumbnail Section */}
                             <div className="mb-3">
-                                <label className="form-label">Thumbnail <span className="text-danger">*</span></label>
-                                <div className="d-flex gap-2 mb-2">
+                                <label className="form-label fw-semibold">Thumbnail <span className="text-danger">*</span></label>
+                                <div className="input-group mb-2">
+                                    <input
+                                        className="form-control"
+                                        type="url"
+                                        placeholder="Image URL or select from library"
+                                        value={formData.thumbnail}
+                                        onChange={e => setFormData({ ...formData, thumbnail: e.target.value })}
+                                        disabled={!!thumbnailFile}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-primary"
+                                        onClick={() => setIsThumbnailMediaOpen(true)}
+                                        disabled={!!thumbnailFile}
+                                    >
+                                        <FiImage className="me-1" /> Library
+                                    </button>
+                                </div>
+
+                                <div className="mb-2">
+                                    <label className="form-label small text-muted mb-1">Or Upload File</label>
                                     <input
                                         type="file"
-                                        className="form-control"
+                                        className="form-control form-control-sm"
                                         accept="image/*"
-                                        onChange={e => setThumbnailFile(e.target.files[0])}
+                                        onChange={e => {
+                                            setThumbnailFile(e.target.files[0]);
+                                            if (e.target.files[0]) setFormData({ ...formData, thumbnail: '' });
+                                        }}
                                     />
+                                    {thumbnailFile && (
+                                        <div className="mt-1 d-flex align-items-center justify-content-between bg-light p-1 px-2 rounded border">
+                                            <small className="text-primary fw-medium text-truncate">File: {thumbnailFile.name}</small>
+                                            <button type="button" className="btn btn-sm text-danger p-0" onClick={() => setThumbnailFile(null)}>×</button>
+                                        </div>
+                                    )}
                                 </div>
-                                <input
-                                    className="form-control"
-                                    type="url"
-                                    placeholder="Or enter Image URL"
-                                    value={formData.thumbnail}
-                                    onChange={e => setFormData({ ...formData, thumbnail: e.target.value })}
-                                    disabled={!!thumbnailFile} // Disable URL input if file is selected
-                                />
-                                {thumbnailFile && <small className="text-muted">File selected: {thumbnailFile.name}</small>}
 
                                 {getThumbnailPreview() && (
-                                    <div className="mt-3 p-2 border rounded text-center bg-light">
-                                        <p className="small text-muted mb-1">Preview</p>
+                                    <div className="mt-3 p-2 border rounded text-center bg-light shadow-sm">
+                                        <div className="d-flex justify-content-between align-items-center mb-1">
+                                            <span className="small text-muted fw-bold">PREVIEW</span>
+                                            <button type="button" className="btn btn-sm text-danger p-0" onClick={() => {
+                                                setThumbnailFile(null);
+                                                setFormData({ ...formData, thumbnail: '' });
+                                            }}>Remove</button>
+                                        </div>
                                         <img
                                             src={getThumbnailPreview()}
                                             alt="Thumbnail Preview"
-                                            className="img-fluid rounded"
-                                            style={{ maxHeight: '200px', objectFit: 'contain' }}
+                                            className="img-fluid rounded border"
+                                            style={{ maxHeight: '180px', objectFit: 'contain' }}
                                         />
                                     </div>
                                 )}
                             </div>
 
-                            {/* Demo Video Section */}
-                            <div className="mb-3">
-                                <label className="form-label">Demo Video (Optional)</label>
-                                <div className="d-flex gap-2 mb-2">
+                            <div className="mb-4">
+                                <label className="form-label fw-semibold">Demo Video (Optional)</label>
+                                <div className="input-group mb-2">
+                                    <input
+                                        className="form-control"
+                                        type="url"
+                                        placeholder="Video URL (YouTube or direct link) or select from library"
+                                        value={formData.demoVideo}
+                                        onChange={e => setFormData({ ...formData, demoVideo: e.target.value })}
+                                        disabled={!!demoVideoFile}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-danger"
+                                        onClick={() => setIsVideoMediaOpen(true)}
+                                        disabled={!!demoVideoFile}
+                                    >
+                                        <FiVideo className="me-1" /> Library
+                                    </button>
+                                </div>
+
+                                <div className="mb-2">
+                                    <label className="form-label small text-muted mb-1">Or Upload Video</label>
                                     <input
                                         type="file"
-                                        className="form-control"
+                                        className="form-control form-control-sm"
                                         accept="video/*"
-                                        onChange={e => setDemoVideoFile(e.target.files[0])}
+                                        onChange={e => {
+                                            setDemoVideoFile(e.target.files[0]);
+                                            if (e.target.files[0]) setFormData({ ...formData, demoVideo: '' });
+                                        }}
                                     />
+                                    {demoVideoFile && (
+                                        <div className="mt-1 d-flex align-items-center justify-content-between bg-light p-1 px-2 rounded border">
+                                            <small className="text-danger fw-medium text-truncate">File: {demoVideoFile.name}</small>
+                                            <button type="button" className="btn btn-sm text-danger p-0" onClick={() => setDemoVideoFile(null)}>×</button>
+                                        </div>
+                                    )}
                                 </div>
-                                <input
-                                    className="form-control"
-                                    type="url"
-                                    placeholder="Or enter Video URL (YouTube, Vimeo, or direct link)"
-                                    value={formData.demoVideo}
-                                    onChange={e => setFormData({ ...formData, demoVideo: e.target.value })}
-                                    disabled={!!demoVideoFile}
-                                />
-                                {demoVideoFile && <small className="text-muted">File selected: {demoVideoFile.name}</small>}
+
                                 <small className="form-text text-muted d-block mt-1">
-                                    💡 Tip: Paste YouTube URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)
+                                    💡 Tip: Paste YouTube URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID)
                                 </small>
 
                                 {getVideoPreview() && (
-                                    <div className="mt-3 p-2 border rounded text-center bg-light">
-                                        <p className="small text-muted mb-1">Preview</p>
+                                    <div className="mt-3 p-2 border rounded text-center bg-light shadow-sm">
+                                        <div className="d-flex justify-content-between align-items-center mb-1">
+                                            <span className="small text-muted fw-bold">PREVIEW</span>
+                                            <button type="button" className="btn btn-sm text-danger p-0" onClick={() => {
+                                                setDemoVideoFile(null);
+                                                setFormData({ ...formData, demoVideo: '' });
+                                            }}>Remove</button>
+                                        </div>
                                         {isYouTubeUrl(formData.demoVideo) ? (
                                             <iframe
                                                 width="100%"
-                                                height="250"
+                                                height="220"
                                                 src={getYouTubeEmbedUrl(formData.demoVideo)}
                                                 title="YouTube video preview"
                                                 frameBorder="0"
                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                 allowFullScreen
-                                                className="rounded"
+                                                className="rounded border shadow-sm"
                                             />
                                         ) : (
                                             <video
                                                 src={getVideoPreview()}
                                                 controls
-                                                className="img-fluid rounded"
-                                                style={{ maxHeight: '250px', maxWidth: '100%' }}
+                                                className="img-fluid rounded border shadow-sm"
+                                                style={{ maxHeight: '220px', maxWidth: '100%' }}
                                             />
                                         )}
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div className="modal-footer">
+                        <div className="modal-footer bg-light">
                             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                            <button type="submit" className="btn btn-primary" disabled={submitting}>
+                            <button type="submit" className="btn btn-primary px-4 fw-bold" disabled={submitting}>
                                 {submitting ? (
                                     <>
                                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -572,6 +655,29 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                     </form>
                 </div>
             </div>
+
+            {/* Media Library Modals */}
+            <MediaLibraryModal
+                isOpen={isThumbnailMediaOpen}
+                onClose={() => setIsThumbnailMediaOpen(false)}
+                onSelect={(file) => {
+                    setFormData({ ...formData, thumbnail: file.path });
+                    setThumbnailFile(null); // Clear manual upload if library selected
+                    setIsThumbnailMediaOpen(false);
+                }}
+                fileType="image"
+            />
+
+            <MediaLibraryModal
+                isOpen={isVideoMediaOpen}
+                onClose={() => setIsVideoMediaOpen(false)}
+                onSelect={(file) => {
+                    setFormData({ ...formData, demoVideo: file.path });
+                    setDemoVideoFile(null); // Clear manual upload if library selected
+                    setIsVideoMediaOpen(false);
+                }}
+                fileType="video"
+            />
         </div>
     );
 }
