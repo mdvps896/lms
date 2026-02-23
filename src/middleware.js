@@ -73,59 +73,71 @@ export async function middleware(request) {
         // Verify Token
         let payload = await verifyToken(token)
 
-        // Handle Expired Token Transparently (Strict Secure Refresh Flow)
+        // Handle Expired Token Transparently (Strict Secure Refresh Flow + Legacy Bridge)
         if (payload && payload.expired) {
-            // 1. Get Refresh Token from Cookie or Header
+            // 1. Get Refresh Token (For new app versions)
             let refreshToken = request.cookies.get('refreshToken')?.value;
             if (!refreshToken) {
                 refreshToken = request.headers.get('x-refresh-token');
             }
 
+            let canProceed = false;
+            let refreshSource = null;
+
             if (refreshToken) {
-                // 2. IMPORTANT: Verify Refresh Token (Signature + Expiry)
+                // Check if Refresh Token is valid
                 const refreshPayload = await verifyToken(refreshToken);
-
                 if (refreshPayload && !refreshPayload.expired) {
-                    console.log(`[AUTH] Access token expired. Securely refreshing using verifyToken(refreshToken) for user: ${refreshPayload.userId}`);
-
-                    // 3. Issue new Access Token using data from the verified Refresh Token
-                    // Note: If old refresh tokens are missing fields, we safely fallback to payload from access token 
-                    // because verifyToken(token) only returns payload if signature was valid.
-                    const newToken = await signToken({
-                        userId: refreshPayload.userId,
-                        email: refreshPayload.email || payload.email,
-                        role: refreshPayload.role || payload.role,
-                        permissions: refreshPayload.permissions || payload.permissions,
-                        accessScope: refreshPayload.accessScope || payload.accessScope,
-                        deviceId: refreshPayload.deviceId || payload.deviceId
-                    });
-
-                    // 4. Pass new token to the internal route handler
-                    const requestHeaders = new Headers(request.headers);
-                    requestHeaders.set('Authorization', `Bearer ${newToken}`);
-
-                    const response = NextResponse.next({
-                        request: {
-                            headers: requestHeaders,
-                        },
-                    });
-
-                    // 5. Update Cookie and Header for the response to client
-                    response.cookies.set('token', newToken, {
-                        httpOnly: true,
-                        secure: process.env.NODE_ENV === 'production',
-                        sameSite: 'strict',
-                        maxAge: 60 * 24 * 60 * 60 // 60 days
-                    });
-
-                    response.headers.set('x-new-token', newToken);
-
-
-                    return response;
+                    canProceed = true;
+                    refreshSource = refreshPayload;
                 }
             }
 
-            // No valid refresh token found - force logout
+            // 2. LEGACY BRIDGE: If no Refresh Token, trust the expired access token signature
+            if (!canProceed) {
+                const now = Math.floor(Date.now() / 1000);
+                // Allow a generous grace period for users on old app versions (e.g. 180 days)
+                const gracePeriod = 180 * 24 * 60 * 60;
+
+                if (payload.exp && (now < payload.exp + gracePeriod)) {
+                    console.log(`[AUTH] Legacy session recovery for user: ${payload.userId}`);
+                    canProceed = true;
+                    refreshSource = payload;
+                }
+            }
+
+            if (canProceed && refreshSource) {
+                // Issue new Access Token
+                const newToken = await signToken({
+                    userId: refreshSource.userId,
+                    email: refreshSource.email || payload.email,
+                    role: refreshSource.role || payload.role,
+                    permissions: refreshSource.permissions || payload.permissions,
+                    accessScope: refreshSource.accessScope || payload.accessScope,
+                    deviceId: refreshSource.deviceId || payload.deviceId
+                });
+
+                // Pass new token to the internal route handler
+                const requestHeaders = new Headers(request.headers);
+                requestHeaders.set('Authorization', `Bearer ${newToken}`);
+
+                const response = NextResponse.next({
+                    request: { headers: requestHeaders },
+                });
+
+                // Set new token in header and cookie
+                response.cookies.set('token', newToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 60 * 24 * 60 * 60
+                });
+                response.headers.set('x-new-token', newToken);
+
+                return response;
+            }
+
+            // No valid refresh mechanism - force logout
             return NextResponse.json(
                 { success: false, message: 'Unauthorized: Session expired', expired: true },
                 { status: 401 }
