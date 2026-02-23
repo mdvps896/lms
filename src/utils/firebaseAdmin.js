@@ -21,7 +21,7 @@ function initFirebase() {
                 privateKey: privateKey.replace(/\\n/g, '\n'),
             }),
         });
-        } catch (error) {
+    } catch (error) {
         console.error('❌ Firebase Admin initialization error:', error.message);
         return null;
     }
@@ -70,6 +70,23 @@ export async function sendPushNotification(token, title, body, data = {}) {
         return { success: true, messageId: response };
     } catch (error) {
         console.error('❌ FCM Send Error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function verifyIdToken(token) {
+    if (!token) return { success: false, error: 'No token provided' };
+
+    try {
+        const firebaseAdmin = initFirebase();
+        if (!firebaseAdmin) {
+            return { success: false, error: 'Firebase not initialized' };
+        }
+
+        const decodedToken = await firebaseAdmin.auth().verifyIdToken(token);
+        return { success: true, decodedToken };
+    } catch (error) {
+        console.error('❌ Firebase Token Verification Error:', error.message);
         return { success: false, error: error.message };
     }
 }
