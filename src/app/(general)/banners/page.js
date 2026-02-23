@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import PageHeader from '@/components/shared/pageHeader/PageHeader'
 import Swal from 'sweetalert2'
+import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi'
 
 const BannersPage = () => {
     const [banners, setBanners] = useState([])
@@ -148,8 +149,8 @@ const BannersPage = () => {
                             <div className="card-body p-0">
                                 <div className="d-flex justify-content-between align-items-center p-4 border-bottom">
                                     <h5 className="fw-bold mb-0">Home Banner Slider</h5>
-                                    <button className="btn btn-primary" onClick={openCreate}>
-                                        <i className="feather-plus me-2"></i>Add Banner
+                                    <button className="btn btn-primary d-flex align-items-center" onClick={openCreate}>
+                                        <FiPlus className="me-2" /> Add Banner
                                     </button>
                                 </div>
 
@@ -194,8 +195,10 @@ const BannersPage = () => {
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openEdit(b)}><i className="feather-edit"></i></button>
-                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(b._id)}><i className="feather-trash-2"></i></button>
+                                                            <div className="d-flex gap-2">
+                                                                <button className="btn btn-sm btn-outline-primary" onClick={() => openEdit(b)}><FiEdit /></button>
+                                                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(b._id)}><FiTrash2 /></button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}

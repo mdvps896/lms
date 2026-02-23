@@ -79,7 +79,6 @@ const couponSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-couponSchema.index({ code: 1 });
 couponSchema.index({ isActive: 1, endDate: 1 });
 
 // Virtual for checking if coupon is valid

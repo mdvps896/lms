@@ -21,11 +21,11 @@ const RecentUsersStatistics = () => {
         try {
             const response = await fetch('/api/users?role=student&limit=5')
             const data = await response.json()
-            
+
             if (data.success) {
                 const recentUsers = data.data || []
                 setUsers(recentUsers)
-                
+
                 // Calculate stats
                 const today = new Date().setHours(0, 0, 0, 0)
                 const newToday = recentUsers.filter(u => {
@@ -49,11 +49,12 @@ const RecentUsersStatistics = () => {
     return (
         <div className="col-xxl-6 col-xl-6">
             <div className="card stretch stretch-full">
-                <div className="card-header">
-                    <h5 className="card-title">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                    <h5 className="card-title mb-0">
                         <FiUsers className="me-2" />
                         Recent Users
                     </h5>
+                    <a href="/students" className="btn btn-sm btn-soft-primary">View All</a>
                 </div>
                 <div className="card-body">
                     {loading ? (
@@ -88,17 +89,17 @@ const RecentUsersStatistics = () => {
                                 </div>
                             </div>
 
-                            {users.length > 0 ? (
+                            {users.slice(0, 5).length > 0 ? (
                                 <div className="list-group list-group-flush">
-                                    {users.map((user, index) => (
+                                    {users.slice(0, 5).map((user, index) => (
                                         <div key={user._id || index} className="list-group-item px-0 border-bottom">
                                             <div className="d-flex align-items-center gap-3">
                                                 <div className="avatar avatar-sm">
                                                     {user.profileImage ? (
-                                                        <img 
-                                                            src={user.profileImage} 
-                                                            alt={user.name} 
-                                                            className="rounded-circle" 
+                                                        <img
+                                                            src={user.profileImage}
+                                                            alt={user.name}
+                                                            className="rounded-circle"
                                                             style={{ width: '32px', height: '32px', objectFit: 'cover' }}
                                                         />
                                                     ) : (

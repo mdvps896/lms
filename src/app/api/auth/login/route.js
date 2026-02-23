@@ -300,6 +300,10 @@ export async function POST(request) {
           deviceChangeWindowStart: null
         });
 
+        // 🚀 DEBUG: Log successful login to backend terminal
+        console.log(`\x1b[32m[AUTH] Firebase Login Successful: ${user.email}\x1b[0m`);
+        console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
+
         return NextResponse.json({
           success: false,
           message: 'Account locked due to suspicious activity (multiple device logins). Try again in 30 minutes.',
@@ -344,7 +348,15 @@ export async function POST(request) {
     // Add deviceId to response so mobile app can store it
     userObj.deviceId = deviceId;
 
+    // 🚀 DEBUG: Log successful login to backend terminal
+    console.log(`\x1b[32m[AUTH] Login Successful: ${user.email}\x1b[0m`);
+    console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
+
     const response = NextResponse.json({ success: true, data: userObj, token, refreshToken });
+
+    // 🚀 DEBUG: Log successful login to backend terminal
+    console.log(`\x1b[32m[AUTH] Login Successful: ${user.email}\x1b[0m`);
+    console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
 
     // Set HttpOnly Cookie for web clients (Access Token)
     response.cookies.set('token', token, {

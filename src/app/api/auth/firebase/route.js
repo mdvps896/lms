@@ -105,6 +105,10 @@ export async function POST(request) {
         const userObj = user.toObject();
         delete userObj.password;
 
+        // 🚀 DEBUG: Log successful login to backend terminal
+        console.log(`\x1b[32m[AUTH] Firebase Login Successful: ${user.email}\x1b[0m`);
+        console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
+
         return NextResponse.json({
             success: true,
             isNewUser,

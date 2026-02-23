@@ -18,6 +18,9 @@ export async function middleware(request) {
     const publicApiRoutes = [
         '/api/auth/login',
         '/api/auth/register',
+        '/api/auth/firebase', // Sync Firebase/Google auth
+        '/api/auth/migrate', // Legacy migration
+        '/api/auth/refresh', // Token refresh
         '/api/auth/send-registration-otp',
         '/api/auth/verify-registration-otp',
         '/api/auth/check-registration-enabled',
@@ -34,6 +37,7 @@ export async function middleware(request) {
         '/api/storage/demo-video', // Allow file streaming without explicit token (endpoint does its own checks if needed, or is public)
         '/api/news-ticker', // Public news ticker for mobile app
         '/api/blogs', // Public blogs list and individual blog for mobile app
+        '/api/banners', // Public banners for mobile app
     ]
 
     // Check if the current path is a public route

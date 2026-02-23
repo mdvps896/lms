@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import PageHeader from '@/components/shared/pageHeader/PageHeader'
 import MediaLibraryModal from '@/components/MediaLibraryModal'
 import Swal from 'sweetalert2'
 import dynamic from 'next/dynamic'
+import { FiPlus, FiEdit, FiTrash2, FiImage, FiUpload, FiX } from 'react-icons/fi'
 
 // Import quill styles
 import 'react-quill/dist/quill.snow.css'
@@ -20,6 +21,7 @@ const BlogsPage = () => {
     const [selectedBlog, setSelectedBlog] = useState(null)
     const [form, setForm] = useState({ title: '', content: '', image: '', category: 'General', status: 'draft' })
     const [saving, setSaving] = useState(false)
+    const fileInputRef = useRef(null)
 
     const fetchBlogs = async () => {
         setLoading(true)
@@ -72,6 +74,15 @@ const BlogsPage = () => {
     const handleFileUpload = async (e) => {
         const file = e.target.files[0]
         if (!file) return
+
+        Swal.fire({
+            title: 'Uploading...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading()
+            }
+        })
+
         const reader = new FileReader()
         reader.onload = async (ev) => {
             try {
@@ -83,6 +94,12 @@ const BlogsPage = () => {
                 const data = await res.json()
                 if (data.success && data.url) {
                     setForm(f => ({ ...f, image: data.url }))
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Uploaded!',
+                        timer: 1000,
+                        showConfirmButton: false
+                    })
                 } else {
                     Swal.fire('Error', 'Upload failed', 'error')
                 }
@@ -147,8 +164,8 @@ const BlogsPage = () => {
                             <div className="card-body p-0">
                                 <div className="d-flex justify-content-between align-items-center p-4 border-bottom">
                                     <h5 className="fw-bold mb-0">Blog Posts</h5>
-                                    <button className="btn btn-primary" onClick={openCreate}>
-                                        <i className="feather-plus me-2"></i>Add Blog
+                                    <button className="btn btn-primary d-flex align-items-center" onClick={openCreate}>
+                                        <FiPlus className="me-2" /> Add Blog
                                     </button>
                                 </div>
 
@@ -174,15 +191,17 @@ const BlogsPage = () => {
                                                     <tr key={b._id}>
                                                         <td>
                                                             {b.image ? <img src={b.image} alt={b.title} style={{ width: 70, height: 45, objectFit: 'cover', borderRadius: 4 }} />
-                                                                : <div style={{ width: 70, height: 45, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="feather-image text-muted"></i></div>}
+                                                                : <div style={{ width: 70, height: 45, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiImage className="text-muted" /></div>}
                                                         </td>
                                                         <td className="fw-semibold">{b.title}</td>
                                                         <td><span className="badge bg-info text-dark">{b.category}</span></td>
                                                         <td>{statusBadge(b.status)}</td>
                                                         <td><small className="text-muted">{new Date(b.createdAt).toLocaleDateString()}</small></td>
                                                         <td>
-                                                            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openEdit(b)}><i className="feather-edit"></i></button>
-                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(b._id)}><i className="feather-trash-2"></i></button>
+                                                            <div className="d-flex gap-2">
+                                                                <button className="btn btn-sm btn-outline-primary" onClick={() => openEdit(b)}><FiEdit /></button>
+                                                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(b._id)}><FiTrash2 /></button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -200,12 +219,12 @@ const BlogsPage = () => {
             {isFormOpen && (
                 <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-xl">
-                        <div className="modal-content">
+                        <div className="modal-content border-0 shadow-lg">
                             <div className="modal-header">
-                                <h5 className="modal-title">{selectedBlog ? 'Edit Blog' : 'Add Blog'}</h5>
+                                <h5 className="modal-title fw-bold">{selectedBlog ? 'Edit Blog' : 'Add Blog'}</h5>
                                 <button className="btn-close" onClick={() => setIsFormOpen(false)}></button>
                             </div>
-                            <div className="modal-body">
+                            <div className="modal-body p-4">
                                 <div className="row">
                                     <div className="col-md-7 mb-3">
                                         <label className="form-label fw-semibold">Blog Title *</label>
@@ -223,15 +242,27 @@ const BlogsPage = () => {
                                     <div className="col-md-7 mb-3">
                                         <label className="form-label fw-semibold">Feature Image</label>
                                         <div className="input-group">
-                                            <input className="form-control" value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} placeholder="Image URL or select from library" />
-                                            <button className="btn btn-outline-primary" onClick={() => setIsMediaModalOpen(true)}>
-                                                <i className="feather-image me-1"></i> Library
+                                            <input className="form-control" value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} placeholder="Image URL or upload" />
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="d-none"
+                                                accept="image/*"
+                                                onChange={handleFileUpload}
+                                            />
+                                            <button className="btn btn-outline-primary d-flex align-items-center" onClick={() => fileInputRef.current.click()}>
+                                                <FiUpload className="me-1" /> Upload
+                                            </button>
+                                            <button className="btn btn-outline-info d-flex align-items-center" onClick={() => setIsMediaModalOpen(true)}>
+                                                <FiImage className="me-1" /> Library
                                             </button>
                                         </div>
                                         {form.image && (
                                             <div className="mt-2 position-relative d-inline-block">
                                                 <img src={form.image} alt="preview" style={{ maxHeight: 120, borderRadius: 6, border: '1px solid #dee2e6' }} />
-                                                <button className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onClick={() => setForm(f => ({ ...f, image: '' }))}>×</button>
+                                                <button className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-1 rounded-circle d-flex align-items-center" onClick={() => setForm(f => ({ ...f, image: '' }))}>
+                                                    <FiX size={12} />
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -267,7 +298,7 @@ const BlogsPage = () => {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button className="btn btn-secondary" onClick={() => setIsFormOpen(false)}>Cancel</button>
+                                <button className="btn btn-light" onClick={() => setIsFormOpen(false)}>Cancel</button>
                                 <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                                     {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : 'Save Blog'}
                                 </button>
@@ -276,6 +307,7 @@ const BlogsPage = () => {
                     </div>
                 </div>
             )}
+
             {/* Media Library Modal */}
             <MediaLibraryModal
                 isOpen={isMediaModalOpen}

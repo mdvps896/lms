@@ -167,7 +167,7 @@ const NewsTickerSettings = () => {
     const getLinkTypeBadge = (type) => {
         const colors = { course: 'primary', blog: 'success', external: 'secondary' };
         return (
-            <span className={`badge bg-${colors[type] || 'secondary'} bg-opacity-10 text-${colors[type] || 'secondary'}`}>
+            <span className={`badge bg-${colors[type] || 'secondary'}`}>
                 {type?.charAt(0).toUpperCase() + type?.slice(1)}
             </span>
         );

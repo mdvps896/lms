@@ -7,7 +7,7 @@ export async function signToken(payload) {
     const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
-        .setExpirationTime('60d') // Access token: increased to 60 days for fallback
+        .setExpirationTime('1y') // Access token: 1 year
         .sign(secretKey);
     return token;
 }
@@ -16,7 +16,7 @@ export async function signRefreshToken(payload) {
     const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
-        .setExpirationTime('365d') // Refresh token: 365 days
+        .setExpirationTime('3650d') // Refresh token: 10 years
         .sign(secretKey);
     return token;
 }

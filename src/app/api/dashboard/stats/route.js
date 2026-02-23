@@ -5,6 +5,7 @@ import Exam from '@/models/Exam';
 import Question from '@/models/Question';
 import Course from '@/models/Course';
 import Meeting from '@/models/Meeting';
+import Payment from '@/models/Payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,8 @@ export async function GET(request) {
             completedExams,
             totalQuestions,
             totalCourses,
-            totalMeetings
+            totalMeetings,
+            totalPaymentsResult
         ] = await Promise.all([
             user.role === 'admin' ? User.countDocuments({ role: 'teacher', ...dashboardQuery }) : Promise.resolve(0),
             user.role === 'admin' ? User.countDocuments({ role: 'teacher', status: 'active', ...dashboardQuery }) : Promise.resolve(0),
@@ -54,8 +56,14 @@ export async function GET(request) {
             }),
             Question.countDocuments({ ...contentFilter, ...dashboardQuery }),
             Course.countDocuments({ ...contentFilter, ...dashboardQuery }),
-            Meeting.countDocuments({ ...contentFilter, ...dashboardQuery })
+            Meeting.countDocuments({ ...contentFilter, ...dashboardQuery }),
+            user.role === 'admin' ? Payment.aggregate([
+                { $match: { status: 'success' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]) : Promise.resolve([{ total: 0 }])
         ]);
+
+        const totalPayments = totalPaymentsResult.length > 0 ? totalPaymentsResult[0].total : 0;
 
         // Calculate completion rate
         const completionRate = totalExams > 0
@@ -124,6 +132,16 @@ export async function GET(request) {
                 progress_info: `${totalMeetings} Meetings`,
                 icon: "feather-video",
                 permission: 'manage_live_exams'
+            },
+            {
+                id: 7,
+                title: "Total Payments",
+                total_number: totalPayments.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }),
+                completed_number: "",
+                progress: "100%",
+                progress_info: `Received`,
+                icon: "feather-dollar-sign",
+                role: 'admin'
             }
         ];
 
