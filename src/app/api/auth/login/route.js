@@ -261,7 +261,8 @@ export async function POST(request) {
     // Check if user is switching devices
     let updateFields = {
       activeDeviceId: deviceId,
-      lastActiveAt: new Date()
+      lastActiveAt: new Date(),
+      fcmToken: body.fcmToken || user.fcmToken
     };
 
     if (user.activeDeviceId && user.activeDeviceId !== deviceId) {
