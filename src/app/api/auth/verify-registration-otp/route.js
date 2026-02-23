@@ -93,11 +93,21 @@ export async function POST(request) {
         await user.save();
 
         // Generate JWT token for auto-login
-        const { signToken } = await import('@/utils/auth');
+        const { signToken, signRefreshToken } = await import('@/utils/auth');
         const token = await signToken({
             userId: user._id.toString(),
             email: user.email,
             role: user.role
+        });
+
+        // Generate Refresh Token with full profile
+        const refreshToken = await signRefreshToken({
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
+            deviceId: body.deviceId || ''
         });
 
         // Send Admin Notification (Async - do not block response)
@@ -119,7 +129,8 @@ export async function POST(request) {
                 rollNumber: user.rollNumber,
                 role: user.role
             },
-            token
+            token,
+            refreshToken
         });
 
     } catch (error) {

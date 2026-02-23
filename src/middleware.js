@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { verifyToken } from '@/utils/auth'
+import { verifyToken, signToken } from '@/utils/auth'
+
 
 export async function middleware(request) {
     const { pathname } = request.nextUrl
@@ -70,7 +71,67 @@ export async function middleware(request) {
         }
 
         // Verify Token
-        const payload = await verifyToken(token)
+        let payload = await verifyToken(token)
+
+        // Handle Expired Token Transparently (Strict Secure Refresh Flow)
+        if (payload && payload.expired) {
+            // 1. Get Refresh Token from Cookie or Header
+            let refreshToken = request.cookies.get('refreshToken')?.value;
+            if (!refreshToken) {
+                refreshToken = request.headers.get('x-refresh-token');
+            }
+
+            if (refreshToken) {
+                // 2. IMPORTANT: Verify Refresh Token (Signature + Expiry)
+                const refreshPayload = await verifyToken(refreshToken);
+
+                if (refreshPayload && !refreshPayload.expired) {
+                    console.log(`[AUTH] Access token expired. Securely refreshing using verifyToken(refreshToken) for user: ${refreshPayload.userId}`);
+
+                    // 3. Issue new Access Token using data from the verified Refresh Token
+                    // Note: If old refresh tokens are missing fields, we safely fallback to payload from access token 
+                    // because verifyToken(token) only returns payload if signature was valid.
+                    const newToken = await signToken({
+                        userId: refreshPayload.userId,
+                        email: refreshPayload.email || payload.email,
+                        role: refreshPayload.role || payload.role,
+                        permissions: refreshPayload.permissions || payload.permissions,
+                        accessScope: refreshPayload.accessScope || payload.accessScope,
+                        deviceId: refreshPayload.deviceId || payload.deviceId
+                    });
+
+                    // 4. Pass new token to the internal route handler
+                    const requestHeaders = new Headers(request.headers);
+                    requestHeaders.set('Authorization', `Bearer ${newToken}`);
+
+                    const response = NextResponse.next({
+                        request: {
+                            headers: requestHeaders,
+                        },
+                    });
+
+                    // 5. Update Cookie and Header for the response to client
+                    response.cookies.set('token', newToken, {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'strict',
+                        maxAge: 60 * 24 * 60 * 60 // 60 days
+                    });
+
+                    response.headers.set('x-new-token', newToken);
+
+
+                    return response;
+                }
+            }
+
+            // No valid refresh token found - force logout
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized: Session expired', expired: true },
+                { status: 401 }
+            )
+        }
+
         if (!payload) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized: Invalid token' },
@@ -79,9 +140,6 @@ export async function middleware(request) {
         }
 
         // Token is valid - Allow request
-        // (Optional: Pass user info via headers if needed by backend, but backend extracts from token or DB usually)
-        // For Next.js App Router, we can't easily modify the request object passed to the route handler to add "user".
-        // Apps typically re-verify or trust the token.
         return NextResponse.next()
     }
 

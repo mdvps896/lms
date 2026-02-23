@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import { signToken } from '@/utils/auth';
+import { signToken, signRefreshToken } from '@/utils/auth';
 import { sendPushNotification } from '@/utils/firebaseAdmin';
 
 export async function POST(request) {
@@ -85,11 +85,21 @@ export async function POST(request) {
     // Update User
     await User.findByIdAndUpdate(userId, updateFields);
 
-    // Generate JWT Token
+    // Generate JWT Access Token
     const token = await signToken({
       userId: user._id.toString(),
       email: user.email,
       role: user.role,
+      deviceId: deviceId
+    });
+
+    // Generate Refresh Token with full profile
+    const refreshToken = await signRefreshToken({
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+      accessScope: user.accessScope || 'own',
       deviceId: deviceId
     });
 
@@ -104,6 +114,7 @@ export async function POST(request) {
       success: true,
       data: userObj,
       token,
+      refreshToken,
       message: 'Two-factor authentication successful'
     });
 

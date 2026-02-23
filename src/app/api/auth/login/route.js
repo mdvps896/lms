@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 import { checkOTPRateLimit } from '@/utils/otpRateLimit';
-import { signToken } from '@/utils/auth';
+import { signToken, signRefreshToken } from '@/utils/auth';
 
 // Import all models in correct order to ensure proper registration
 // Import all models in correct order to ensure proper registration
@@ -315,7 +315,7 @@ export async function POST(request) {
     // Update User with new device info
     await User.findByIdAndUpdate(user._id, updateFields);
 
-    // Generate JWT Token
+    // Generate JWT Access Token
     const token = await signToken({
       userId: user._id.toString(),
       email: user.email,
@@ -323,6 +323,16 @@ export async function POST(request) {
       permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
       accessScope: user.accessScope || 'own',
       deviceId: deviceId // Add deviceId to token
+    });
+
+    // Generate Refresh Token with full profile for secure auto-refresh
+    const refreshToken = await signRefreshToken({
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+      accessScope: user.accessScope || 'own',
+      deviceId: deviceId
     });
 
     const userObj = user.toObject();
@@ -333,10 +343,18 @@ export async function POST(request) {
     // Add deviceId to response so mobile app can store it
     userObj.deviceId = deviceId;
 
-    const response = NextResponse.json({ success: true, data: userObj, token });
+    const response = NextResponse.json({ success: true, data: userObj, token, refreshToken });
 
-    // Set HttpOnly Cookie for web clients
+    // Set HttpOnly Cookie for web clients (Access Token)
     response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 // 7 days matching access token expiry
+    });
+
+    // Set HttpOnly Cookie for web clients (Refresh Token)
+    response.cookies.set('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
