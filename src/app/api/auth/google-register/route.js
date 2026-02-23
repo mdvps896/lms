@@ -54,8 +54,11 @@ export async function POST(request) {
         let isNewUser = false;
 
         if (user) {
-            // Existing user - just login
-
+            // Existing user - update device tracking and notification token
+            await User.findByIdAndUpdate(user._id, {
+                fcmToken: body.fcmToken || user.fcmToken,
+                lastActiveAt: new Date()
+            });
         } else {
             // New user - check if registration is enabled
             if (!registrationEnabled) {
@@ -85,6 +88,7 @@ export async function POST(request) {
                 profileImage: photoUrl || null,
                 authProvider: 'google',
                 registerSource,
+                fcmToken: body.fcmToken || null,
                 // No category required - skip it
             });
 
@@ -102,11 +106,40 @@ export async function POST(request) {
             }
         }
 
-        // Generate proper JWT Token using auth utility
+        // Generate unique device ID if not provided in body (fallback for web)
+        let finalDeviceId = body.deviceId || body.activeDeviceId;
+        if (!finalDeviceId) {
+            const userAgent = request.headers.get('user-agent') || '';
+            finalDeviceId = Buffer.from(`${email}-${userAgent}-${Date.now()}`).toString('base64').substring(0, 32);
+        }
+
+        // Update User with new device info to prevent "Session Expired" force logouts
+        await User.findByIdAndUpdate(user._id, {
+            activeDeviceId: finalDeviceId,
+            lastActiveAt: new Date()
+        });
+
+        // Generate JWT Access Token with deviceId
         const token = await signToken({
             userId: user._id.toString(),
             email: user.email,
-            role: user.role
+            role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
+            deviceId: finalDeviceId
+        });
+
+        // Import signRefreshToken dynamically or use from imports if available
+        const { signRefreshToken } = await import('@/utils/auth');
+
+        // Generate Refresh Token with full profile
+        const refreshToken = await signRefreshToken({
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
+            deviceId: finalDeviceId
         });
 
         return NextResponse.json({
@@ -122,7 +155,8 @@ export async function POST(request) {
                 role: user.role,
                 profileImage: user.profileImage
             },
-            token
+            token,
+            refreshToken
         });
 
     } catch (error) {

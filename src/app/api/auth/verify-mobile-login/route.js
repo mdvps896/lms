@@ -130,11 +130,25 @@ export async function POST(request) {
             lastActiveAt: new Date()
         });
 
-        // Generate JWT Token
+        // Generate JWT Access Token with full profile and deviceId
         const token = await signToken({
             userId: user._id.toString(),
             email: user.email,
             role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
+            deviceId: finalDeviceId
+        });
+
+        const { signRefreshToken } = await import('@/utils/auth');
+
+        // Generate Refresh Token with full profile for secure auto-refresh
+        const refreshToken = await signRefreshToken({
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
             deviceId: finalDeviceId
         });
 
@@ -151,7 +165,8 @@ export async function POST(request) {
             isNewUser,
             message: isNewUser ? 'Registration successful' : 'Login successful',
             data: userObj,
-            token
+            token,
+            refreshToken
         });
 
     } catch (error) {

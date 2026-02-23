@@ -90,6 +90,8 @@ export async function POST(request) {
       userId: user._id.toString(),
       email: user.email,
       role: user.role,
+      permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+      accessScope: user.accessScope || 'own',
       deviceId: deviceId
     });
 

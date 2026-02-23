@@ -89,6 +89,8 @@ export async function POST(request) {
         user.registerSource = source;
         user.isActive = true;
         user.authProvider = 'local';
+        user.activeDeviceId = body.deviceId || '';
+        user.lastActiveAt = new Date();
 
         await user.save();
 
@@ -97,7 +99,10 @@ export async function POST(request) {
         const token = await signToken({
             userId: user._id.toString(),
             email: user.email,
-            role: user.role
+            role: user.role,
+            permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+            accessScope: user.accessScope || 'own',
+            deviceId: body.deviceId || ''
         });
 
         // Generate Refresh Token with full profile
