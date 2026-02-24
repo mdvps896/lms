@@ -511,7 +511,7 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                                 <div className="input-group mb-2">
                                     <input
                                         className="form-control"
-                                        type="url"
+                                        type="text"
                                         placeholder="Image URL or select from library"
                                         value={formData.thumbnail}
                                         onChange={e => setFormData({ ...formData, thumbnail: e.target.value })}
@@ -570,7 +570,7 @@ export default function CourseFormModal({ course, onClose, onSave }) {
                                 <div className="input-group mb-2">
                                     <input
                                         className="form-control"
-                                        type="url"
+                                        type="text"
                                         placeholder="Video URL (YouTube or direct link) or select from library"
                                         value={formData.demoVideo}
                                         onChange={e => setFormData({ ...formData, demoVideo: e.target.value })}
