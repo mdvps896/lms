@@ -74,6 +74,7 @@ export async function POST(request, { params }) {
                     $push: {
                         ratings: {
                             user: new mongoose.Types.ObjectId(userId),
+                            userName: user.name || '',
                             rating: Number(rating),
                             review: review || '',
                             createdAt: new Date()

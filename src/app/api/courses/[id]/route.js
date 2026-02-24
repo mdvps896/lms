@@ -65,7 +65,7 @@ export async function GET(request, { params }) {
         courseObj.readingDurationText = readingDurationText;
 
         courseObj.reviews = ratings.map(r => ({
-            userName: r.user?.name || 'Student',
+            userName: r.userName || r.user?.name || 'Verified Student',
             rating: r.rating,
             review: r.review,
             date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recently'
