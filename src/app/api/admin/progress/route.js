@@ -26,14 +26,16 @@ export async function GET(request) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        let progress = await StudentProgress.findOne({ user: userId });
+        let progress = await StudentProgress.findOneAndUpdate(
+            { user: userId },
+            { $setOnInsert: { user: userId } },
+            { new: true, upsert: true }
+        );
 
-        // If no progress document exists, create a default one
-        if (!progress) {
-            progress = await StudentProgress.create({ user: userId });
-        }
+        const progressObj = progress.toObject();
+        if (progressObj.otherNotes === undefined) progressObj.otherNotes = '';
 
-        return NextResponse.json({ success: true, data: progress });
+        return NextResponse.json({ success: true, data: progressObj });
     } catch (error) {
         console.error('Error fetching progress:', error);
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });

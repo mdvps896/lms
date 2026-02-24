@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import {
     FiX, FiUser, FiBookOpen, FiFileText,
-    FiMail, FiDownload, FiXCircle, FiPenTool
+    FiMail, FiDownload, FiXCircle, FiPenTool, FiClipboard
 } from 'react-icons/fi'
 import StudentOverviewTab from './tabs/StudentOverviewTab'
 import StudentExamsTab from './tabs/StudentExamsTab'
@@ -11,6 +11,7 @@ import StudentActivityLog from './tabs/StudentActivityLog'
 import StudentESignTab from './tabs/StudentESignTab'
 import StudentProgressTab from './tabs/StudentProgressTab'
 import StudentFreeMaterialsTab from './tabs/StudentFreeMaterialsTab'
+import StudentClientFormTab from './tabs/StudentClientFormTab'
 import { generateStudentReport } from '@/utils/studentReportGenerator'
 import StudentReportModal from './StudentReportModal'
 import { useSettings } from '@/contexts/SettingsContext'
@@ -134,6 +135,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                     <TabButton id="progress" label="Progress Tracking" icon={FiCheckCircle} />
                                 </li>
                                 <li className="nav-item">
+                                    <TabButton id="client_form" label="Client Form" icon={FiClipboard} />
+                                </li>
+                                <li className="nav-item">
                                     <TabButton id="free_materials" label="Free Materials" icon={FiFileText} />
                                 </li>
                             </ul>
@@ -173,6 +177,9 @@ const ViewStudentModal = ({ show, student, onClose }) => {
                                 )}
                                 {activeTab === 'progress' && (
                                     <StudentProgressTab studentId={student.id} />
+                                )}
+                                {activeTab === 'client_form' && (
+                                    <StudentClientFormTab studentId={student.id} studentName={student.name} />
                                 )}
                                 {activeTab === 'free_materials' && (
                                     <StudentFreeMaterialsTab

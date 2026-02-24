@@ -23,13 +23,25 @@ export async function GET(request) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        let progress = await StudentProgress.findOne({ user: userId });
+        // Use findOneAndUpdate with upsert so that:
+        // 1. Existing docs are returned as-is (with their otherNotes already stored)
+        // 2. New docs are created with defaults
+        // The $setOnInsert only runs when creating — existing docs are untouched
+        let progress = await StudentProgress.findOneAndUpdate(
+            { user: userId },
+            { $setOnInsert: { user: userId } },
+            { new: true, upsert: true }
+        );
 
-        if (!progress) {
-            progress = await StudentProgress.create({ user: userId });
+        // Convert to plain object so all schema-defined fields (incl. otherNotes) appear
+        const progressObj = progress.toObject();
+
+        // Ensure otherNotes key always exists (for clients that check containsKey)
+        if (progressObj.otherNotes === undefined) {
+            progressObj.otherNotes = '';
         }
 
-        return NextResponse.json({ success: true, data: progress });
+        return NextResponse.json({ success: true, data: progressObj });
     } catch (error) {
         console.error('Error fetching student progress:', error);
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });

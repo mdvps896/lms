@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { FiCheckCircle, FiClock, FiAlertCircle, FiDollarSign, FiFileText, FiUpload, FiDownload, FiSave } from 'react-icons/fi'
+import { FiCheckCircle, FiClock, FiAlertCircle, FiDollarSign, FiFileText, FiUpload, FiDownload, FiSave, FiEdit3 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
 const StudentProgressTab = ({ studentId }) => {
@@ -191,7 +191,7 @@ const StudentProgressTab = ({ studentId }) => {
         return (
             <div className="card mb-3 border shadow-sm">
                 <div className="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                    <h6 className="mb-0 fw-bold text-primary">Exam Tracking</h6>
+                    <h6 className="mb-0 fw-bold text-primary">Exam Result</h6>
                     {getStatusBadge(currentStatus)}
                 </div>
                 <div className="card-body p-3">
@@ -309,6 +309,63 @@ const StudentProgressTab = ({ studentId }) => {
         )
     }
 
+    const OtherNotesEditor = () => {
+        const [notes, setNotes] = useState(progressData?.otherNotes || '')
+
+        useEffect(() => {
+            setNotes(progressData?.otherNotes || '')
+        }, [progressData?.otherNotes])
+
+        return (
+            <div className="card mb-3 border shadow-sm" style={{ borderColor: '#ffc107', background: '#fffbea' }}>
+                <div className="card-header d-flex align-items-center py-2" style={{ background: '#fff8d6', borderBottom: '1px solid #ffc107' }}>
+                    <FiEdit3 className="me-2" style={{ color: '#856404', fontSize: '1rem' }} />
+                    <h6 className="mb-0 fw-bold" style={{ color: '#856404' }}>Other Notes (Visible to Student)</h6>
+                </div>
+                <div className="card-body p-3">
+                    <label className="form-label small text-muted">Admin Custom Message</label>
+                    <textarea
+                        className="form-control mb-3"
+                        rows={4}
+                        placeholder="Type any message for the student here..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        style={{ resize: 'vertical' }}
+                    />
+                    <div className="d-flex justify-content-end">
+                        <button
+                            className="btn btn-warning btn-sm"
+                            disabled={saving}
+                            onClick={async () => {
+                                setSaving(true)
+                                try {
+                                    const res = await fetch('/api/admin/progress', {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ userId: studentId, otherNotes: notes })
+                                    })
+                                    const data = await res.json()
+                                    if (data.success) {
+                                        setProgressData(prev => ({ ...prev, otherNotes: notes }))
+                                        Swal.fire({ icon: 'success', title: 'Saved!', timer: 1200, showConfirmButton: false })
+                                    } else {
+                                        Swal.fire('Error', data.message || 'Failed to save', 'error')
+                                    }
+                                } catch {
+                                    Swal.fire('Error', 'Something went wrong', 'error')
+                                } finally {
+                                    setSaving(false)
+                                }
+                            }}
+                        >
+                            <FiSave className="me-1" /> Save Notes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (loading) return <div className="text-center p-5"><div className="spinner-border text-primary" /></div>
 
     return (
@@ -351,6 +408,7 @@ const StudentProgressTab = ({ studentId }) => {
                     <BillsManager />
                 </div>
             </div>
+            <OtherNotesEditor />
         </div>
     )
 }
