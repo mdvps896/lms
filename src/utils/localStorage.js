@@ -219,15 +219,12 @@ export async function saveToLocalStorage(file, folder = '', fileName = '') {
         // Determine target directory
         const targetDir = getTargetDirectory(originalFileName);
 
-        // Create subfolder if specified, but avoid redundant folder names
+        // Create subfolder if specified
         let finalDir = targetDir;
         if (folder) {
-            // Avoid creating redundant folders (e.g., images/images)
-            const targetDirName = path.basename(targetDir);
-            if (folder !== targetDirName) {
-                finalDir = path.join(targetDir, folder);
-            }
+            finalDir = path.join(targetDir, folder);
         }
+
         if (!fs.existsSync(finalDir)) {
             await fs.promises.mkdir(finalDir, { recursive: true });
         }

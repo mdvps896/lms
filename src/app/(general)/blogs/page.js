@@ -83,31 +83,31 @@ const BlogsPage = () => {
             }
         })
 
-        const reader = new FileReader()
-        reader.onload = async (ev) => {
-            try {
-                const res = await fetch('/api/storage/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileData: ev.target.result, folder: 'uploads/blogs', filename: file.name })
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('folder', 'blogs')
+
+            const res = await fetch('/api/storage/upload', {
+                method: 'POST',
+                body: formData
+            })
+            const data = await res.json()
+            if (data.success && data.url) {
+                setForm(f => ({ ...f, image: data.url }))
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Uploaded!',
+                    timer: 1000,
+                    showConfirmButton: false
                 })
-                const data = await res.json()
-                if (data.success && data.url) {
-                    setForm(f => ({ ...f, image: data.url }))
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Uploaded!',
-                        timer: 1000,
-                        showConfirmButton: false
-                    })
-                } else {
-                    Swal.fire('Error', 'Upload failed', 'error')
-                }
-            } catch {
-                Swal.fire('Error', 'Upload error', 'error')
+            } else {
+                Swal.fire('Error', data.message || 'Upload failed', 'error')
             }
+        } catch (error) {
+            console.error('Upload error:', error)
+            Swal.fire('Error', 'Upload error', 'error')
         }
-        reader.readAsDataURL(file)
     }
 
     const handleSave = async () => {
