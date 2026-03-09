@@ -19,7 +19,7 @@ const BlogsPage = () => {
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [isMediaModalOpen, setIsMediaModalOpen] = useState(false)
     const [selectedBlog, setSelectedBlog] = useState(null)
-    const [form, setForm] = useState({ title: '', content: '', image: '', category: 'General', status: 'draft' })
+    const [form, setForm] = useState({ title: '', content: '', image: '', category: 'General', status: 'draft', downloadable: false })
     const [saving, setSaving] = useState(false)
     const fileInputRef = useRef(null)
 
@@ -55,7 +55,7 @@ const BlogsPage = () => {
 
     const openCreate = () => {
         setSelectedBlog(null)
-        setForm({ title: '', content: '', image: '', category: categories[0]?.name || 'General', status: 'draft' })
+        setForm({ title: '', content: '', image: '', category: categories[0]?.name || 'General', status: 'draft', downloadable: false })
         setIsFormOpen(true)
     }
 
@@ -66,7 +66,8 @@ const BlogsPage = () => {
             content: blog.content,
             image: blog.image || '',
             category: blog.category || 'General',
-            status: blog.status || 'draft'
+            status: blog.status || 'draft',
+            downloadable: blog.downloadable || false
         })
         setIsFormOpen(true)
     }
@@ -273,6 +274,32 @@ const BlogsPage = () => {
                                             <option value="draft">Draft</option>
                                             <option value="published">Published</option>
                                         </select>
+                                    </div>
+
+                                    {/* Downloadable Toggle */}
+                                    <div className="col-md-5 mb-3">
+                                        <label className="form-label fw-semibold">Download Options</label>
+                                        <div className="form-check form-switch">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                id="downloadableSwitch"
+                                                checked={form.downloadable}
+                                                onChange={e => setForm(f => ({ ...f, downloadable: e.target.checked }))}
+                                            />
+                                            <label className="form-check-label" htmlFor="downloadableSwitch">
+                                                {form.downloadable ? (
+                                                    <span className="text-success"><i className="fi fi-rr-check-circle me-1"></i>Allow PDF Download</span>
+                                                ) : (
+                                                    <span className="text-muted"><i className="fi fi-rr-ban me-1"></i>Download Disabled</span>
+                                                )}
+                                            </label>
+                                        </div>
+                                        <small className="text-muted">
+                                            {form.downloadable 
+                                                ? 'Users can download this blog as PDF and take screenshots'
+                                                : 'Screenshots blocked, no download option for users'}
+                                        </small>
                                     </div>
 
                                     <div className="col-12 mb-3">

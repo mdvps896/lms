@@ -30,6 +30,10 @@ const BlogSchema = new mongoose.Schema({
         type: String,
         enum: ['published', 'draft'],
         default: 'draft'
+    },
+    downloadable: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 

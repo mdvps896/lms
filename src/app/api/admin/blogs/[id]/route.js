@@ -43,6 +43,7 @@ export async function PUT(request, { params }) {
                 image: data.image,
                 category: data.category,
                 status: data.status,
+                downloadable: data.downloadable,
                 updatedAt: new Date(),
             },
             { new: true, runValidators: true }

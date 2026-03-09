@@ -37,6 +37,7 @@ export async function POST(request) {
             image: data.image || '',
             category: data.category || 'General',
             status: data.status || 'draft',
+            downloadable: data.downloadable || false,
         });
 
         // Send push notification to all students if blog is published
