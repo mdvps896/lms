@@ -14,7 +14,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, email, mobile } = body;
+    const { name, email, mobile, category, gender } = body;
+    console.log(`\x1b[33m[AUTH] Registration Request for: ${email}\x1b[0m`);
+    console.log(`\x1b[36m[DEBUG] Category Received: ${category}\x1b[0m`);
+    console.log(`\x1b[36m[DEBUG] Gender Received: ${gender}\x1b[0m`);
 
 
 
@@ -80,6 +83,8 @@ export async function POST(request) {
     if (existingUser) {
       existingUser.name = name;
       existingUser.phone = mobile;
+      existingUser.category = category || existingUser.category;
+      if (gender) existingUser.gender = gender;
       existingUser.registrationOtp = otp;
       existingUser.registrationOtpExpiry = otpExpiry;
       await existingUser.save();
@@ -94,7 +99,9 @@ export async function POST(request) {
         registrationOtpExpiry: otpExpiry,
         emailVerified: false,
         role: 'student',
-        authProvider: 'local'
+        authProvider: 'local',
+        category: category || null,
+        gender: gender || 'other'
       });
     }
 

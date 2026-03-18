@@ -13,7 +13,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { email, otp, name, mobile, password } = body;
+        const { email, otp, name, mobile, password, category, gender } = body;
+        console.log(`\x1b[33m[AUTH] OTP Verification for: ${email}\x1b[0m`);
+        console.log(`\x1b[36m[DEBUG] Category Received: ${category}\x1b[0m`);
+        console.log(`\x1b[36m[DEBUG] Gender Received: ${gender}\x1b[0m`);
 
 
 
@@ -92,6 +95,11 @@ export async function POST(request) {
         user.activeDeviceId = body.deviceId || '';
         user.lastActiveAt = new Date();
 
+        if (category) user.category = category;
+        if (gender) user.gender = gender;
+        
+        console.log(`\x1b[32m[DEBUG] Saving User with Category: ${user.category}, Gender: ${user.gender}\x1b[0m`);
+
         await user.save();
 
         // Generate JWT token for auto-login
@@ -132,7 +140,9 @@ export async function POST(request) {
                 email: user.email,
                 phone: user.phone,
                 rollNumber: user.rollNumber,
-                role: user.role
+                role: user.role,
+                category: user.category,
+                gender: user.gender
             },
             token,
             refreshToken

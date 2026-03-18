@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import path from 'path';
+import fs from 'fs';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import ExamAttempt from '@/models/ExamAttempt';
@@ -37,8 +39,11 @@ export async function GET(request) {
         let courseProgress = [];
 
         if (includeExams) {
-            examAttempts = await ExamAttempt.find({ user: studentId })
-                .populate('exam', 'name')
+            examAttempts = await ExamAttempt.find({ 
+                user: studentId,
+                isFreeMaterial: { $ne: true } // Exclude free material exams
+            })
+                .populate('exam', 'name duration passingPercentage')
                 .sort({ createdAt: -1 })
                 .lean();
         }
@@ -46,34 +51,52 @@ export async function GET(request) {
         if (includePdfViews) {
             pdfSessions = await PDFViewSession.find({
                 user: studentId,
-                duration: { $gte: 60 } // Filter sessions >= 1 min
+                duration: { $gte: 5 } // Standardized filter
             })
                 .sort({ startTime: -1 })
                 .lean();
 
-            // Enrich with Selfie Data (Optional now, but keeping for potential metadata use)
-            for (let session of pdfSessions) {
-                const selfies = await SelfieCapture.find({ sessionId: session.sessionId })
-                    .sort({ capturedAt: 1 })
-                    .lean();
-                session.selfies = selfies;
-            }
+
+            // No need to enrich one-by-one, selfieCount is already in the session model
         }
 
         if (includeCourses) {
             // Populate courses from User.enrolledCourses
             if (student.enrolledCourses && student.enrolledCourses.length > 0) {
                 const courseIds = student.enrolledCourses.map(e => e.courseId);
-                const courses = await Course.find({ _id: { $in: courseIds } }).select('title').lean();
+                const courses = await Course.find({ _id: { $in: courseIds } }).select('title readingDuration').lean();
 
-                courseProgress = student.enrolledCourses.map(enrolled => {
+                courseProgress = await Promise.all(student.enrolledCourses.map(async enrolled => {
                     const course = courses.find(c => c._id.toString() === enrolled.courseId.toString());
+                    
+                    // Fetch time spent from PDFViewSession
+                    const stats = await PDFViewSession.getTotalCourseTime(studentId, enrolled.courseId);
+                    
+                    // Calculate target seconds
+                    let targetSeconds = 0;
+                    if (course?.readingDuration) {
+                        const val = course.readingDuration.value || 0;
+                        const unit = course.readingDuration.unit || 'hours';
+                        switch (unit) {
+                            case 'minutes': targetSeconds = val * 60; break;
+                            case 'hours': targetSeconds = val * 3600; break;
+                            case 'days': targetSeconds = val * 86400; break;
+                            case 'months': targetSeconds = val * 2592000; break;
+                            default: targetSeconds = val * 3600;
+                        }
+                    }
+
+                    const percentage = targetSeconds > 0 ? ((stats.totalSeconds / targetSeconds) * 100).toFixed(1) : 0;
+
                     return {
                         title: course?.title || 'Unknown Course',
                         enrolledAt: enrolled.enrolledAt,
                         completedLectures: enrolled.completedLectures?.length || 0,
+                        timeSpentSeconds: stats.totalSeconds,
+                        percentage: Math.min(100, parseFloat(percentage)),
+                        formattedSpent: stats.formattedTime || '0s'
                     };
-                });
+                }));
             }
         }
 
@@ -149,6 +172,18 @@ export async function GET(request) {
 
         yPos += 35;
 
+        // Format Duration Helper
+        const fmtDur = (s) => {
+            if (!s) return ' 0 min';
+            const mTotal = Math.floor(s / 60);
+            if (mTotal < 60) {
+                return `${Math.max(1, mTotal)} min`;
+            }
+            const h = Math.floor(mTotal / 60);
+            const m = mTotal % 60;
+            return `${h} hr ${m} min`;
+        };
+
         // --- Helper for Section Titles & Tables ---
         // We use autoTable for everything now to maintain consistency
 
@@ -174,19 +209,8 @@ export async function GET(request) {
                 if (new Date(session.startTime) > new Date(pdfGroups[title].lastViewed)) {
                     pdfGroups[title].lastViewed = session.startTime;
                 }
+                pdfGroups[title].groupSelfies = (pdfGroups[title].groupSelfies || 0) + (session.selfieCount || 0);
             });
-
-            // Format Duration Helper
-            const fmtDur = (s) => {
-                if (!s) return '0 min';
-                const mTotal = Math.floor(s / 60);
-                if (mTotal < 60) {
-                    return `${Math.max(1, mTotal)} min`;
-                }
-                const h = Math.floor(mTotal / 60);
-                const m = mTotal % 60;
-                return `${h} hr ${m} min`;
-            };
 
             const tableBody = Object.values(pdfGroups).map(g => [
                 g.title,
@@ -208,11 +232,15 @@ export async function GET(request) {
 
             // Total Duration Summary Line
             const totalSecs = Object.values(pdfGroups).reduce((acc, g) => acc + (g.duration || 0), 0);
-            if (totalSecs > 0) {
+            const totalSelfies = Object.values(pdfGroups).reduce((acc, g) => acc + (g.groupSelfies || 0), 0);
+            const totalSessions = Object.values(pdfGroups).reduce((acc, g) => acc + (g.sessions || 0), 0);
+            
+            if (totalSecs > 0 || totalSelfies > 0 || totalSessions > 0) {
                 const totalMin = Math.floor(totalSecs / 60);
                 const h = Math.floor(totalMin / 60);
                 const m = totalMin % 60;
-                const totalStr = h > 0 ? `Total: ${h}h ${m}m` : `Total: ${m}m`;
+                const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                const totalStr = `Total Sessions: ${totalSessions}  |  Total Selfies: ${totalSelfies}  |  Total Time: ${timeStr}`;
 
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
@@ -234,28 +262,29 @@ export async function GET(request) {
             doc.text('Course Learning Activity (Summary)', 14, yPos);
             yPos += 5;
 
-            // Convert course progress to the format seen in the image (Summary)
-            // The image shows 'Total Sessions', 'Last Viewed', 'Total Duration'.
-            // Our current data model for 'enrolledCourses' might be limited (just 'completedLectures').
-            // We will map available data: Title, Completed Lectures, Enrolled Date.
-            // If we want it to look EXACTLY like the image, we'd need session data for courses, which might be in UserCourseActivity or similar.
-            // For now, we stick to the available 'courseProgress' but style it broadly similar. 
-            // The image implies aggregation. If we don't have activity logs for courses, we show Progress.
-
             autoTable(doc, {
                 startY: yPos,
-                head: [['Course Name', 'Joined', 'Progress (Lectures)']],
+                head: [['Course Name', 'Joined Date', 'Time Spent (Read)', 'Progress (%)']],
                 body: courseProgress.map(c => [
                     c.title,
                     new Date(c.enrolledAt).toLocaleDateString(),
-                    `${c.completedLectures} Completed`
+                    c.formattedSpent,
+                    `${c.percentage}%`
                 ]),
                 headStyles: { fillColor: [25, 135, 84], textColor: 255 }, // Green Header
                 theme: 'grid',
                 styles: { fontSize: 10, cellPadding: 3 },
                 margin: { left: 14, right: 14 }
             });
+
             yPos = doc.lastAutoTable.finalY + 15;
+            
+            // Optional: Total Course Progress Summary Row
+            const avgProgress = (courseProgress.reduce((acc, c) => acc + c.percentage, 0) / courseProgress.length).toFixed(1);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(25, 135, 84); // Green
+            doc.text(`Average Progress: ${avgProgress}%`, pageWidth - 14, yPos - 10, { align: 'right' });
         }
 
         // 5. Exam History (Blue to match Header)
@@ -270,19 +299,55 @@ export async function GET(request) {
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['Exam Title', 'Date', 'Score', 'Status']],
+                head: [['Exam Title', 'Exam Time', 'Start Date', 'End Date', 'Taken Time', 'Score', 'Status', 'Result']],
                 body: examAttempts.map(att => [
                     att.exam?.name || 'Unknown Exam',
-                    new Date(att.startedAt).toLocaleDateString(),
+                    att.exam?.duration ? `${att.exam.duration} min` : '-',
+                    new Date(att.startedAt).toLocaleString(),
+                    att.submittedAt ? new Date(att.submittedAt).toLocaleString() : '-',
+                    att.timeTaken ? fmtDur(att.timeTaken) : '-',
                     `${att.score} / ${att.totalMarks}`,
-                    att.status
+                    att.status,
+                    att.percentage >= (att.exam?.passingPercentage ?? 40) ? 'Pass' : 'Fail'
                 ]),
                 headStyles: { fillColor: primaryColor, textColor: 255 }, // Blue Header
                 theme: 'grid',
-                styles: { fontSize: 10, cellPadding: 3 },
+                styles: { fontSize: 8, cellPadding: 2 },
+                columnStyles: {
+                    7: { halign: 'center', fontStyle: 'bold' }
+                },
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 7) {
+                        const result = data.cell.raw;
+                        if (result === 'Pass') {
+                            data.cell.styles.fillColor = [40, 167, 69]; // Green
+                            data.cell.styles.textColor = [255, 255, 255]; // White
+                        } else if (result === 'Fail') {
+                            data.cell.styles.fillColor = [220, 53, 69]; // Red
+                            data.cell.styles.textColor = [255, 255, 255]; // White
+                        }
+                    }
+                },
                 margin: { left: 14, right: 14 }
             });
-            yPos = doc.lastAutoTable.finalY + 15;
+            yPos = doc.lastAutoTable.finalY + 8;
+
+            // Total Time Taken Summary for Exams
+            const totalExamSecs = examAttempts.reduce((acc, att) => acc + (att.timeTaken || 0), 0);
+            if (totalExamSecs > 0) {
+                const totalMin = Math.floor(totalExamSecs / 60);
+                const h = Math.floor(totalMin / 60);
+                const m = totalMin % 60;
+                const totalStr = h > 0 ? `Total Time Taken: ${h}h ${m}m` : `Total Time Taken: ${m}m`;
+
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Blue to match section
+                doc.text(totalStr, pageWidth - 14, yPos, { align: 'right' });
+                yPos += 12;
+            } else {
+                yPos += 7;
+            }
         }
 
         // Footer (Page Numbers)

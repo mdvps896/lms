@@ -38,6 +38,8 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
     };
 
     const globalTotalDuration = data ? data.reduce((sum, item) => sum + (item.duration || 0), 0) : 0;
+    const globalTotalSessions = data?.length || 0;
+    const globalTotalSelfies = data ? data.reduce((sum, item) => sum + (item.selfieCount || 0), 0) : 0;
     const globalTotalText = formatDuration(globalTotalDuration);
 
     return (
@@ -47,8 +49,13 @@ const StudentActivityLog = ({ activityType, data, formatDate }) => {
                     <h6 className="card-title fw-bold mb-0">{title}</h6>
                     <div>
                         <span className={`badge bg-light text-${color} me-2`}>
-                            {data?.length || 0} Total Sessions
+                            {globalTotalSessions} Total Sessions
                         </span>
+                        {(isPdf || isFree) && (
+                            <span className="badge bg-light text-primary me-2">
+                                <FiCamera className="me-1" /> {globalTotalSelfies} Total Selfies
+                            </span>
+                        )}
                         <span className={`badge bg-soft-${color} text-${color}`}>
                             Total: {globalTotalText}
                         </span>

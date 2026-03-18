@@ -14,7 +14,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { idToken, name, email, photoUrl } = body;
+        const { idToken, name, email, photoUrl, category, gender } = body;
+        console.log(`\x1b[33m[AUTH] Google Registration for: ${email}\x1b[0m`);
+        console.log(`\x1b[36m[DEBUG] Category Received: ${category}\x1b[0m`);
+        console.log(`\x1b[36m[DEBUG] Gender Received: ${gender}\x1b[0m`);
 
 
 
@@ -57,8 +60,11 @@ export async function POST(request) {
             // Existing user - update device tracking and notification token
             await User.findByIdAndUpdate(user._id, {
                 fcmToken: body.fcmToken || user.fcmToken,
-                lastActiveAt: new Date()
+                lastActiveAt: new Date(),
+                category: category || user.category,
+                gender: gender || user.gender
             });
+            console.log(`\x1b[32m[DEBUG] Updated Existing User Category/Gender\x1b[0m`);
         } else {
             // New user - check if registration is enabled
             if (!registrationEnabled) {
@@ -89,8 +95,10 @@ export async function POST(request) {
                 authProvider: 'google',
                 registerSource,
                 fcmToken: body.fcmToken || null,
-                // No category required - skip it
+                category: category || null,
+                gender: gender || 'other'
             });
+            console.log(`\x1b[32m[DEBUG] Created New User with Category: ${category}, Gender: ${gender}\x1b[0m`);
 
             isNewUser = true;
 
@@ -157,7 +165,9 @@ export async function POST(request) {
                 email: user.email,
                 phone: user.phone || '',
                 role: user.role,
-                profileImage: user.profileImage
+                profileImage: user.profileImage,
+                category: user.category,
+                gender: user.gender
             },
             token,
             refreshToken

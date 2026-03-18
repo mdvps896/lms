@@ -103,6 +103,7 @@ export const generateStudentReport = async (student, details, logoUrl) => {
             }
             acc[name].sessions += 1;
             acc[name].totalDuration += (view.duration || 0);
+            acc[name].totalSelfies = (acc[name].totalSelfies || 0) + (view.selfieCount || 0);
 
             // Update last viewed if this view is more recent
             const currentLastViewed = new Date(view.lastViewed || view.startTime);
@@ -126,7 +127,10 @@ export const generateStudentReport = async (student, details, logoUrl) => {
 
         const tableBody = details.attempts.map(attempt => [
             attempt.examTitle,
+            attempt.examDuration ? `${attempt.examDuration} min` : '-',
             formatDate(attempt.startedAt),
+            formatDate(attempt.submittedAt),
+            formatDuration(attempt.timeTaken),
             `${attempt.score || 0} / ${attempt.totalMarks}`,
             attempt.status,
             attempt.result
@@ -134,13 +138,26 @@ export const generateStudentReport = async (student, details, logoUrl) => {
 
         autoTable(doc, {
             startY: yPos,
-            head: [['Exam Name', 'Date', 'Score', 'Status', 'Result']],
+            head: [['Exam Name', 'Exam Time', 'Start Date', 'End Date', 'Taken Time', 'Score', 'Status', 'Result']],
             body: tableBody,
             headStyles: { fillColor: [66, 66, 66], textColor: 255 },
             theme: 'grid',
         });
 
-        yPos = doc.lastAutoTable.finalY + 15;
+        yPos = doc.lastAutoTable.finalY + 8;
+
+        // Total Time Taken Summary
+        const totalExamSecs = details.attempts.reduce((acc, att) => acc + (att.timeTaken || 0), 0);
+        if (totalExamSecs > 0) {
+            const totalStr = `Total Time Taken: ${formatDuration(totalExamSecs)}`;
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(33, 150, 243); // Blue
+            doc.text(totalStr, pageWidth - 14, yPos, { align: 'right' });
+            yPos += 12;
+        } else {
+            yPos += 7;
+        }
     }
 
     // --- PDF Activity Section ---
@@ -173,7 +190,19 @@ export const generateStudentReport = async (student, details, logoUrl) => {
             theme: 'grid',
         });
 
-        yPos = doc.lastAutoTable.finalY + 15;
+        yPos = doc.lastAutoTable.finalY + 8;
+
+        const totalDuration = pdfGroups.reduce((sum, g) => sum + g.totalDuration, 0);
+        const totalSelfies = pdfGroups.reduce((sum, g) => sum + (g.totalSelfies || 0), 0);
+        
+        const summaryStr = `Total Selfies: ${totalSelfies}  |  Total Time: ${formatDuration(totalDuration)}`;
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(220, 53, 69); // Red
+        doc.text(summaryStr, pageWidth - 14, yPos, { align: 'right' });
+
+        yPos += 15;
     } else {
         doc.setFontSize(12);
         doc.setTextColor(100);

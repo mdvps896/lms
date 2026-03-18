@@ -7,7 +7,21 @@ const StudentExamsTab = ({ details, formatDate }) => {
             <div className="card border-0 shadow-sm">
                 <div className="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                     <h6 className="card-title fw-bold mb-0">Exam Attempts History</h6>
-                    <span className="badge bg-light text-primary">{details.attempts?.length || 0} Records</span>
+                    <div className="d-flex gap-2">
+                        <span className="badge bg-light text-primary">{details.attempts?.length || 0} Records</span>
+                        {details.attempts && details.attempts.length > 0 && (
+                            <span className="badge bg-soft-danger text-danger">
+                                Total Time: {(() => {
+                                    const totalSec = details.attempts
+                                        .filter(a => !a.isFreeMaterial)
+                                        .reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
+                                    const h = Math.floor(totalSec / 3600);
+                                    const m = Math.floor((totalSec % 3600) / 60);
+                                    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                })()}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
@@ -15,7 +29,9 @@ const StudentExamsTab = ({ details, formatDate }) => {
                             <thead className="table-light">
                                 <tr>
                                     <th className="ps-4">Exam Name</th>
-                                    <th>Date</th>
+                                    <th>Started At</th>
+                                    <th>Ended At</th>
+                                    <th>Time Taken</th>
                                     <th>Score</th>
                                     <th>Status</th>
                                     <th>Result</th>
@@ -31,8 +47,27 @@ const StudentExamsTab = ({ details, formatDate }) => {
                                             <td>
                                                 <div className="d-flex flex-column">
                                                     <span className="fs-12 fw-medium">{formatDate(attempt.startedAt)}</span>
-                                                    <small className="text-muted fs-11">Started</small>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <div className="d-flex flex-column">
+                                                    <span className="fs-12 fw-medium">{formatDate(attempt.submittedAt)}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="fs-12 fw-medium">
+                                                    {(() => {
+                                                        const sec = attempt.timeTaken || 0;
+                                                        const h = Math.floor(sec / 3600);
+                                                        const m = Math.floor((sec % 3600) / 60);
+                                                        const s = sec % 60;
+                                                        return h > 0 
+                                                            ? `${h}h ${m}m ${s}s` 
+                                                            : m > 0 
+                                                                ? `${m}m ${s}s` 
+                                                                : `${s}s`;
+                                                    })()}
+                                                </span>
                                             </td>
                                             <td>
                                                 <span className="fw-bold text-dark">{attempt.score || 0}</span>
@@ -55,7 +90,7 @@ const StudentExamsTab = ({ details, formatDate }) => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="text-center py-5 text-muted">
+                                        <td colSpan="7" className="text-center py-5 text-muted">
                                             <FiBookOpen size={24} className="mb-2 opacity-50" />
                                             <p className="mb-0">No exam attempts found</p>
                                         </td>

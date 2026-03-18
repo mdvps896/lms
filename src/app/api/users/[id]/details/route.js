@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import ExamAttempt from '@/models/ExamAttempt';
@@ -41,28 +42,22 @@ export async function GET(request, { params }) {
             return a.percentage >= (a.exam.passingPercentage || 40);
         }).length;
 
-        // Last Activity (Login or Exam)
-        // Since we don't have an explicit lastLogin field, we'll use the latest exam attempt or updatedAt
         const lastActivity = attempts.length > 0 ? attempts[0].startedAt : user.updatedAt;
 
         // Fetch Student Activities (Course)
         const activities = await StudentActivity.find({ user: id, activityType: 'course_view' })
             .sort({ startTime: -1 })
             .lean();
-        if (activities.length > 0) {
-        }
 
         // Fetch PDF View Sessions from the specialized model
         const pdfSessions = await PDFViewSession.find({
             user: id,
-            duration: { $gte: 5 } // Lowered from 60s to 5s as per new requirement
+            duration: { $gte: 5 }
         })
             .sort({ startTime: -1 })
-            .limit(150)
             .lean();
 
         const dummyCourseId = '000000000000000000000000';
-
         const pdfViews = [];
         const freeMaterialViews = [];
 
@@ -70,7 +65,6 @@ export async function GET(request, { params }) {
             const durationInSeconds = session.duration || 0;
             const startTime = new Date(session.startTime);
 
-            // Calculate end time based on duration if available, otherwise fallback
             let endTime;
             if (durationInSeconds > 0) {
                 endTime = new Date(startTime.getTime() + (durationInSeconds * 1000));
@@ -82,7 +76,7 @@ export async function GET(request, { params }) {
                 id: session._id,
                 title: session.pdfName || session.lectureName || 'Untitled PDF',
                 startTime: session.startTime,
-                duration: durationInSeconds, // seconds
+                duration: durationInSeconds,
                 lastViewed: endTime,
                 latitude: session.latitude,
                 longitude: session.longitude,
@@ -90,7 +84,7 @@ export async function GET(request, { params }) {
                 selfieCount: session.selfieCount || 0
             };
 
-            if (session.course.toString() === dummyCourseId) {
+            if (session.course && session.course.toString() === dummyCourseId) {
                 freeMaterialViews.push(viewData);
             } else {
                 pdfViews.push(viewData);
@@ -114,11 +108,8 @@ export async function GET(request, { params }) {
 
             const courseId = enrollment.courseId._id;
             const course = await Course.findById(courseId).select('readingDuration curriculum').lean();
-
-            // Calculate total time spent on this course
             const stats = await PDFViewSession.getTotalCourseTime(id, courseId);
 
-            // Calculate target time in seconds
             let targetSeconds = 0;
             if (course?.readingDuration) {
                 const val = course.readingDuration.value || 0;
@@ -144,11 +135,17 @@ export async function GET(request, { params }) {
             };
         }));
 
+        console.log(`[DEBUG] Final counts for ${id}:`);
+        console.log(`- pdfSessions total query: ${pdfSessions.length}`);
+        console.log(`- pdfViews (course-linked): ${pdfViews.length}`);
+        console.log(`- freeMaterialViews: ${freeMaterialViews.length}`);
+        console.log(`- courseViews: ${courseViews.length}`);
+
         const details = {
             user: {
                 ...user,
                 enrolledCourses: enrichedEnrolledCourses,
-                lastActivity // enriching user object
+                lastActivity
             },
             examStats: {
                 total: totalAttempts,
@@ -165,7 +162,8 @@ export async function GET(request, { params }) {
                 percentage: attempt.percentage,
                 result: attempt.percentage >= (attempt.exam?.passingPercentage ?? 40) ? 'Pass' : 'Fail',
                 isFreeMaterial: attempt.isFreeMaterial,
-                timeTaken: attempt.timeTaken || 0, // in seconds
+                timeTaken: attempt.timeTaken || 0,
+                examDuration: attempt.exam?.duration || 0,
                 selfieCount: attempt.verification?.faceVerification?.periodicChecks?.length || 0
             })),
             pdfViews: pdfViews,
