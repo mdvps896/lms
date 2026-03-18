@@ -100,7 +100,7 @@ export async function POST(request) {
         emailVerified: false,
         role: 'student',
         authProvider: 'local',
-        category: category || null,
+        category: category || '6970d3edf4cd7a96ffd86faa',
         gender: gender || 'other'
       });
     }

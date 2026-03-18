@@ -95,7 +95,7 @@ export async function POST(request) {
         user.activeDeviceId = body.deviceId || '';
         user.lastActiveAt = new Date();
 
-        if (category) user.category = category;
+        if (category || !user.category) user.category = category || '6970d3edf4cd7a96ffd86faa';
         if (gender) user.gender = gender;
         
         console.log(`\x1b[32m[DEBUG] Saving User with Category: ${user.category}, Gender: ${user.gender}\x1b[0m`);

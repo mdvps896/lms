@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { idToken, deviceId, fcmToken } = body;
+        const { idToken, deviceId, fcmToken, category, gender } = body;
 
         if (!idToken) {
             return NextResponse.json({
@@ -63,7 +63,9 @@ export async function POST(request) {
                 isActive: true,
                 authProvider: 'firebase',
                 profileImage: picture || null,
-                registerSource: 'app'
+                registerSource: 'app',
+                category: category || '6970d3edf4cd7a96ffd86faa',
+                gender: gender || 'other'
             });
             isNewUser = true;
 

@@ -95,7 +95,7 @@ export async function POST(request) {
                 authProvider: 'google',
                 registerSource,
                 fcmToken: body.fcmToken || null,
-                category: category || null,
+                category: category || '6970d3edf4cd7a96ffd86faa',
                 gender: gender || 'other'
             });
             console.log(`\x1b[32m[DEBUG] Created New User with Category: ${category}, Gender: ${gender}\x1b[0m`);
