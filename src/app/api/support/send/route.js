@@ -18,17 +18,25 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'User ID and Sender ID are required' }, { status: 400 });
         }
 
-        // Security: Students can only send messages from themselves, unless admin
-        if (currentUser.role !== 'admin' && currentUser.id !== senderId && currentUser._id?.toString() !== senderId) {
+        // Security: Students can only send messages from themselves, into their own
+        // conversation thread, unless admin
+        if (
+            currentUser.role !== 'admin' &&
+            (currentUser.id !== senderId && currentUser._id?.toString() !== senderId ||
+                currentUser.id !== userId && currentUser._id?.toString() !== userId)
+        ) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
+        // 🔒 SECURITY: `isAdmin` must reflect the real caller's role, not a
+        // client-supplied flag — otherwise a student could forge "admin" replies
+        // into any conversation (their own userId points the thread anywhere).
         const message = await SupportMessage.create({
             user: userId,
             sender: senderId,
             text: text || '',
             images: images || [],
-            isAdmin: isAdmin || false,
+            isAdmin: currentUser.role === 'admin',
             isRead: false
         });
 

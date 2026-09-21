@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb'
 import SelfieCapture from '@/models/SelfieCapture'
 import Course from '@/models/Course' // Import Course model to ensure it's registered
 import PDFViewSession from '@/models/PDFViewSession' // Import PDFViewSession model
+import { requireAdminOrOwner } from '@/utils/apiAuth'
 
 export async function GET(request, { params }) {
     try {
@@ -16,6 +17,9 @@ export async function GET(request, { params }) {
                 { status: 400 }
             )
         }
+
+        const authError = await requireAdminOrOwner(request, userId)
+        if (authError) return authError
 
         const selfies = await SelfieCapture.find({ user: userId })
             .sort({ createdAt: -1 })

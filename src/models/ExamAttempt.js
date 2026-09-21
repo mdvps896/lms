@@ -205,6 +205,21 @@ const examAttemptSchema = new mongoose.Schema({
     isFreeMaterial: {
         type: Boolean,
         default: false
+    },
+    // The exact question set this candidate was served. Scoring uses this so
+    // the paper is graded against what they actually saw — previously /take
+    // capped subject-based exams at 20 questions per subject while /submit
+    // scored against every active question in those subjects, inflating the
+    // denominator and collapsing scores toward zero. It also stops questions
+    // added mid-exam from counting against an attempt already in progress.
+    servedQuestionIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Question'
+    }],
+    // Set when a submission arrived after the exam deadline.
+    lateSubmission: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

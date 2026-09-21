@@ -4,9 +4,13 @@ import React, { useState } from 'react'
 import Swal from 'sweetalert2'
 import Image from 'next/image'
 import { Eye, Copy, Trash2, PlayCircle, Image as ImageIcon, Video, Music, FileText, File, CheckSquare, Square } from 'feather-icons-react'
+import AdminPdfViewerModal from '../shared/AdminPdfViewerModal'
+import AdminMediaViewerModal from '../shared/AdminMediaViewerModal'
 
 const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...props }) => {
     const [imageError, setImageError] = useState(false)
+    const [showPdfViewer, setShowPdfViewer] = useState(false)
+    const [showMediaViewer, setShowMediaViewer] = useState(false)
 
     const getFileIcon = (type) => {
         switch (type) {
@@ -64,8 +68,12 @@ const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...
     }
 
     const handleView = () => {
-        if (file.type === 'image' || file.type === 'video' || file.type === 'pdf') {
-            window.open(getSecureUrl(file.path), '_blank')
+        if (file.type === 'pdf') {
+            // PDFs are view-only: rendered page-by-page in a modal, never opened
+            // as a raw URL, so they can't be saved/downloaded from here.
+            setShowPdfViewer(true)
+        } else if (file.type === 'image' || file.type === 'video') {
+            setShowMediaViewer(true)
         } else {
             handleCopyLink()
         }
@@ -412,6 +420,24 @@ const FileCard = ({ file, onDelete, onRefresh, isSelected = false, onSelect, ...
                     transform: scale(0.95);
                 }
             `}</style>
+            {file.type === 'pdf' && (
+                <AdminPdfViewerModal
+                    isOpen={showPdfViewer}
+                    onClose={() => setShowPdfViewer(false)}
+                    filePath={file.path}
+                    fileTitle={file.name}
+                />
+            )}
+            {(file.type === 'image' || file.type === 'video') && (
+                <AdminMediaViewerModal
+                    isOpen={showMediaViewer}
+                    onClose={() => setShowMediaViewer(false)}
+                    fileUrl={getSecureUrl(file.path)}
+                    filePath={file.path}
+                    fileTitle={file.name}
+                    mediaType={file.type}
+                />
+            )}
         </div>
     )
 }

@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(request, { params }) {
     try {
         await dbConnect();
         const { id } = params;
-        const body = await request.json();
-        const { userId } = body;
 
-        if (!userId) {
-            return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
+        const userId = currentUser.id || currentUser._id?.toString();
 
         const course = await Course.findById(id);
         if (!course) {

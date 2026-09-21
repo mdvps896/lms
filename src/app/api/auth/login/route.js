@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
 import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+import { generateOtp, clearOtpAttempts } from '@/utils/otpAttempts';
 import { signToken, signRefreshToken } from '@/utils/auth';
 
 // Import all models in correct order to ensure proper registration
@@ -17,10 +18,13 @@ function validateEmail(email) {
   return emailRegex.test(email);
 }
 
+// Coerce to a plain trimmed string. The point is to guarantee a string type
+// (so an object like {"$ne": null} can never reach the Mongo query as an
+// operator), NOT to strip characters — the old version deleted characters that
+// are legal in an email local-part and silently broke those accounts.
 function sanitizeInput(input) {
   if (typeof input !== 'string') return '';
-  // Remove potential XSS and SQL injection characters
-  return input.trim().replace(/[<>'"`;()]/g, '');
+  return input.trim();
 }
 
 export async function POST(request) {
@@ -159,6 +163,19 @@ export async function POST(request) {
       );
     }
 
+    // 🔒 Accounts created via Google sign-in or mobile OTP have no password at
+    // all. `user.password.startsWith` threw a TypeError on those, surfacing as
+    // a 500 with the raw error message instead of a clean rejection.
+    if (!user.password) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'This account has no password set. Please sign in with Google or use mobile OTP.'
+        },
+        { status: 401 }
+      );
+    }
+
     // Check password - support both plain text (legacy) and hashed passwords
     let isPasswordValid = false;
     if (user.password.startsWith('$2')) {
@@ -178,7 +195,10 @@ export async function POST(request) {
 
     if (!isPasswordValid) {
 
-      if (securityEnabled && user.role === 'admin') {
+      // 🔒 SECURITY: this used to be gated on `user.role === 'admin'`, leaving
+      // every student and teacher account open to unlimited password spraying.
+      // Lockout now applies to all roles.
+      if (securityEnabled) {
         const attempts = (user.failedLoginAttempts || 0) + 1;
         const updates = { failedLoginAttempts: attempts };
 
@@ -209,7 +229,7 @@ export async function POST(request) {
     }
 
     // Successful Login - Reset attempts
-    if (user.role === 'admin' && (user.failedLoginAttempts > 0 || user.lockUntil)) {
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
       await User.findByIdAndUpdate(user._id, {
         failedLoginAttempts: 0,
         $unset: { lockUntil: 1 }
@@ -218,15 +238,17 @@ export async function POST(request) {
 
     // Check if user has 2FA enabled
     if (user.twoFactorEnabled) {
-      // Generate OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Generate OTP with a CSPRNG (Math.random is not a CSPRNG — its output
+      // is predictable from previously observed values).
+      const otp = generateOtp();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Save OTP to database
+      // Save OTP to database; a new code gets a fresh guess budget.
       await User.findByIdAndUpdate(user._id, {
         twoFactorOtp: otp,
         twoFactorOtpExpiry: otpExpiry
       });
+      await clearOtpAttempts(User, user._id, '2fa');
 
       // Send OTP email
       try {
@@ -300,9 +322,7 @@ export async function POST(request) {
           deviceChangeWindowStart: null
         });
 
-        // 🚀 DEBUG: Log successful login to backend terminal
-        console.log(`\x1b[32m[AUTH] Firebase Login Successful: ${user.email}\x1b[0m`);
-        console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
+        console.log(`\x1b[33m[AUTH] Account locked (device switching): ${user.email}\x1b[0m`);
 
         return NextResponse.json({
           success: false,
@@ -348,22 +368,16 @@ export async function POST(request) {
     // Add deviceId to response so mobile app can store it
     userObj.deviceId = deviceId;
 
-    // 🚀 DEBUG: Log successful login to backend terminal
     console.log(`\x1b[32m[AUTH] Login Successful: ${user.email}\x1b[0m`);
-    console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
 
     const response = NextResponse.json({ success: true, data: userObj, token, refreshToken });
-
-    // 🚀 DEBUG: Log successful login to backend terminal
-    console.log(`\x1b[32m[AUTH] Login Successful: ${user.email}\x1b[0m`);
-    console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
 
     // Set HttpOnly Cookie for web clients (Access Token)
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 // 7 days matching access token expiry
+      maxAge: 2 * 60 * 60 // matches the 2h access token TTL
     });
 
     // Set HttpOnly Cookie for web clients (Refresh Token)
@@ -371,7 +385,7 @@ export async function POST(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 365 * 24 * 60 * 60 // 365 days
+      maxAge: 30 * 24 * 60 * 60 // matches the 30d refresh token TTL
     });
 
     return response;
@@ -381,13 +395,10 @@ export async function POST(request) {
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
 
+    // Never echo the exception back to the client — it leaked model names,
+    // stack frames and driver errors to anyone who could trigger a 500.
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'An error occurred during login',
-        errorName: error.name,
-        errorDetails: process.env.NODE_ENV === 'development' ? error.stack : 'Check server logs for details'
-      },
+      { success: false, message: 'An error occurred during login. Please try again.' },
       { status: 500 }
     );
   }

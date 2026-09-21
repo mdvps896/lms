@@ -78,9 +78,11 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('token', data.token);
 
-                    // Set cookie for middleware
+                    // The session cookies (token + refreshToken) are set
+                    // HttpOnly by /api/auth/google-register. Never write the
+                    // JWT with document.cookie — that makes it readable by any
+                    // script on the page.
                     document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`;
-                    document.cookie = `token=${data.token}; path=/; max-age=86400`;
 
                     Swal.fire({
                         icon: 'success',
@@ -118,7 +120,6 @@ const GoogleOAuthButton = ({ type = 'login' }) => {
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('token', data.token);
                     document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`;
-                    document.cookie = `token=${data.token}; path=/; max-age=86400`;
 
                     Swal.fire({
                         icon: 'success',

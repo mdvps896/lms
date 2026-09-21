@@ -4,6 +4,7 @@ import User from '@/models/User';
 import { sendEmail } from '@/lib/email';
 
 import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+import { generateOtp, clearOtpAttempts } from '@/utils/otpAttempts';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,10 @@ export async function POST(request) {
         await connectDB();
 
         // Check if user already exists
-        const existingUser = await User.findOne({ email });
+        // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+        // as {"$ne": null} sent in the JSON body would otherwise be
+        // interpreted as a query OPERATOR and match an arbitrary account.
+        const existingUser = await User.findOne({ email: String(email || '') });
         if (existingUser && existingUser.emailVerified) {
             return NextResponse.json({
                 success: false,
@@ -46,7 +50,7 @@ export async function POST(request) {
         }
 
         // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otp = generateOtp();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
         // Save or update user with OTP
@@ -54,6 +58,8 @@ export async function POST(request) {
             existingUser.registrationOtp = otp;
             existingUser.registrationOtpExpiry = otpExpiry;
             await existingUser.save();
+            // A newly issued code starts with a clean guess budget.
+            await clearOtpAttempts(User, existingUser._id, 'registration');
         } else {
             // Create temporary user record
             await User.create({

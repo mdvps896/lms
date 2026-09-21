@@ -3,8 +3,19 @@ import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import ExamAttempt from '@/models/ExamAttempt';
 import User from '@/models/User';
+import { requirePermission } from '@/utils/apiAuth';
+
+// These routes now read auth headers, so they must never be statically
+// prerendered (a prerendered 401 would be cached and served to everyone).
+export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
+    // 🔒 SECURITY: this returns other students' names, emails and scores. It
+    // previously had no authorization check, so any authenticated student
+    // could read the whole cohort's results.
+    const authError = await requirePermission(request, 'view_analytics');
+    if (authError) return authError;
+
     try {
         await connectDB();
 

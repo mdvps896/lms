@@ -42,6 +42,9 @@ export async function POST(request) {
         }
 
         // 2. Verify legacy password
+        if (!user.password) {
+            return NextResponse.json({ success: false, message: 'Account has no local password to migrate' }, { status: 400 });
+        }
         let isPasswordValid = false;
         if (user.password.startsWith('$2')) {
             isPasswordValid = await bcrypt.compare(password, user.password);

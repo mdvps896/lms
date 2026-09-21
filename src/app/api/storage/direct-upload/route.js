@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveToLocalStorage } from '@/utils/localStorage';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Configure for large uploads
 export const runtime = 'nodejs';
@@ -7,6 +8,11 @@ export const maxDuration = 300;
 
 export async function POST(request) {
     try {
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         // Get the raw body as buffer to avoid size limits
         const body = await request.arrayBuffer();
         const buffer = Buffer.from(body);

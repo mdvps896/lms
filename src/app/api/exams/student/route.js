@@ -4,10 +4,16 @@ import Exam from '@/models/Exam'
 import Subject from '@/models/Subject'
 import Category from '@/models/Category'
 import Question from '@/models/Question'
+import { requireAuth } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+    // Authenticated users only — stated explicitly here rather than relying
+    // solely on the middleware.
+    const authError = await requireAuth(request);
+    if (authError) return authError;
+
     try {
         await connectDB()
         

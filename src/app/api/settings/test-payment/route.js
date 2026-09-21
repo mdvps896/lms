@@ -3,11 +3,15 @@ import connectDB from '../../../../lib/mongodb';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import axios from 'axios';
+import { requireAdmin } from '../../../../utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const { gateway, amount } = await request.json();
 
         if (!gateway || !amount) {

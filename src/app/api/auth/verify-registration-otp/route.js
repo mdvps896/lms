@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { checkOtpAttempts, recordFailedOtpAttempt, clearOtpAttempts, otpMatches } from '@/utils/otpAttempts';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,10 @@ export async function POST(request) {
         await connectDB();
 
         // Find user
-        const user = await User.findOne({ email });
+        // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+        // as {"$ne": null} sent in the JSON body would otherwise be
+        // interpreted as a query OPERATOR and match an arbitrary account.
+        const user = await User.findOne({ email: String(email || '') });
 
         if (!user) {
             return NextResponse.json({
@@ -54,21 +58,41 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // Check OTP
-        if (!user.registrationOtp || user.registrationOtp !== otp) {
+        // 🔒 SECURITY: cap guesses — this endpoint is public and used to allow
+        // unlimited attempts against a 6-digit code.
+        if (checkOtpAttempts(user, 'registration').exceeded) {
             return NextResponse.json({
                 success: false,
-                message: 'Invalid OTP'
+                message: 'Too many incorrect codes. Please request a new one.'
+            }, { status: 429 });
+        }
+
+        const otpExpired = !user.registrationOtpExpiry || new Date() > user.registrationOtpExpiry;
+        if (!user.registrationOtp || otpExpired || !otpMatches(user.registrationOtp, String(otp))) {
+            const result = await recordFailedOtpAttempt(
+                User,
+                user._id,
+                'registration',
+                ['registrationOtp', 'registrationOtpExpiry']
+            );
+            return NextResponse.json({
+                success: false,
+                message: result.exceeded
+                    ? 'Too many incorrect codes. Please request a new one.'
+                    : 'Invalid or expired OTP',
+                attemptsLeft: result.attemptsLeft
+            }, { status: result.exceeded ? 429 : 400 });
+        }
+
+        // 🔒 Minimum password strength on the account-creation path.
+        if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+            return NextResponse.json({
+                success: false,
+                message: 'Password must be between 8 and 128 characters.'
             }, { status: 400 });
         }
 
-        // Check OTP expiry
-        if (!user.registrationOtpExpiry || new Date() > user.registrationOtpExpiry) {
-            return NextResponse.json({
-                success: false,
-                message: 'OTP has expired. Please request a new one.'
-            }, { status: 400 });
-        }
+        await clearOtpAttempts(User, user._id, 'registration');
 
         // Hash password with bcrypt to match login logic
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -131,7 +155,7 @@ export async function POST(request) {
             console.error('Failed to trigger admin notification:', notifErr);
         }
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             message: 'Email verified successfully! Registration complete.',
             user: {
@@ -147,6 +171,25 @@ export async function POST(request) {
             token,
             refreshToken
         });
+
+        // Auto-login on the web needs the session cookies set HttpOnly here.
+        // The client only wrote a non-HttpOnly 'user' cookie, which is no
+        // longer an authorization input — without these a freshly registered
+        // user was bounced straight back to the login page.
+        response.cookies.set('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 2 * 60 * 60
+        });
+        response.cookies.set('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60
+        });
+
+        return response;
 
     } catch (error) {
         console.error('❌ Verify OTP Error:', error);

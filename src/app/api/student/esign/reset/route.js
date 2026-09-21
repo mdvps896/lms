@@ -9,13 +9,17 @@ export async function POST(request) {
         const authError = await requireAdmin(request);
         if (authError) return authError;
 
-        const { studentId } = await request.json();
+        // Accept either `studentId` (app submissions) or `submissionId`
+        // (public web submissions, which have no linked User).
+        const { studentId, submissionId } = await request.json();
 
-        if (!studentId) {
-            return NextResponse.json({ success: false, message: 'Student ID required' }, { status: 400 });
+        if (!studentId && !submissionId) {
+            return NextResponse.json({ success: false, message: 'Student ID or Submission ID required' }, { status: 400 });
         }
 
-        const result = await ESignSubmission.deleteOne({ user: studentId });
+        const result = submissionId
+            ? await ESignSubmission.deleteOne({ _id: submissionId })
+            : await ESignSubmission.deleteOne({ user: studentId });
 
         if (result.deletedCount === 0) {
             return NextResponse.json({ success: false, message: 'No E-Sign submission found for this student' }, { status: 404 });

@@ -1,9 +1,16 @@
 'use client'
 
-import React from 'react'
-import { FiEdit, FiTrash2, FiFile, FiDownload, FiFolder } from 'react-icons/fi'
+import React, { useState } from 'react'
+import { FiEdit, FiTrash2, FiFile, FiEye, FiFolder } from 'react-icons/fi'
+import AdminPdfViewerModal from '../shared/AdminPdfViewerModal'
+
+function isPdf(file) {
+    return (file.url || '').toLowerCase().endsWith('.pdf')
+}
 
 const FreeMaterialList = ({ materials, loading, onEdit, onDelete }) => {
+    const [viewerFile, setViewerFile] = useState(null)
+
     if (loading) {
         return (
             <div className="p-5 text-center">
@@ -59,15 +66,27 @@ const FreeMaterialList = ({ materials, loading, onEdit, onDelete }) => {
                             <td>
                                 <div className="d-flex flex-column gap-1">
                                     {material.files && material.files.map((file, i) => (
-                                        <a key={i} href={file.url} target="_blank" rel="noopener noreferrer"
-                                            className="btn btn-sm btn-light border d-flex align-items-center justify-content-between p-1 px-2 text-truncate"
-                                            style={{ maxWidth: '250px' }} title={file.title}>
-                                            <div className="d-flex align-items-center text-truncate">
-                                                <FiFile size={12} className="me-2 text-primary" />
-                                                <span className="text-truncate small">{file.title}</span>
-                                            </div>
-                                            <FiDownload size={12} className="ms-2 text-muted" />
-                                        </a>
+                                        isPdf(file) ? (
+                                            <button key={i} type="button"
+                                                onClick={() => setViewerFile({ ...file, materialId: material._id })}
+                                                className="btn btn-sm btn-light border d-flex align-items-center justify-content-between p-1 px-2 text-truncate"
+                                                style={{ maxWidth: '250px' }} title={file.title}>
+                                                <div className="d-flex align-items-center text-truncate">
+                                                    <FiFile size={12} className="me-2 text-primary" />
+                                                    <span className="text-truncate small">{file.title}</span>
+                                                </div>
+                                                <FiEye size={12} className="ms-2 text-muted" />
+                                            </button>
+                                        ) : (
+                                            <a key={i} href={file.url} target="_blank" rel="noopener noreferrer"
+                                                className="btn btn-sm btn-light border d-flex align-items-center justify-content-between p-1 px-2 text-truncate"
+                                                style={{ maxWidth: '250px' }} title={file.title}>
+                                                <div className="d-flex align-items-center text-truncate">
+                                                    <FiFile size={12} className="me-2 text-primary" />
+                                                    <span className="text-truncate small">{file.title}</span>
+                                                </div>
+                                            </a>
+                                        )
                                     ))}
                                     {(!material.files || material.files.length === 0) && (
                                         <span className="text-muted small">No files</span>
@@ -91,6 +110,13 @@ const FreeMaterialList = ({ materials, loading, onEdit, onDelete }) => {
                     ))}
                 </tbody>
             </table>
+            <AdminPdfViewerModal
+                isOpen={!!viewerFile}
+                onClose={() => setViewerFile(null)}
+                filePath={viewerFile?.url || null}
+                materialId={viewerFile?.materialId}
+                fileTitle={viewerFile?.title}
+            />
         </div>
     )
 }

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import connectDB from '../../../lib/mongodb';
+import { requireAdmin } from '../../../utils/apiAuth';
 
 export async function POST(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const { smtpHost, smtpPort, smtpUsername, smtpPassword, smtpSecure, fromEmail, fromName, testEmail } = await request.json();
 
         // Validate required fields

@@ -54,7 +54,7 @@ export async function GET(request) {
         // User "admin" requested feature.
         if (authError) return authError;
 
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        const uploadsDir = path.join(process.cwd(), 'storage', 'uploads');
 
         if (!fs.existsSync(uploadsDir)) {
             return NextResponse.json({ success: true, files: [] });

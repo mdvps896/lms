@@ -28,17 +28,20 @@ const FreeMaterialSchema = new mongoose.Schema({
         publicId: { type: String }, // For Cloudinary
         type: { type: String, default: 'file' }, // 'pdf', 'video', 'image', 'other'
         size: { type: Number },
-        isDownloadable: { type: Boolean, default: false }
+        isDownloadable: { type: Boolean, default: false },
+        // Per-file override for whether the mobile app must capture periodic
+        // attendance selfies while this specific file is being viewed —
+        // defaults to false so only materials the admin explicitly marks
+        // require it, instead of every PDF pointlessly triggering capture.
+        isSelfieRequired: { type: Boolean, default: false }
     }],
     testId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Exam',
         default: null // Only for type='test'
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
+}, {
+    timestamps: true
 });
 
 export default mongoose.models.FreeMaterial || mongoose.model('FreeMaterial', FreeMaterialSchema);

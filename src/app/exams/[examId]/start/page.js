@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/contexts/AuthContext';
 import PreExamVerification from '@/components/exams/PreExamVerification';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 export default function StartExamPage() {
     const params = useParams();
@@ -252,7 +253,7 @@ export default function StartExamPage() {
                                         <i className="feather-info me-2"></i>
                                         Instructions
                                     </h6>
-                                    <div dangerouslySetInnerHTML={{ __html: exam.instructions }} />
+                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(exam.instructions) }} />
                                 </div>
                             )}
 

@@ -8,7 +8,7 @@ import { Folder, Trash2, Download } from 'feather-icons-react'
 import Swal from 'sweetalert2'
 import { exportFilesAsZip } from '@/utils/exportUtils'
 
-const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) => {
+const MediaGrid = ({ files, loading, onDelete, onBulkDelete, onRefresh, viewMode = 'grid' }) => {
     const [selectedFiles, setSelectedFiles] = useState(new Set())
     const [isDeleting, setIsDeleting] = useState(false)
 
@@ -45,28 +45,44 @@ const MediaGrid = ({ files, loading, onDelete, onRefresh, viewMode = 'grid' }) =
 
         if (result.isConfirmed) {
             setIsDeleting(true)
-            let successCount = 0
-            let errorCount = 0
 
-            for (const fileId of selectedFiles) {
-                try {
-                    const file = files.find(f => (f.path || f.publicId || f.url || f._id) === fileId)
-                    if (file) {
-                        const deleteIdentifier = file.publicId || file.path || file.url
-                        await onDelete(deleteIdentifier, file.resourceType || null, file.source || null)
-                        successCount++
+            const selectedFileData = files.filter(f =>
+                selectedFiles.has(f.path || f.publicId || f.url || f._id)
+            )
+            const items = selectedFileData.map(file => ({
+                path: file.publicId || file.path || file.url,
+                publicId: file.publicId,
+                resourceType: file.resourceType || null,
+                source: file.source || null
+            }))
+
+            let successCount = 0
+            let errorCount = items.length
+
+            try {
+                if (onBulkDelete) {
+                    const data = await onBulkDelete(items)
+                    const results = data?.results || []
+                    successCount = results.filter(r => r.success).length
+                    errorCount = items.length - successCount
+                } else {
+                    // Fallback for callers that haven't wired up bulk delete yet
+                    for (const item of items) {
+                        try {
+                            await onDelete(item.path, item.resourceType, item.source)
+                            successCount++
+                        } catch (e) { /* counted as failure below */ }
                     }
-                } catch (error) {
-                    errorCount++
+                    errorCount = items.length - successCount
+                    if (onRefresh) await onRefresh()
                 }
+            } catch (error) {
+                errorCount = items.length
+                successCount = 0
             }
 
             setIsDeleting(false)
             setSelectedFiles(new Set())
-
-            if (onRefresh) {
-                await onRefresh()
-            }
 
             if (errorCount === 0) {
                 Swal.fire({

@@ -2,6 +2,7 @@
 import React from 'react';
 import ExamWatermark from './ExamWatermark';
 import dynamic from 'next/dynamic';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 // Dynamically import RichTextEditor to avoid SSR issues
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false });
@@ -319,7 +320,7 @@ export default function QuestionDisplay({
                 color: 'black',
                 fontWeight: '500'
             }}>
-                <div dangerouslySetInnerHTML={{ __html: question.questionText || question.question }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.questionText || question.question) }} />
             </div>
 
             {/* Question Image if exists */}

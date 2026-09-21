@@ -3,11 +3,18 @@ import connectDB from '@/lib/mongodb'
 import ExamAttempt from '@/models/ExamAttempt'
 import Exam from '@/models/Exam'
 import { deleteFromLocalStorage } from '@/utils/localStorage'
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST(request) {
+    // 🔒 SECURITY: this is a proctor action. It had no authorization check at
+    // all, so any logged-in student could invoke it against another
+    // candidate's attempt.
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
+
     try {
         await connectDB()
 

@@ -2,41 +2,20 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
 import Question from '@/models/Question';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function PUT(req, { params }) {
     try {
         await dbConnect();
 
-        // Get user ID and role from cookies
-        const cookies = req.headers.get('cookie');
-        let userId = null;
-        let userRole = null;
-        let userEmail = null;
-
-        if (cookies) {
-            const userCookie = cookies
-                .split('; ')
-                .find(row => row.startsWith('user='));
-
-            if (userCookie) {
-                try {
-                    const userDataStr = decodeURIComponent(userCookie.split('=')[1]);
-                    const userData = JSON.parse(userDataStr);
-                    userId = userData._id;
-                    userRole = userData.role;
-                    userEmail = userData.email;
-                } catch (parseError) {
-                    console.error('Failed to parse user cookie:', parseError);
-                }
-            }
-        }
-
-        if (!userId) {
+        // 🔒 SECURITY: Use the signed JWT (not the spoofable client-side `user` cookie)
+        const currentUser = await getAuthenticatedUser(req);
+        if (!currentUser) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         // Check if user is admin or teacher
-        if (userRole !== 'admin' && userRole !== 'teacher') {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
             return NextResponse.json({ success: false, message: 'Forbidden: Only admin or teacher can update marks' }, { status: 403 });
         }
 
@@ -159,7 +138,7 @@ export async function PUT(req, { params }) {
         attempt.score = scorePercentage;
         attempt.totalMarks = totalMaxMarks;
         attempt.passed = scorePercentage >= passingPercentage;
-        attempt.modifiedBy = userEmail;
+        attempt.modifiedBy = currentUser.email;
         attempt.modifiedAt = new Date();
         
         // Store manual marks

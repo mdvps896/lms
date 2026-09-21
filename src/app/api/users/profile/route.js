@@ -1,6 +1,6 @@
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import { NextRequest } from 'next/server';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function PUT(request) {
     try {
@@ -9,20 +9,19 @@ export async function PUT(request) {
         const body = await request.json();
         const { name, phone } = body;
 
-        // Get user info from cookie/session (you'll need to implement authentication)
-        const userCookie = request.cookies.get('user')?.value;
-        if (!userCookie) {
-            return Response.json({ 
-                success: false, 
-                message: 'Not authenticated' 
+        // 🔒 SECURITY: Use the signed JWT (not the spoofable client-side `user`
+        // cookie) to identify who is updating their profile.
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return Response.json({
+                success: false,
+                message: 'Not authenticated'
             }, { status: 401 });
         }
 
-        const currentUser = JSON.parse(userCookie);
-        
         // Update user (only name and phone are allowed to be updated)
         const updatedUser = await User.findByIdAndUpdate(
-            currentUser._id,
+            currentUser.id || currentUser._id,
             {
                 name,
                 phone

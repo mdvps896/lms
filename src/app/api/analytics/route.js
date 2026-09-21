@@ -9,9 +9,13 @@ import User from '@/models/User';
 import PDFViewSession from '@/models/PDFViewSession';
 import Payment from '@/models/Payment';
 import mongoose from 'mongoose';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request) {
     try {
+        const authError = await requirePermission(request, 'view_analytics');
+        if (authError) return authError;
+
         await connectDB();
 
         const { searchParams } = new URL(request.url);

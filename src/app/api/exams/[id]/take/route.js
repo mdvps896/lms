@@ -129,7 +129,9 @@ export async function GET(request, { params }) {
             _id: question._id,
             questionText: question.questionText || question.text,
             type: question.type,
-            options: question.options,
+            options: Array.isArray(question.options)
+                ? question.options.map(({ isCorrect, ...opt }) => opt)
+                : question.options,
             marks: question.marks,
             description: question.description,
             image: question.image,
@@ -137,6 +139,13 @@ export async function GET(request, { params }) {
             questionGroup: question.questionGroup,
             groupInfo: question.groupInfo
         }))
+
+        // Pin the served question set to this attempt (once) so /exams/submit
+        // grades exactly what was shown.
+        if (!attempt.servedQuestionIds || attempt.servedQuestionIds.length === 0) {
+            attempt.servedQuestionIds = questions.map(q => q._id)
+            await attempt.save()
+        }
 
         // Calculate time remaining
         const now2 = new Date()

@@ -1,106 +1,85 @@
-// Script to create an admin user in MongoDB
-// Run this script using: node scripts/createAdmin.js
-
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+// Seed an admin user into the database.
+// Usage: node scripts/createAdmin.js
 const fs = require('fs');
 const path = require('path');
 
-// Load environment variables from .env.local
-const envPath = path.join(__dirname, '..', '.env.local');
-if (fs.existsSync(envPath)) {
-    const envConfig = fs.readFileSync(envPath, 'utf8');
-    envConfig.split('\n').forEach(line => {
-        const [key, ...valueParts] = line.split('=');
-        if (key && valueParts.length > 0) {
-            process.env[key.trim()] = valueParts.join('=').trim();
-        }
-    });
-}
-
-// User Schema
-const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { 
-        type: String,
-        enum: ['admin', 'teacher', 'student'],
-        default: 'student'
-    },
-    phone: String,
-    address: String,
-    city: String,
-    state: String,
-    country: String,
-    zipCode: String,
-    profileImage: String,
-    isActive: { type: Boolean, default: true },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-
-async function createAdminUser() {
-    try {
-        // Connect to MongoDB
-        console.log('Connecting to MongoDB...');
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log('✓ Connected to MongoDB');
-
-        // Admin user details
-        const adminEmail = 'admin@duralux.com';
-        
-        // Check if admin already exists
-        const existingAdmin = await User.findOne({ email: adminEmail });
-        
-        if (existingAdmin) {
-            console.log('❌ Admin user already exists with email:', adminEmail);
-            console.log('Admin details:', {
-                name: existingAdmin.name,
-                email: existingAdmin.email,
-                role: existingAdmin.role
-            });
-        } else {
-            // Hash password
-            const hashedPassword = await bcrypt.hash('admin123', 10);
-            
-            // Create admin user
-            const adminUser = new User({
-                name: 'Admin User',
-                email: adminEmail,
-                password: hashedPassword,
-                role: 'admin',
-                phone: '+1234567890',
-                address: 'Admin Address',
-                city: 'Admin City',
-                state: 'Admin State',
-                country: 'India',
-                zipCode: '000000',
-                isActive: true
-            });
-
-            await adminUser.save();
-            
-            console.log('✓ Admin user created successfully!');
-            console.log('Admin credentials:');
-            console.log('Email:', adminEmail);
-            console.log('Password: admin123');
-            console.log('\n⚠️  Please change the password after first login!');
-        }
-
-        // Close connection
-        await mongoose.connection.close();
-        console.log('\n✓ Database connection closed');
-        process.exit(0);
-
-    } catch (error) {
-        console.error('❌ Error creating admin user:', error);
-        await mongoose.connection.close();
-        process.exit(1);
+function loadEnvLocal() {
+  const envPath = path.join(__dirname, '..', '.env.local');
+  if (!fs.existsSync(envPath)) return;
+  const content = fs.readFileSync(envPath, 'utf-8');
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
     }
+    if (!(key in process.env)) process.env[key] = value;
+  }
 }
 
-// Run the script
-createAdminUser();
+loadEnvLocal();
+
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const ADMIN_EMAIL = 'admin@gmail.com';
+const ADMIN_PASSWORD = 'admin@123';
+const ADMIN_NAME = 'Admin';
+
+async function main() {
+  const MONGODB_URI = process.env.MONGODB_URI;
+  if (!MONGODB_URI) {
+    console.error('MONGODB_URI not defined in .env.local');
+    process.exit(1);
+  }
+
+  await mongoose.connect(MONGODB_URI);
+  console.log('✅ MongoDB connected');
+
+  const userSchema = new mongoose.Schema({}, { strict: false, timestamps: true });
+  const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+  const existing = await User.findOne({ email: ADMIN_EMAIL });
+  const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+
+  if (existing) {
+    existing.password = hashedPassword;
+    existing.role = 'admin';
+    existing.authProvider = 'local';
+    existing.accessScope = 'global';
+    existing.status = 'active';
+    existing.emailVerified = true;
+    await existing.save();
+    console.log(`✅ Admin user updated: ${ADMIN_EMAIL}`);
+  } else {
+    await User.create({
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      password: hashedPassword,
+      role: 'admin',
+      authProvider: 'local',
+      accessScope: 'global',
+      status: 'active',
+      emailVerified: true,
+    });
+    console.log(`✅ Admin user created: ${ADMIN_EMAIL}`);
+  }
+
+  console.log(`   Email: ${ADMIN_EMAIL}`);
+  console.log(`   Password: ${ADMIN_PASSWORD}`);
+
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error('❌ Failed to seed admin:', err);
+  process.exit(1);
+});

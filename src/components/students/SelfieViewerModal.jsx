@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { FiX, FiDownload, FiTrash2, FiCamera, FiCheck, FiMapPin } from 'react-icons/fi'
 import Swal from 'sweetalert2'
+import { toSecureMediaUrl } from '@/utils/secureMediaUrl'
 
 const SelfieViewerModal = ({ show, sessionId, onClose }) => {
     const [selfies, setSelfies] = useState([])
@@ -21,7 +22,7 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
             const response = await fetch(`/api/student/selfies/${sessionId}`)
             const data = await response.json()
             if (data.success) {
-                setSelfies(data.data)
+                setSelfies((data.data || []).map(s => ({ ...s, imageUrl: toSecureMediaUrl(s.imageUrl) })))
             } else {
                 Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to fetch selfies', timer: 2000 })
             }

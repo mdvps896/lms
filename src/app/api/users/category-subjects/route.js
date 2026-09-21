@@ -2,10 +2,16 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Category from '@/models/Category';
 import Subject from '@/models/Subject';
+import { requireAuth } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+    // Authenticated users only — stated explicitly here rather than relying
+    // solely on the middleware.
+    const authError = await requireAuth(request);
+    if (authError) return authError;
+
     try {
         await connectDB();
 

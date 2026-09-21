@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { verifyToken, signToken } from '@/utils/auth'
+import { verifyToken, verifyTokenAllowExpired, signToken } from '@/utils/auth'
 
 
 export async function middleware(request) {
@@ -12,7 +12,12 @@ export async function middleware(request) {
         '/authentication/reset',
         '/authentication/verify',
         '/authentication/404',
-        '/authentication/maintenance'
+        '/authentication/maintenance',
+        // Public digital-consent-form page — for people filling the e-sign
+        // form without a registered account or the mobile app (e.g. iOS
+        // users). Submissions go to /api/public/esign/*, not the
+        // authenticated /api/student/esign/* routes.
+        '/esign'
     ]
 
     const publicApiRoutes = [
@@ -21,6 +26,7 @@ export async function middleware(request) {
         '/api/auth/firebase', // Sync Firebase/Google auth
         '/api/auth/migrate', // Legacy migration
         '/api/auth/refresh', // Token refresh
+        '/api/auth/logout', // Clearing cookies must work even with a dead token
         '/api/auth/send-registration-otp',
         '/api/auth/verify-registration-otp',
         '/api/auth/check-registration-enabled',
@@ -32,17 +38,44 @@ export async function middleware(request) {
         '/api/auth/verify-2fa', // 2FA Verification (Public)
         '/api/auth/resend-2fa', // 2FA Resend (Public)
         '/api/settings', // Often public
-        '/api/upload', // Sometimes public or protected? Let's protect, but maybe it breaks image uploads?
-        // Assuming upload endpoints are protected purely by this.
-        '/api/storage/demo-video', // Allow file streaming without explicit token (endpoint does its own checks if needed, or is public)
+        // NOTE: '/api/upload' is deliberately NOT public. It writes files to
+        // disk and its callers (question images, settings logos) are all
+        // authenticated admin/teacher screens.
+        // Public static assets (logos, banners, course images, demo videos). This
+        // was already reachable without a token — its path contains a dot, so
+        // the old matcher skipped the middleware entirely — and the mobile app
+        // loads these URLs with no Authorization header. It is listed here so
+        // that status is explicit and reviewable. The route itself refuses to
+        // serve PDFs; anything sensitive must go through
+        // /api/storage/secure-file or /api/admin/materials/pdf instead.
+        '/api/storage/file',
+        // Serves PDFs by signed short-lived access token (?token=), which
+        // browser PDF viewers / iframes / the mobile downloader cannot attach
+        // as a Bearer header. The route enforces everything itself: the PDF
+        // branch requires a valid token bound to the exact path + a live
+        // re-check of the user's authorization; the non-PDF branch still
+        // requires a full session. Token issuance (/api/storage/pdf-token) is
+        // NOT public and stays behind this middleware.
+        '/api/storage/secure-file',
         '/api/news-ticker', // Public news ticker for mobile app
         '/api/blogs', // Public blogs list and individual blog for mobile app
         '/api/banners', // Public banners for mobile app
+        // Public e-sign form submission/status/upload/pdf — no account
+        // required. Rate-limited and token-authorized per-submission inside
+        // each route (see src/app/api/public/esign/*). Admin approve/reject/
+        // reset/pdf for these still go through the authenticated
+        // /api/student/esign/* and /api/admin/esign/* routes.
+        '/api/public/esign',
     ]
 
     // Check if the current path is a public route
-    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-    const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route))
+    // 🔒 SECURITY: Match on exact path or a "/" boundary — a bare startsWith()
+    // let '/api/settings' also match '/api/settings/test-payment' and '/api/upload'
+    // also match '/api/upload-sound', silently making unrelated routes public.
+    const isExactOrChildRoute = (pathname, route) =>
+        pathname === route || pathname.startsWith(route + '/')
+    const isPublicRoute = publicRoutes.some(route => isExactOrChildRoute(pathname, route))
+    const isPublicApiRoute = publicApiRoutes.some(route => isExactOrChildRoute(pathname, route))
 
     // -----------------------------------------------------------
     // API PROTECTION (JWT)
@@ -74,8 +107,9 @@ export async function middleware(request) {
             )
         }
 
-        // Verify Token
-        let payload = await verifyToken(token)
+        // Verify Token. Expiry is tolerated here ONLY so the refresh flow
+        // below can exchange it; an expired token never authorizes on its own.
+        let payload = await verifyTokenAllowExpired(token)
 
         // Handle Expired Token Transparently (Strict Secure Refresh Flow + Legacy Bridge)
         if (payload && payload.expired) {
@@ -91,17 +125,20 @@ export async function middleware(request) {
             if (refreshToken) {
                 // Check if Refresh Token is valid
                 const refreshPayload = await verifyToken(refreshToken);
-                if (refreshPayload && !refreshPayload.expired) {
+                if (refreshPayload) {
                     canProceed = true;
                     refreshSource = refreshPayload;
                 }
             }
 
-            // 2. LEGACY BRIDGE: If no Refresh Token, trust the expired access token signature
+            // 2. LEGACY BRIDGE: If no Refresh Token, trust the expired access
+            // token signature for a SHORT window so users on old app builds
+            // (which never stored a refresh token) aren't logged out mid-exam.
+            // 🔒 SECURITY: this was 180 days, which meant a token leaked once
+            // stayed usable for half a year and no session could be revoked.
             if (!canProceed) {
                 const now = Math.floor(Date.now() / 1000);
-                // Allow a generous grace period for users on old app versions (e.g. 180 days)
-                const gracePeriod = 180 * 24 * 60 * 60;
+                const gracePeriod = 7 * 24 * 60 * 60; // 7 days
 
                 if (payload.exp && (now < payload.exp + gracePeriod)) {
                     console.log(`[AUTH] Legacy session recovery for user: ${payload.userId}`);
@@ -134,7 +171,9 @@ export async function middleware(request) {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'strict',
-                    maxAge: 60 * 24 * 60 * 60
+                    // Must match the access token's own TTL (2h) — a cookie
+                    // that outlives its token just produces confusing 401s.
+                    maxAge: 2 * 60 * 60
                 });
                 response.headers.set('x-new-token', newToken);
 
@@ -160,7 +199,7 @@ export async function middleware(request) {
     }
 
     // -----------------------------------------------------------
-    // PAGE PROTECTION (Cookie 'user') - Legacy/Existing
+    // PAGE PROTECTION
     // -----------------------------------------------------------
 
     // Skip middleware for static files
@@ -168,18 +207,37 @@ export async function middleware(request) {
         return NextResponse.next()
     }
 
-    // Get user from cookie
-    const userCookie = request.cookies.get('user')
+    // 🔒 SECURITY: role and permissions come from the SIGNED JWT, never from
+    // the 'user' cookie. That cookie is written client-side with
+    // document.cookie, is not HttpOnly and is not signed — any student could
+    // set {"role":"admin"} in devtools and walk straight into every admin and
+    // teacher page. The cookie is still written for UI convenience, but it is
+    // no longer an authorization input.
+    const redirectToLogin = () =>
+        NextResponse.redirect(new URL('/authentication/login', request.url))
 
-    if (!userCookie) {
-        // Redirect to login if not authenticated
-        const loginUrl = new URL('/authentication/login', request.url)
-        return NextResponse.redirect(loginUrl)
+    const pageTokenCookie = request.cookies.get('token')
+    if (!pageTokenCookie) {
+        return redirectToLogin()
+    }
+
+    let user = await verifyToken(pageTokenCookie.value)
+
+    // Expired access token: accept it for page navigation only if a valid
+    // refresh token backs it, mirroring the API branch above.
+    if (!user) {
+        const expiredPayload = await verifyTokenAllowExpired(pageTokenCookie.value)
+        const pageRefreshToken = request.cookies.get('refreshToken')?.value
+        const refreshPayload = pageRefreshToken ? await verifyToken(pageRefreshToken) : null
+
+        if (expiredPayload && refreshPayload && refreshPayload.userId === expiredPayload.userId) {
+            user = refreshPayload
+        } else {
+            return redirectToLogin()
+        }
     }
 
     try {
-        const user = JSON.parse(userCookie.value)
-
         // If user is student, enforce strict whitelist
         if (user.role === 'student') {
             // Strict Allowed Prefixes
@@ -259,9 +317,7 @@ export async function middleware(request) {
         }
 
     } catch (error) {
-        // If cookie is invalid, redirect to login
-        const loginUrl = new URL('/authentication/login', request.url)
-        return NextResponse.redirect(loginUrl)
+        return redirectToLogin()
     }
 
     return NextResponse.next()
@@ -270,12 +326,18 @@ export async function middleware(request) {
 export const config = {
     matcher: [
         /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder
+         * SECURITY: every /api path runs through the middleware, no
+         * exceptions. The previous single matcher ended in `.*\..*`, which
+         * excluded ANY path containing a dot — so a request to something like
+         * /api/storage/file/uploads/x.pdf skipped authentication entirely.
+         * API routes are matched first and unconditionally.
          */
-        '/((?!_next/static|_next/image|favicon.ico|images|.*\\..*).*)',
+        '/api/:path*',
+
+        /*
+         * Pages: skip Next's own static output and real static assets
+         * (anything with a file extension), which never need auth.
+         */
+        '/((?!api|_next/static|_next/image|favicon.ico|images|.*\\..*).*)',
     ],
 }

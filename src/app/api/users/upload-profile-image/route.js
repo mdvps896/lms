@@ -5,6 +5,7 @@ import fs from 'fs';
 import dbConnect from '../../../../lib/mongodb';
 import User from '../../../../models/User';
 import { saveToLocalStorage, deleteFromLocalStorage } from '@/utils/localStorage';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const POST = async (req) => {
   try {
@@ -20,19 +21,22 @@ export const POST = async (req) => {
       }, { status: 400 });
     }
 
-    // Get user info from cookie
-    const userCookie = req.cookies.get('user')?.value;
-    if (!userCookie) {
+    // 🔒 SECURITY: identity comes from the verified JWT. This used to
+    // JSON.parse the 'user' cookie, which is written client-side and is not
+    // signed — setting {"_id":"<someone else>"} in devtools was enough to
+    // overwrite another account's profile image.
+    const currentUser = await getAuthenticatedUser(req);
+    if (!currentUser) {
       return NextResponse.json({
         success: false,
         message: 'Not authenticated'
       }, { status: 401 });
     }
 
-    const currentUser = JSON.parse(userCookie);
+    const currentUserId = currentUser.id || currentUser._id?.toString();
 
     // Get existing user from database to check for old profile image
-    const existingUser = await User.findById(currentUser._id);
+    const existingUser = await User.findById(currentUserId);
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -75,7 +79,7 @@ export const POST = async (req) => {
       'image/webp': '.webp'
     };
     const extension = extensionMap[mimeType] || '.jpg';
-    const filename = `profile_${currentUser._id}_${Date.now()}${extension}`;
+    const filename = `profile_${currentUserId}_${Date.now()}${extension}`;
 
     try {
       const result = await saveToLocalStorage(fileData, 'profile', filename);
@@ -84,7 +88,7 @@ export const POST = async (req) => {
 
       // Update user profile with new image URL
       await User.findByIdAndUpdate(
-        currentUser._id,
+        currentUserId,
         { profileImage: imageUrl },
         { new: true }
       );

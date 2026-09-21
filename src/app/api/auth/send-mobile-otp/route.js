@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/models/init';
 import Settings from '@/models/Settings';
+import { checkOTPRateLimit } from '@/utils/otpRateLimit';
 
 /**
  * POST /api/auth/send-mobile-otp
@@ -19,6 +20,17 @@ export async function POST(request) {
             return NextResponse.json(
                 { success: false, message: 'Valid 10-digit mobile number is required' },
                 { status: 400 }
+            );
+        }
+
+        // 🔒 Every call past this point can send a real, billable SMS via the
+        // 2Factor.in gateway. Unthrottled, this endpoint is an SMS-bombing and
+        // direct-billing-abuse vector.
+        const smsLimit = checkOTPRateLimit(`mobile-otp:${mobile}`);
+        if (!smsLimit.allowed) {
+            return NextResponse.json(
+                { success: false, message: smsLimit.message || 'Too many requests. Please try again shortly.' },
+                { status: 429 }
             );
         }
 

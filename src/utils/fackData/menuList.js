@@ -158,6 +158,16 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 9.85,
+        name: "Public E-Sign",
+        path: "/public-esign",
+        icon: 'feather-file-text',
+        // Matches the approve/reject/reset API routes underneath this page,
+        // which are admin-only (requireAdmin), unlike most other content.
+        roles: ['admin'],
+        dropdownMenu: []
+    },
+    {
         id: 10,
         name: "media & storage",
         path: "/storage",

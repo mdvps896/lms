@@ -45,9 +45,11 @@ export async function saveFileLocally(fileData, folder = 'uploads', fileName = '
         const timestamp = Date.now();
         const finalFileName = `${safeName}_${timestamp}${extension}`;
 
-        // Ensure directory exists
-        const publicDir = path.join(process.cwd(), 'public');
-        const uploadDir = path.join(publicDir, folder);
+        // 🔒 SECURITY: stored OUTSIDE public/ — see localStorage/constants.js.
+        // Files here are only ever reachable through the token-gated
+        // /api/storage/secure-file or the public /api/storage/file route.
+        const storageDir = path.join(process.cwd(), 'storage');
+        const uploadDir = path.join(storageDir, folder);
 
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
@@ -55,11 +57,12 @@ export async function saveFileLocally(fileData, folder = 'uploads', fileName = '
 
         const filePath = path.join(uploadDir, finalFileName);
 
+        // Always a single, normal file on disk — no chunk directories.
         fs.writeFileSync(filePath, buffer);
 
         return {
             success: true,
-            url: `/${folder}/${finalFileName}`, // URL path relative to public
+            url: `/api/storage/file/${folder}/${finalFileName}`, // Served through the API, never a bare static path
             fileName: finalFileName,
             originalName: fileName,
             size: buffer.length,
@@ -81,15 +84,22 @@ export async function deleteFileLocally(fileUrl) {
     try {
         if (!fileUrl) return { success: false };
 
-        const publicDir = path.join(process.cwd(), 'public');
-        // Remove leading slash if present to join correctly, though path.join usually handles it.
-        // But path.join(cwd, '/foo') goes to root /foo on linux/mac using absolute path logic often.
-        // Safeguard: remove leading slash
-        const relativePath = fileUrl.startsWith('/') ? fileUrl.slice(1) : fileUrl;
-        const filePath = path.join(publicDir, relativePath);
+        const storageDir = path.join(process.cwd(), 'storage');
+        // Accepts old bare "/uploads/..." records and new
+        // "/api/storage/file/uploads/..." ones alike.
+        let relativePath = fileUrl.startsWith('/') ? fileUrl.slice(1) : fileUrl;
+        const apiPrefix = 'api/storage/file/';
+        if (relativePath.startsWith(apiPrefix)) relativePath = relativePath.slice(apiPrefix.length);
+        const filePath = path.join(storageDir, relativePath);
 
         if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                // Chunked content lives in a directory
+                fs.rmSync(filePath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(filePath);
+            }
             return { success: true };
         }
         return { success: false, message: 'File not found' };

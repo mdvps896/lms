@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Category from '@/models/Category';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,10 +10,20 @@ export async function POST(request) {
     try {
         await connectDB();
         const body = await request.json();
-        const { userId, name, phone, address, city, state, pincode, profileImage, category } = body;
+        const { name, phone, address, city, state, pincode, profileImage, category } = body;
+
+        // 🔒 SECURITY: edit only your own profile. `userId` used to come from
+        // the request body, so any authenticated user could rewrite another
+        // account's name, phone, address, photo and category. Admins may still
+        // target a specific user explicitly.
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const callerId = currentUser.id || currentUser._id?.toString();
+        const userId = currentUser.role === 'admin' && body.userId ? body.userId : callerId;
 
         if (!userId) {
-            console.warn('⚠️ Profile Update failed: Missing User ID');
             return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
         }
 

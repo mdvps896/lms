@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { FiMail, FiSend, FiX, FiLoader, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
-const SendESignEmailModal = ({ isOpen, onClose, studentEmail, studentId, studentName }) => {
+// `submissionId` is used instead of `studentId` for public-web submissions,
+// which have no linked User account to look up (see /esign and
+// /public-esign). Pass whichever one applies.
+const SendESignEmailModal = ({ isOpen, onClose, studentEmail, studentId, submissionId, studentName }) => {
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
@@ -31,6 +34,7 @@ const SendESignEmailModal = ({ isOpen, onClose, studentEmail, studentId, student
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: studentId,
+                    submissionId,
                     toEmail: studentEmail,
                     subject,
                     message

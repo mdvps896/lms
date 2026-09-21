@@ -42,6 +42,12 @@ const examSchema = new mongoose.Schema({
             enabled: { type: Boolean, default: false },
             required: { type: Boolean, default: false },
             useProfileImage: { type: Boolean, default: true } // If true, use profile image instead of selfie
+        },
+        // Periodic selfie capture during the exam (attendance proctoring).
+        // Defaults to true so existing exams keep behaving exactly as before
+        // this was made configurable per-exam instead of always-on.
+        attendanceSelfie: {
+            enabled: { type: Boolean, default: true }
         }
     },
     assignedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

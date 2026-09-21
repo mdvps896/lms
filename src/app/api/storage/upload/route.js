@@ -1,16 +1,28 @@
 import { NextResponse } from 'next/server'
 import path from 'path'
 import { saveToLocalStorage } from '@/utils/localStorage'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300; // Increase timeout to 5 minutes
 
 export async function POST(request) {
     try {
+        const currentUser = await getAuthenticatedUser(request)
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
+
         const formData = await request.formData()
         const file = formData.get('file')
         const folder = formData.get('folder') || ''
         const fileUrl = formData.get('fileUrl')
+
+        // 🔒 SECURITY: Server-side fetch of an arbitrary client-supplied URL is an
+        // SSRF primitive — restrict it to admins only.
+        if (fileUrl && currentUser.role !== 'admin') {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
+        }
 
         let fileData;
         let fileName;

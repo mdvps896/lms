@@ -2,8 +2,18 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import SelfieCapture from '@/models/SelfieCapture'
 import User from '@/models/User'
+import { requirePermission } from '@/utils/apiAuth';
 
-export async function GET() {
+// These routes now read auth headers, so they must never be statically
+// prerendered (a prerendered 401 would be cached and served to everyone).
+export const dynamic = 'force-dynamic';
+
+export async function GET(request) {
+    // 🔒 SECURITY: staff-only view. This had no authorization check, so any
+    // authenticated user (including every student) could read it.
+    const authError = await requirePermission(request, 'manage_storage');
+    if (authError) return authError;
+
     try {
         await connectDB()
 

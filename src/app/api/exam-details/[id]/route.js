@@ -7,9 +7,13 @@ import ExamAttempt from '../../../../models/ExamAttempt';
 import User from '../../../../models/User';
 import Category from '../../../../models/Category';
 import Subject from '../../../../models/Subject';
+import { requirePermission } from '../../../../utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'view_analytics');
+        if (authError) return authError;
+
         await connectDB();
 
         const { id } = params;

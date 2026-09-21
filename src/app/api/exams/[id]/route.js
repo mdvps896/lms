@@ -7,6 +7,7 @@ import QuestionGroup from '@/models/QuestionGroup'; // Import QuestionGroup
 import Question from '@/models/Question';
 import { createExamNotification } from '@/utils/examNotifications';
 import { requireAdmin, requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
+import { canSeeAnswerKey, stripAnswerKeys } from '@/utils/sanitizeQuestion';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +36,11 @@ export async function GET(req, { params }) {
             return NextResponse.json({ success: false, error: 'Exam not found or unauthorized' }, { status: 404 });
         }
 
-        // Populate questions for all users (students need them to take the test!)
-        // Only difference: admins/teachers might see additional metadata in the future
+        // Populate questions for all users (students need them to take the test!).
+        // 🔒 SECURITY: students must NEVER receive `options[].isCorrect` — that
+        // is the answer key. Only admins/teachers see it.
+        const includeAnswerKey = canSeeAnswerKey(user);
+
         if (exam.questionGroups && exam.questionGroups.length > 0) {
             // Create a new array to store question groups with questions
             const populatedGroups = [];
@@ -58,7 +62,7 @@ export async function GET(req, { params }) {
                 // Create a new object with questions included
                 populatedGroups.push({
                     ...group,
-                    questions: questions
+                    questions: includeAnswerKey ? questions : stripAnswerKeys(questions)
                 });
             }
 

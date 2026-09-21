@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Course from '@/models/Course';
 import User from '@/models/User';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/admin/courses/[id]/reviews - List all reviews
 export async function GET(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_courses');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
 
@@ -29,6 +33,9 @@ export async function GET(request, { params }) {
 // POST /api/admin/courses/[id]/reviews - Add review
 export async function POST(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_courses');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
         const { rating, review, userName, userId } = await request.json();

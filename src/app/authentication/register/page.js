@@ -38,8 +38,10 @@ const Page = () => {
             link.href = data.data.general.siteFavIcon;
             document.getElementsByTagName('head')[0].appendChild(link);
           }
-          // Check if registration is enabled
-          if (data.data.authPages?.enableRegistration !== false) {
+          // Check if registration is enabled for the Web Platform (the
+          // setting the admin's "Login & Register Settings > Web Platform"
+          // tab actually writes to — `authPages` is a separate, legacy field)
+          if (data.data.authSettings?.web?.enableRegistration ?? true) {
             setShowRegister(true);
           } else {
             router.push('/authentication/login');

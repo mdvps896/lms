@@ -3,9 +3,13 @@ import Question from '../../../../models/Question';
 import QuestionGroup from '../../../../models/QuestionGroup';
 import Subject from '../../../../models/Subject';
 import Category from '../../../../models/Category';
+import { requirePermission } from '../../../../utils/apiAuth';
 
 export async function POST(request) {
     try {
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         await dbConnect();
 
         const body = await request.json();

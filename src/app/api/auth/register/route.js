@@ -4,6 +4,7 @@ import User from '@/models/User';
 import mongoose from 'mongoose';
 import { sendEmail } from '@/lib/email';
 import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+import { generateOtp } from '@/utils/otpAttempts';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,10 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { name, email, mobile, category, gender } = body;
+    // Mirrors the platform detection already used in /api/auth/google-register —
+    // this endpoint is shared by both the website and the mobile app.
+    const registerSource = body.source || body.registerSource || 'app';
+    const platform = registerSource === 'app' ? 'app' : 'web';
     console.log(`\x1b[33m[AUTH] Registration Request for: ${email}\x1b[0m`);
     console.log(`\x1b[36m[DEBUG] Category Received: ${category}\x1b[0m`);
     console.log(`\x1b[36m[DEBUG] Gender Received: ${gender}\x1b[0m`);
@@ -41,12 +46,21 @@ export async function POST(request) {
 
     await connectDB();
 
-    // Check if registration is enabled
+    // Check if registration is enabled for the platform this request came from
     const db = mongoose.connection.db;
     const settings = await db.collection('settings').findOne({});
-    const registrationEnabled = settings?.authPages?.enableRegistration ||
-      settings?.loginRegister?.enableUserRegistration ||
-      false;
+
+    let registrationEnabled;
+    if (settings?.authSettings) {
+      registrationEnabled = platform === 'app'
+        ? (settings.authSettings.app?.enableRegistration ?? true)
+        : (settings.authSettings.web?.enableRegistration ?? true);
+    } else {
+      // Fallback to legacy settings for installs that predate authSettings
+      registrationEnabled = settings?.authPages?.enableRegistration ||
+        settings?.loginRegister?.enableUserRegistration ||
+        false;
+    }
 
     if (!registrationEnabled) {
       return NextResponse.json({
@@ -56,7 +70,10 @@ export async function POST(request) {
     }
 
     // Check if user already exists and is verified
-    const existingUser = await User.findOne({ email });
+    // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+    // as {"$ne": null} sent in the JSON body would otherwise be
+    // interpreted as a query OPERATOR and match an arbitrary account.
+    const existingUser = await User.findOne({ email: String(email || '') });
 
     if (existingUser && existingUser.emailVerified) {
       return NextResponse.json({
@@ -75,7 +92,7 @@ export async function POST(request) {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     let user;

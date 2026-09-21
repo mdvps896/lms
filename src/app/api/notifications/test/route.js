@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import admin from 'firebase-admin';
+import { requireAdmin } from '@/utils/apiAuth';
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
@@ -20,6 +21,9 @@ if (!admin.apps.length) {
 
 export async function POST(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         await connectDB();
 
         const body = await request.json();

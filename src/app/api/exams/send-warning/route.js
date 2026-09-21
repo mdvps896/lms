@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function POST(request) {
+    // 🔒 SECURITY: this is a proctor action. It had no authorization check at
+    // all, so any logged-in student could invoke it against another
+    // candidate's attempt.
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
+
     try {
         await connectDB();
 

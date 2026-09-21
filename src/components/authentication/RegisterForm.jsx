@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Swal from 'sweetalert2'
 import GoogleOAuthButton from './GoogleOAuthButton'
 import GoogleRecaptcha from './GoogleRecaptcha'
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 const RegisterForm = ({ path, settings }) => {
     const { register } = useAuth();
@@ -89,7 +90,8 @@ const RegisterForm = ({ path, settings }) => {
                 body: JSON.stringify({
                     email: formData.email,
                     name: formData.name,
-                    mobile: formData.phone  // Send as 'mobile' to match API
+                    mobile: formData.phone,  // Send as 'mobile' to match API
+                    source: 'web'  // Lets the shared register endpoint check the Web Platform setting, not the mobile app one
                 })
             });
 
@@ -693,7 +695,7 @@ const RegisterForm = ({ path, settings }) => {
                             </div>
                             <div className="modal-body">
                                 {settings?.authPages?.termsConditions ? (
-                                    <div dangerouslySetInnerHTML={{ __html: settings.authPages.termsConditions }} />
+                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.authPages.termsConditions) }} />
                                 ) : (
                                     <>
                                         <h6 className="fw-bold mb-3">1. Acceptance of Terms</h6>

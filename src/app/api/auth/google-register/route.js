@@ -4,6 +4,7 @@ import User from '@/models/User';
 import mongoose from 'mongoose';
 import Settings from '@/models/Settings';
 import { signToken } from '@/utils/auth'; // Import signToken
+import { verifyIdToken } from '@/utils/firebaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,19 +16,33 @@ export async function POST(request) {
     try {
         const body = await request.json();
         const { idToken, name, email, photoUrl, category, gender } = body;
-        console.log(`\x1b[33m[AUTH] Google Registration for: ${email}\x1b[0m`);
-        console.log(`\x1b[36m[DEBUG] Category Received: ${category}\x1b[0m`);
-        console.log(`\x1b[36m[DEBUG] Gender Received: ${gender}\x1b[0m`);
-
-
 
         // Validation
+        if (!idToken) {
+            return NextResponse.json({
+                success: false,
+                message: 'Google ID token is required'
+            }, { status: 400 });
+        }
         if (!email || !name) {
             return NextResponse.json({
                 success: false,
                 message: 'Email and name are required'
             }, { status: 400 });
         }
+
+        // 🔒 SECURITY: Verify the Google ID token server-side before trusting the
+        // client-supplied email/name — without this, anyone could log in as any
+        // existing user by simply POSTing that user's email.
+        const verifyResult = await verifyIdToken(idToken);
+        if (!verifyResult.success || verifyResult.decodedToken?.email !== email) {
+            return NextResponse.json({
+                success: false,
+                message: 'Invalid Google ID token'
+            }, { status: 401 });
+        }
+
+        console.log(`\x1b[33m[AUTH] Google Registration for: ${email}\x1b[0m`);
 
         await connectDB();
 
@@ -53,7 +68,10 @@ export async function POST(request) {
         }
 
         // Check if user already exists
-        let user = await User.findOne({ email });
+        // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+        // as {"$ne": null} sent in the JSON body would otherwise be
+        // interpreted as a query OPERATOR and match an arbitrary account.
+        let user = await User.findOne({ email: String(email || '') });
         let isNewUser = false;
 
         if (user) {
@@ -150,11 +168,9 @@ export async function POST(request) {
             deviceId: finalDeviceId
         });
 
-        // 🚀 DEBUG: Log successful login to backend terminal
         console.log(`\x1b[32m[AUTH] Google Sign-In Successful: ${user.email}\x1b[0m`);
-        console.log(`\x1b[36m[TOKEN] ${token}\x1b[0m`);
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             isNewUser,
             mobileRequired: !user.phone, // Flag if mobile number is missing
@@ -172,6 +188,25 @@ export async function POST(request) {
             token,
             refreshToken
         });
+
+        // 🔒 SECURITY: set the session cookies HttpOnly here, exactly like
+        // /api/auth/login does. The web client used to write them itself with
+        // document.cookie, which left the JWT readable by any script on the
+        // page (i.e. stealable by any XSS).
+        response.cookies.set('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 2 * 60 * 60
+        });
+        response.cookies.set('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60
+        });
+
+        return response;
 
     } catch (error) {
         console.error('❌ Google Auth Error:', error);

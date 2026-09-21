@@ -18,9 +18,18 @@ export async function POST(request) {
 
         // If firebaseToken is provided, use Firebase verification (optional backward compatibility)
         if (firebaseToken) {
-            // ... (existing firebase logic)
             const verificationResult = await verifyFirebaseToken(firebaseToken);
-            // ...
+
+            // verifyFirebaseToken returns { success: false } on a bad token
+            // rather than throwing. This wasn't checked, so an invalid token
+            // hit `undefined.replace` and surfaced as a 500 instead of a 401.
+            if (!verificationResult?.success || !verificationResult.phoneNumber) {
+                return NextResponse.json(
+                    { success: false, message: 'Invalid or expired verification token' },
+                    { status: 401 }
+                );
+            }
+
             mobile = verificationResult.phoneNumber.replace(/^\+91/, '');
         }
         // Otherwise use 2Factor.in verification
@@ -37,7 +46,17 @@ export async function POST(request) {
                 );
             }
 
-            const verifyUrl = `https://2factor.in/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${otp}`;
+            // 🔒 sessionId and otp go straight into a URL path. Without
+            // validation, a value containing '/' or '..' could redirect the
+            // request to a different endpoint on the gateway.
+            if (!/^[A-Za-z0-9-]{1,64}$/.test(String(sessionId)) || !/^[0-9]{4,8}$/.test(String(otp))) {
+                return NextResponse.json(
+                    { success: false, message: 'Invalid OTP or session' },
+                    { status: 400 }
+                );
+            }
+
+            const verifyUrl = `https://2factor.in/API/V1/${encodeURIComponent(apiKey)}/SMS/VERIFY/${encodeURIComponent(sessionId)}/${encodeURIComponent(otp)}`;
 
             try {
                 const verifyResponse = await fetch(verifyUrl);
@@ -65,7 +84,10 @@ export async function POST(request) {
         }
 
         // Find or create user by mobile number
-        let user = await User.findOne({ phone: mobile });
+        // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+        // as {"$ne": null} sent in the JSON body would otherwise be
+        // interpreted as a query OPERATOR and match an arbitrary account.
+        let user = await User.findOne({ phone: String(mobile || '') });
 
         // 🔒 SECURITY: Check account status for existing users
         if (user && (user.status === 'inactive' || user.status === 'suspended')) {

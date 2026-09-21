@@ -4,9 +4,13 @@ import Exam from '../../../models/Exam'
 import User from '../../../models/User'
 import { createExamNotification } from '../../../utils/examNotifications'
 import { cookies } from 'next/headers'
+import { requireAdmin } from '../../../utils/apiAuth'
 
-export async function POST() {
+export async function POST(request) {
     try {
+        const authError = await requireAdmin(request)
+        if (authError) return authError
+
         await dbConnect()
 
         // Get current user from cookies

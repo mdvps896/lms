@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import ExamAttempt from '@/models/ExamAttempt';
+import { getAuthenticatedUser, requirePermission } from '@/utils/apiAuth';
 
 // Store active streams in memory
 const activeStreams = new Map();
@@ -15,6 +18,20 @@ export async function POST(request) {
                 { message: 'Missing required fields' },
                 { status: 400 }
             );
+        }
+
+        // 🔒 SECURITY: you may only push a live feed for your own attempt.
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
+            await connectDB();
+            const callerId = currentUser.id || currentUser._id?.toString();
+            const ownAttempt = await ExamAttempt.findById(attemptId).select('user').lean();
+            if (!ownAttempt || ownAttempt.user?.toString() !== callerId) {
+                return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+            }
         }
 
         // Store the latest chunk for this attempt
@@ -46,6 +63,10 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
+    // 🔒 SECURITY: watching a candidate's live feed is a proctor action.
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
+
     try {
         const { searchParams } = new URL(request.url);
         const attemptId = searchParams.get('attemptId');

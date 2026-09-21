@@ -4,8 +4,16 @@ import User from '@/models/User';
 
 export async function POST() {
   try {
+    // 🔒 SECURITY: This bootstraps hardcoded default accounts (known passwords)
+    // when the DB is empty — disable outside development to prevent a race
+    // against real setup. Use `npm run create:admin` (scripts/createAdmin.js)
+    // to seed an admin account in production instead.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: false, message: 'Disabled in production' }, { status: 403 });
+    }
+
     await connectDB();
-    
+
     // Check if users already exist
     const existingUsers = await User.countDocuments();
     if (existingUsers > 0) {

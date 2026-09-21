@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request) {
+    // 🔒 SECURITY: staff-only view. This had no authorization check, so any
+    // authenticated user (including every student) could read it.
+    const authError = await requirePermission(request, 'manage_live_exams');
+    if (authError) return authError;
+
     try {
         await connectDB();
 

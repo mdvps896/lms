@@ -8,6 +8,7 @@ import Course from '@/models/Course';
 import Exam from '@/models/Exam';
 import PDFViewSession from '@/models/PDFViewSession';
 import StudentActivity from '@/models/StudentActivity';
+import { requireAdminOrOwner } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,9 @@ export async function GET(request, { params }) {
     try {
         await connectDB();
         const { id } = params;
+
+        const authError = await requireAdminOrOwner(request, id);
+        if (authError) return authError;
 
         const user = await User.findById(id)
             .select('-password -twoFactorSecret')

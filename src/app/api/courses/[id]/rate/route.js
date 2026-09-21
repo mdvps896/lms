@@ -3,13 +3,20 @@ import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
 import User from '@/models/User';
 import mongoose from 'mongoose';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(request, { params }) {
     try {
         await dbConnect();
         const { id } = params;
         const body = await request.json();
-        const { userId, rating, review } = body;
+        const { rating, review } = body;
+
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = currentUser.id || currentUser._id?.toString();
 
         if (!userId || !rating) {
             return NextResponse.json({ success: false, error: 'User ID and Rating are required' }, { status: 400 });

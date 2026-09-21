@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const { searchParams } = new URL(request.url);
 
@@ -86,6 +90,9 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const data = await request.json();
 

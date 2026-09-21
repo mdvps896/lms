@@ -110,6 +110,15 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // 🔒 Failed OTP verification attempts, tracked per purpose
+  // ('registration' | 'reset' | '2fa'). Without these, a 6-digit OTP could be
+  // brute-forced within its validity window — the verification endpoints are
+  // public and previously counted nothing.
+  otpAttempts: {
+    type: Map,
+    of: Number,
+    default: undefined,
+  },
   rollNumber: {
     type: String,
     unique: true,

@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { saveToLocalStorage } from '@/utils/localStorage';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST(request) {
     try {
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         // Get upload parameters from headers
         const fileName = request.headers.get('x-filename');
         const folder = request.headers.get('x-folder') || 'binary-uploads';

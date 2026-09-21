@@ -9,14 +9,13 @@ import SelfieCapture from '@/models/SelfieCapture';
 import Course from '@/models/Course';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { requireAdminOrOwner } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
         await dbConnect();
-
-        // Debug log
 
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get('studentId');
@@ -27,6 +26,9 @@ export async function GET(request) {
         if (!studentId) {
             return NextResponse.json({ success: false, message: 'Student ID required' }, { status: 400 });
         }
+
+        const authError = await requireAdminOrOwner(request, studentId);
+        if (authError) return authError;
 
         const student = await User.findById(studentId).lean();
         if (!student) {

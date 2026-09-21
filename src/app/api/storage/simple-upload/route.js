@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveToLocalStorage } from '@/utils/localStorage';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Configure this route to handle uploads with minimal processing
 export const runtime = 'nodejs';
@@ -7,6 +8,11 @@ export const maxDuration = 300; // 5 minutes timeout for large uploads
 
 export async function POST(request) {
     try {
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         // Get file data from request body
         const contentType = request.headers.get('content-type');
         const fileName = request.headers.get('x-filename');

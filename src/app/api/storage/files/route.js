@@ -5,6 +5,9 @@ import connectDB from '@/lib/mongodb'
 import Settings from '@/models/Settings' // Used in commented code?
 import { getAuthenticatedUser } from '@/utils/apiAuth'
 
+// Reads auth headers — must not be statically prerendered.
+export const dynamic = 'force-dynamic';
+
 // Helper function to get all files recursively (Local)
 function getAllFiles(dirPath, arrayOfFiles = []) {
     try {
@@ -19,7 +22,7 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
                 arrayOfFiles = getAllFiles(filePath, arrayOfFiles)
             } else {
                 const stats = fs.statSync(filePath)
-                let relativePath = filePath.replace(path.join(process.cwd(), 'public'), '')
+                let relativePath = filePath.replace(path.join(process.cwd(), 'storage'), '')
                 relativePath = relativePath.replace(/\\/g, '/')
                 // Ensure path starts with /
                 if (!relativePath.startsWith('/')) {
@@ -62,9 +65,10 @@ export async function GET(request) {
 
         const user = await getAuthenticatedUser(request)
         const isTeacherOwn = user && user.role === 'teacher' && (user.accessScope || 'own') === 'own';
-        // 1. Get local files (Legacy support & backups)
-        const publicDir = path.join(process.cwd(), 'public')
-        const localFiles = getAllFiles(publicDir)
+        // 1. Get local files (Legacy support & backups) — uploads now live
+        // outside public/ (see localStorage/constants.js), so scan there.
+        const uploadsRoot = path.join(process.cwd(), 'storage')
+        const localFiles = getAllFiles(uploadsRoot)
         // 2. Get Cloudinary files - REMOVED
 
         // 3. Get exam recordings (from DB)

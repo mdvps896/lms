@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import FreeMaterial from '@/models/FreeMaterial';
 import { saveFileLocally, deleteFileLocally } from '@/utils/localFileStorage';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
@@ -24,6 +25,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
         const data = await request.json();
@@ -60,7 +64,8 @@ export async function PUT(request, { params }) {
                         publicId: uploadResult.fileName, // Using filename as ID for deletion
                         type: file.type || 'file',
                         size: uploadResult.size,
-                        isDownloadable: file.isDownloadable || false // Added isDownloadable
+                        isDownloadable: file.isDownloadable || false, // Added isDownloadable
+                        isSelfieRequired: file.isSelfieRequired || false
                     });
                 } else if (file.publicId || file.url) {
                     // Existing file kept OR New Manual URL
@@ -119,6 +124,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
 

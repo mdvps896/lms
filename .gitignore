@@ -25,8 +25,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# # local env files
-# .env*.local
+# local env files - NEVER commit these (they hold JWT_SECRET, MONGODB_URI,
+# Firebase private keys, payment/SMS gateway keys). Use .env.example as the
+# checked-in template instead.
+.env
+.env.local
+.env*.local
+.env.development
+.env.production
 
 # Firebase
 firebase-service-account.json
@@ -37,3 +43,10 @@ firebase-service-account.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploaded files - like node_modules, these are environment-specific and
+# must NEVER be pushed/pulled via git. Only the storage CODE (src/utils/
+# localStorage, API routes) is version controlled. Each environment (local
+# machine, VPS) keeps its own uploads folder, auto-created on first upload.
+/storage/uploads/
+/public/uploads/

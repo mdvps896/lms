@@ -255,6 +255,12 @@ export async function PUT(request) {
             }
         }
 
+        if (!examAttempt.verification) {
+            examAttempt.verification = {}
+        }
+        if (!examAttempt.verification.faceVerification) {
+            examAttempt.verification.faceVerification = {}
+        }
         if (!examAttempt.verification.faceVerification.periodicChecks) {
             examAttempt.verification.faceVerification.periodicChecks = []
         }

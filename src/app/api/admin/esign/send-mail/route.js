@@ -16,30 +16,37 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { userId, toEmail, subject, message } = body;
+        // Public web submissions have no linked User, so they're looked up
+        // by `submissionId` instead of `userId`.
+        const { userId, submissionId, toEmail, subject, message } = body;
 
-        if (!userId || !toEmail || !subject || !message) {
+        if ((!userId && !submissionId) || !toEmail || !subject || !message) {
             return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
         }
 
-        const submission = await ESignSubmission.findOne({ user: userId });
+        const submission = submissionId
+            ? await ESignSubmission.findById(submissionId)
+            : await ESignSubmission.findOne({ user: userId });
         if (!submission) {
             return NextResponse.json({ success: false, message: 'No E-Sign submission found' }, { status: 404 });
         }
 
-        // Fallback to User images
+        // Fallback to User images — only applies when this submission is
+        // actually linked to a User (app flow); public submissions aren't.
         let userImages = {};
         let userProfile = null;
         try {
-            const user = await User.findById(userId).select('esign_images profileImage');
-            if (user) {
-                userImages = user.esign_images || {};
-                userProfile = user.profileImage;
+            if (submission.user) {
+                const user = await User.findById(submission.user).select('esign_images profileImage');
+                if (user) {
+                    userImages = user.esign_images || {};
+                    userProfile = user.profileImage;
+                }
             }
         } catch (err) { }
 
         // Generate PDF
-        console.log(`📄 Generating E-Sign PDF for user: ${userId}...`);
+        console.log(`📄 Generating E-Sign PDF for submission: ${submission._id}...`);
         const pdfArrayBuffer = await generateESignPDF(submission, userImages, userProfile);
         const buffer = Buffer.from(pdfArrayBuffer);
         console.log(`✅ PDF Generated (${(buffer.length / 1024).toFixed(2)} KB). Sending email...`);

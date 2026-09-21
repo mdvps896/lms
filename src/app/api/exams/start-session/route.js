@@ -4,6 +4,7 @@ import Exam from '@/models/Exam'
 import User from '@/models/User'
 import ExamAttempt from '@/models/ExamAttempt'
 import { getAuthenticatedUser } from '@/utils/apiAuth'
+import crypto from 'crypto'
 
 export async function POST(request) {
     try {
@@ -74,7 +75,9 @@ export async function POST(request) {
 
         // Check user's category matches exam category
         // Bypass for free materials
-        if (!isFreeMaterial && user.category.toString() !== exam.category._id.toString()) {
+        // `user.category` can legitimately be unset — calling .toString() on
+        // undefined threw a 500 instead of a clear authorization message.
+        if (!isFreeMaterial && (!user.category || user.category.toString() !== exam.category?._id?.toString())) {
             return NextResponse.json(
                 { message: 'You are not authorized to take this exam' },
                 { status: 403 }
@@ -102,16 +105,30 @@ export async function POST(request) {
             status: 'active'
         })
 
-        // If verificationId is provided, use that ExamAttempt
+        // If verificationId is provided, use that ExamAttempt.
+        // 🔒 SECURITY: this used to activate ANY attempt id the caller sent,
+        // with no ownership or exam check — passing another candidate's
+        // attempt id flipped their submitted paper back to 'active' and reset
+        // its start time, destroying their result.
         if (verificationId && !activeExamAttempt) {
-            activeExamAttempt = await ExamAttempt.findById(verificationId)
+            const candidate = await ExamAttempt.findById(verificationId)
 
-            if (activeExamAttempt) {
-                // Update the attempt to active status
-                activeExamAttempt.status = 'active'
-                activeExamAttempt.startedAt = now
-                activeExamAttempt.endTime = new Date(now.getTime() + exam.duration * 60 * 1000)
-                await activeExamAttempt.save()
+            const belongsToCaller = candidate &&
+                candidate.user?.toString() === userId &&
+                candidate.exam?.toString() === examId.toString()
+
+            // Never resurrect a paper that has already been handed in.
+            if (belongsToCaller && candidate.status !== 'submitted') {
+                candidate.status = 'active'
+                candidate.startedAt = now
+                candidate.endTime = new Date(now.getTime() + exam.duration * 60 * 1000)
+                await candidate.save()
+                activeExamAttempt = candidate
+            } else if (candidate && !belongsToCaller) {
+                return NextResponse.json(
+                    { message: 'Forbidden: that verification does not belong to you' },
+                    { status: 403 }
+                )
             }
         }
 
@@ -129,7 +146,9 @@ export async function POST(request) {
         }
 
         // Create new session token
-        const sessionToken = `${userId}-${examId}-${Date.now()}-${Math.random().toString(36).substring(2)}`
+        // Random, unguessable session token. The old value was derived from
+        // the user id, exam id and Date.now(), which is predictable.
+        const sessionToken = crypto.randomUUID()
 
         // Get client info
         const headers = request.headers

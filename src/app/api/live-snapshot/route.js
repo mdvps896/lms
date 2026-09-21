@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { requirePermission } from '@/utils/apiAuth';
 import ExamAttempt from '@/models/ExamAttempt';

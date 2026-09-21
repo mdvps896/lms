@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
-import { getAuthenticatedUser } from '@/utils/apiAuth';
+import { getAuthenticatedUser, hasPermission } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
@@ -38,9 +38,12 @@ export async function GET(request, { params }) {
 
         // Check if this attempt belongs to the current user OR user is admin/teacher
         const isOwner = attempt.user.toString() === userId;
-        const isAdminOrTeacher = userRole === 'admin' || userRole === 'teacher';
+        // 🔒 Staff access requires the analytics permission, not merely the
+        // teacher role — a teacher with no assigned permissions could
+        // previously read any student's full attempt.
+        const isStaffWithAccess = hasPermission(currentUser, 'view_analytics');
 
-        if (!isOwner && !isAdminOrTeacher) {
+        if (!isOwner && !isStaffWithAccess) {
             console.error('Attempt does not belong to current user and user is not admin/teacher');
             return NextResponse.json(
                 { success: false, message: 'Unauthorized access to attempt' },

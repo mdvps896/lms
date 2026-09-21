@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Course from '@/models/Course';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // PUT /api/admin/courses/[id]/reviews/[reviewId] - Update review
 export async function PUT(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_courses');
+        if (authError) return authError;
+
         await connectDB();
         const { id, reviewId } = params;
         const { rating, review, userName, userId } = await request.json();
@@ -42,6 +46,9 @@ export async function PUT(request, { params }) {
 // DELETE /api/admin/courses/[id]/reviews/[reviewId] - Delete review
 export async function DELETE(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_courses');
+        if (authError) return authError;
+
         await connectDB();
         const { id, reviewId } = params;
 

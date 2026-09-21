@@ -6,7 +6,14 @@ const MAX_ATTEMPTS = 3;
 const BLOCK_DURATION = 15 * 60 * 1000; // 15 minutes
 const ATTEMPT_WINDOW = 60 * 1000; // 1 minute
 
-export function checkOTPRateLimit(identifier) {
+// `options` lets non-OTP callers (e.g. the public e-sign upload flow, which
+// legitimately needs several requests per session) loosen the limits
+// without weakening the default OTP/login/reset-password throttling.
+export function checkOTPRateLimit(identifier, options = {}) {
+    const maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
+    const attemptWindow = options.attemptWindowMs ?? ATTEMPT_WINDOW;
+    const blockDuration = options.blockDurationMs ?? BLOCK_DURATION;
+
     const now = Date.now();
     const userAttempts = otpAttempts.get(identifier);
 
@@ -25,13 +32,13 @@ export function checkOTPRateLimit(identifier) {
         const remainingTime = Math.ceil((userAttempts.blockedUntil - now) / 1000);
         return {
             allowed: false,
-            message: `Too many OTP requests. Please try again in ${remainingTime} seconds.`,
+            message: `Too many requests. Please try again in ${remainingTime} seconds.`,
             remainingTime
         };
     }
 
     // Reset if attempt window has passed
-    if (now - userAttempts.firstAttempt > ATTEMPT_WINDOW) {
+    if (now - userAttempts.firstAttempt > attemptWindow) {
         otpAttempts.set(identifier, {
             count: 1,
             firstAttempt: now,
@@ -44,19 +51,19 @@ export function checkOTPRateLimit(identifier) {
     userAttempts.count++;
 
     // Block if exceeded max attempts
-    if (userAttempts.count > MAX_ATTEMPTS) {
-        userAttempts.blockedUntil = now + BLOCK_DURATION;
+    if (userAttempts.count > maxAttempts) {
+        userAttempts.blockedUntil = now + blockDuration;
         otpAttempts.set(identifier, userAttempts);
 
         return {
             allowed: false,
-            message: `Too many OTP requests. Please try again after 15 minutes.`,
-            remainingTime: Math.ceil(BLOCK_DURATION / 1000)
+            message: `Too many requests. Please try again after ${Math.ceil(blockDuration / 60000)} minutes.`,
+            remainingTime: Math.ceil(blockDuration / 1000)
         };
     }
 
     otpAttempts.set(identifier, userAttempts);
-    return { allowed: true, attemptsLeft: MAX_ATTEMPTS - userAttempts.count };
+    return { allowed: true, attemptsLeft: maxAttempts - userAttempts.count };
 }
 
 // Cleanup old entries periodically

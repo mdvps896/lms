@@ -120,11 +120,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
 
-    // Remove cookie
+    // The real session lives in HttpOnly cookies that JS cannot delete, so
+    // the server has to clear them. Without this, "logout" only removed the
+    // cosmetic 'user' cookie and the session stayed alive.
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      // Still send the user to the login page even if the call fails.
+      console.error('Logout request failed:', error);
+    }
+
     document.cookie = 'user=; path=/; max-age=0';
 
     window.location.href = '/authentication/login';

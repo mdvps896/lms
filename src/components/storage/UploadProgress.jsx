@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-const UploadProgress = ({ fileName, progress, isChunked, currentChunk, totalChunks }) => {
+const UploadProgress = ({ fileName, progress }) => {
     if (!fileName) return null
 
     return (
@@ -14,23 +14,13 @@ const UploadProgress = ({ fileName, progress, isChunked, currentChunk, totalChun
                             <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
                                 <span className="visually-hidden">Loading...</span>
                             </div>
-                            <h6 className="mb-0">
-                                {isChunked ? '📦 Uploading Large File (Chunked)' : '📤 Uploading File'}
-                            </h6>
+                            <h6 className="mb-0">📤 Uploading File</h6>
                         </div>
-                        
+
                         <div className="mb-2">
                             <small className="text-muted">File: {fileName}</small>
                         </div>
-                        
-                        {isChunked && (
-                            <div className="mb-2">
-                                <small className="text-info">
-                                    🔄 Processing chunk {currentChunk} of {totalChunks}
-                                </small>
-                            </div>
-                        )}
-                        
+
                         <div className="progress mb-2" style={{ height: '8px' }}>
                             <div 
                                 className="progress-bar progress-bar-striped progress-bar-animated" 
@@ -45,14 +35,6 @@ const UploadProgress = ({ fileName, progress, isChunked, currentChunk, totalChun
                         <div className="text-center">
                             <small className="text-muted">{Math.round(progress)}% Complete</small>
                         </div>
-                        
-                        {isChunked && (
-                            <div className="mt-2">
-                                <small className="text-success">
-                                    ✨ Enhanced upload system - no size limits!
-                                </small>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

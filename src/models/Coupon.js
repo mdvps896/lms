@@ -16,7 +16,13 @@ const couponSchema = new mongoose.Schema({
     discountValue: {
         type: Number,
         required: true,
-        min: 0
+        min: 0,
+        validate: {
+            validator: function (value) {
+                return this.discountType !== 'percentage' || value <= 100;
+            },
+            message: 'Percentage discount cannot exceed 100'
+        }
     },
     applicationType: {
         type: String,
@@ -47,6 +53,13 @@ const couponSchema = new mongoose.Schema({
     maxUses: {
         type: Number,
         default: null // null = unlimited
+    },
+    // 🔒 Per-student redemption cap. Only the global `maxUses` was enforced,
+    // so a single student could redeem the same coupon repeatedly (including a
+    // 100%-off coupon on the free-enrollment path). 0 = unlimited per user.
+    maxUsesPerUser: {
+        type: Number,
+        default: 1
     },
     currentUses: {
         type: Number,

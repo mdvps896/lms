@@ -5,11 +5,23 @@ import Exam from '@/models/Exam';
 import Subject from '@/models/Subject';
 import Category from '@/models/Category';
 import Question from '@/models/Question';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
+        // 🔒 SECURITY: this is a staff tool. Gated on requireAuth alone, any
+        // student could enumerate teachers, other students and — worst of all —
+        // the question bank, i.e. search for exam questions by their text.
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q');
         const type = searchParams.get('type') || 'all';
@@ -20,7 +32,11 @@ export async function GET(request) {
 
         await connectDB();
 
-        const searchRegex = new RegExp(query, 'i');
+        // 🔒 Escape the input before it becomes a regex. `new RegExp(query)`
+        // on raw user input is a ReDoS vector against the database (and lets a
+        // caller inject regex syntax into every field match below).
+        const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const searchRegex = new RegExp(escapeRegex(query.slice(0, 100)), 'i');
         let results = [];
 
         // Search Teachers

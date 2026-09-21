@@ -3,11 +3,13 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Course from '@/models/Course';
 import Payment from '@/models/Payment';
-import Notification from '@/models/Notification';
 import { sendAdminPurchaseNotification } from '@/lib/sendAdminPurchaseNotification';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import Razorpay from 'razorpay';
 import { getAuthenticatedUser } from '@/utils/apiAuth';
+import { computeExpiryDate, enrollUserInCourse, notifyCoursePurchase } from './helpers';
+import { computePayableAmount, toPaisa } from '@/utils/coursePricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,38 +53,30 @@ export async function POST(request) {
                 return NextResponse.json({ success: false, message: 'User or Course not found' }, { status: 404 });
             }
 
-            // Expiry Calculation
-            let expiryDate = new Date();
-            if (course.duration?.value && course.duration?.unit) {
-                const { value, unit } = course.duration;
-                if (unit === 'days') expiryDate.setDate(expiryDate.getDate() + value);
-                if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
-                if (unit === 'years') expiryDate.setFullYear(expiryDate.getFullYear() + value);
-            } else {
-                expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            // 🔒 SECURITY: server-side validate that the coupon really grants a
+            // free (100%) enrollment for this course AND this user — never
+            // trust a client-sent `isFree` flag on its own. computePayableAmount
+            // also enforces the per-user redemption cap.
+            if (!couponCode) {
+                return NextResponse.json({ success: false, message: 'A valid coupon is required for free enrollment' }, { status: 400 });
             }
 
-            // Remove existing enrollment
-            await User.updateOne(
-                { _id: targetUserId },
-                { $pull: { enrolledCourses: { courseId: new mongoose.Types.ObjectId(courseId) } } }
-            );
-            await User.updateOne(
-                { _id: targetUserId },
-                { $pull: { enrolledCourses: courseId } }
-            );
+            const freePricing = await computePayableAmount({
+                course,
+                couponCode,
+                userId: targetUserId
+            });
 
-            // Add new enrollment
-            const newEnrollment = {
-                courseId: new mongoose.Types.ObjectId(courseId),
-                enrolledAt: new Date(),
-                expiresAt: expiryDate
-            };
+            if (freePricing.couponError) {
+                return NextResponse.json({ success: false, message: freePricing.couponError }, { status: 400 });
+            }
+            if (freePricing.payable > 0) {
+                return NextResponse.json({ success: false, message: 'Coupon does not cover the full course price' }, { status: 400 });
+            }
+            const coupon = freePricing.coupon;
 
-            await User.updateOne(
-                { _id: targetUserId },
-                { $push: { enrolledCourses: newEnrollment } }
-            );
+            const expiryDate = computeExpiryDate(course);
+            await enrollUserInCourse(targetUserId, courseId, expiryDate);
 
             // Create Payment Record
             await Payment.create({
@@ -97,84 +91,10 @@ export async function POST(request) {
                 isFree: true
             });
 
-            if (couponCode) {
-                const Coupon = (await import('@/models/Coupon')).default;
-                await Coupon.findOneAndUpdate(
-                    { code: couponCode.toUpperCase() },
-                    {
-                        $inc: { currentUses: 1 },
-                        $push: {
-                            usedBy: {
-                                user: targetUserId,
-                                courseId: courseId,
-                                usedAt: new Date()
-                            }
-                        }
-                    }
-                );
-            }
+            await recordCouponRedemption(coupon, targetUserId, courseId);
 
             const updatedUser = await User.findById(targetUserId);
-            try {
-                await Notification.create({
-                    title: '🎉 Course Purchased!',
-                    message: `Thank you for purchasing "${course.title}". Start learning now!`,
-                    type: 'course_purchase',
-                    createdBy: new mongoose.Types.ObjectId(targetUserId),
-                    recipients: [{ userId: new mongoose.Types.ObjectId(targetUserId) }],
-                    status: 'active',
-                    data: {
-                        courseId: course._id.toString(),
-                        courseName: course.title || '',
-                        thumbnail: course.thumbnail || ''
-                    }
-                });
-            } catch (dbError) {
-                console.error('❌ DB Notification save error:', dbError.message);
-            }
-
-            // Send push notification
-            try {
-                if (updatedUser.fcmToken) {
-                    const admin = (await import('firebase-admin')).default;
-                    if (!admin.apps.length) {
-                        admin.initializeApp({
-                            credential: admin.credential.cert({
-                                projectId: process.env.FIREBASE_PROJECT_ID,
-                                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-                            }),
-                        });
-                    }
-
-                    const message = {
-                        notification: {
-                            title: '🎉 Course Purchased!',
-                            body: `Thank you for purchasing "${course.title}". Start learning now!`,
-                            imageUrl: course.thumbnail,
-                        },
-                        data: {
-                            type: 'course_purchase',
-                            courseId: course._id.toString(),
-                            courseName: course.title,
-                        },
-                        token: updatedUser.fcmToken,
-                        android: {
-                            priority: 'high',
-                            notification: {
-                                imageUrl: course.thumbnail,
-                                icon: '@mipmap/launcher_icon',
-                                color: '#FF0000',
-                                channelId: 'high_importance_channel',
-                                sound: 'default',
-                            },
-                        },
-                    };
-                    await admin.messaging().send(message);
-                }
-            } catch (notifError) {
-                console.error('❌ Notification error:', notifError.message);
-            }
+            await notifyCoursePurchase(targetUserId, updatedUser, course);
 
             try {
                 await sendAdminPurchaseNotification({
@@ -200,9 +120,17 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'Missing payment details' }, { status: 400 });
         }
 
+        // 🔒 SECURITY: Idempotency — a retried/replayed verify call for a payment
+        // we've already recorded must not re-run enrollment/notifications.
+        const existingPayment = await Payment.findOne({ razorpayPaymentId: razorpay_payment_id });
+        if (existingPayment) {
+            return NextResponse.json({ success: true, message: 'Payment already verified' });
+        }
+
         const db = mongoose.connection.db;
         const settings = await db.collection('settings').findOne({});
         const keySecret = settings?.integrations?.razorpay?.keySecret;
+        const keyId = settings?.integrations?.razorpay?.keyId;
 
         if (!keySecret) {
             return NextResponse.json({ success: false, message: 'Payment configuration missing' }, { status: 500 });
@@ -217,117 +145,91 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: 'Invalid payment signature' }, { status: 400 });
         }
 
-        if (!targetUserId || !courseId) {
-            return NextResponse.json({ success: true, message: 'Payment verified, but missing IDs to enroll' });
+        // 🔒 SECURITY: Fetch the order from Razorpay and confirm it was created for
+        // THIS course/user and for the course's real price — a valid signature only
+        // proves the order+payment IDs match, not that they were meant for this
+        // course, so without this check a cheap order could be "verified" against
+        // any course.
+        const instance = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        const order = await instance.orders.fetch(razorpay_order_id);
+        const orderCourseId = order?.notes?.courseId;
+        const orderUserId = order?.notes?.userId;
+        const effectiveCourseId = courseId || orderCourseId;
+        const effectiveUserId = targetUserId || orderUserId;
+
+        if (!effectiveUserId || !effectiveCourseId) {
+            return NextResponse.json({ success: false, message: 'Unable to determine order details' }, { status: 400 });
         }
 
-        const user = await User.findById(targetUserId);
-        const course = await Course.findById(courseId);
-
-        if (!user || !course) {
-            return NextResponse.json({ success: false, message: 'User or Course not found' }, { status: 404 });
+        const course = await Course.findById(effectiveCourseId);
+        if (!course) {
+            return NextResponse.json({ success: false, message: 'Course not found' }, { status: 404 });
         }
 
-        let expiryDate = new Date();
-        if (course.duration?.value && course.duration?.unit) {
-            const { value, unit } = course.duration;
-            if (unit === 'days') expiryDate.setDate(expiryDate.getDate() + value);
-            if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
-            if (unit === 'years') expiryDate.setFullYear(expiryDate.getFullYear() + value);
-        } else {
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        // Orders created with a courseId in their notes (web, or newer mobile
+        // builds) are strictly cross-checked. Orders from older mobile builds that
+        // don't send courseId to create-order carry no notes.courseId to check
+        // against, so they fall back to the signature check alone.
+        // 🔒 SECURITY: always cross-check. This used to be skipped entirely
+        // when the order had no notes.courseId (older mobile builds), which is
+        // exactly the case a price-manipulation attack would produce.
+        // /payment/create-order now always records notes.courseId.
+        // Recompute what this order SHOULD have cost, applying the coupon that
+        // create-order recorded in the order notes. Comparing against the full
+        // course price alone would reject every legitimate discounted payment.
+        const orderCouponCode = order?.notes?.couponCode || null;
+        const verifiedPricing = await computePayableAmount({
+            course,
+            couponCode: orderCouponCode,
+            userId: effectiveUserId,
+            // The coupon was already consumed for this user at create-order
+            // time in the free path; here we only need the price arithmetic,
+            // so a per-user rejection must not block a completed payment.
+            now: new Date()
+        });
+        const expectedPaisa = verifiedPricing.couponError
+            ? toPaisa(course.price)
+            : toPaisa(verifiedPricing.payable);
+
+        if (!orderCourseId) {
+            return NextResponse.json(
+                { success: false, message: 'Order is missing course details. Please update the app and retry.' },
+                { status: 400 }
+            );
+        }
+        if (orderCourseId !== effectiveCourseId.toString() || order.amount !== expectedPaisa) {
+            return NextResponse.json({ success: false, message: 'Order does not match course/amount' }, { status: 400 });
+        }
+        if (orderUserId && orderUserId !== effectiveUserId.toString()) {
+            return NextResponse.json({ success: false, message: 'Order does not belong to this user' }, { status: 403 });
         }
 
-        await User.updateOne(
-            { _id: targetUserId },
-            { $pull: { enrolledCourses: { courseId: new mongoose.Types.ObjectId(courseId) } } }
-        );
-        await User.updateOne(
-            { _id: targetUserId },
-            { $pull: { enrolledCourses: courseId } }
-        );
+        const user = await User.findById(effectiveUserId);
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+        }
 
-        const newEnrollment = {
-            courseId: new mongoose.Types.ObjectId(courseId),
-            enrolledAt: new Date(),
-            expiresAt: expiryDate
-        };
-
-        await User.updateOne(
-            { _id: targetUserId },
-            { $push: { enrolledCourses: newEnrollment } }
-        );
+        const expiryDate = computeExpiryDate(course);
+        await enrollUserInCourse(effectiveUserId, effectiveCourseId, expiryDate);
 
         await Payment.create({
-            user: targetUserId,
-            course: courseId,
+            user: effectiveUserId,
+            course: effectiveCourseId,
             razorpayOrderId: razorpay_order_id,
             razorpayPaymentId: razorpay_payment_id,
-            amount: amount !== undefined ? amount : (course.price || 0),
+            amount: expectedPaisa / 100,
             originalPrice: course.price || 0,
             status: 'success'
         });
 
-        const updatedUser = await User.findById(targetUserId);
-        try {
-            await Notification.create({
-                title: '🎉 Course Purchased!',
-                message: `Thank you for purchasing "${course.title}". Start learning now!`,
-                type: 'course_purchase',
-                createdBy: new mongoose.Types.ObjectId(targetUserId),
-                recipients: [{ userId: new mongoose.Types.ObjectId(targetUserId) }],
-                status: 'active',
-                data: {
-                    courseId: course._id.toString(),
-                    courseName: course.title || '',
-                    thumbnail: course.thumbnail || ''
-                }
-            });
-        } catch (dbError) {
-            console.error('❌ DB Notification save error:', dbError.message);
+        if (!verifiedPricing.couponError && verifiedPricing.coupon) {
+            // A coupon used on a PAID order was never recorded, so currentUses
+            // stayed at 0 and neither the global nor per-user cap could bind.
+            await recordCouponRedemption(verifiedPricing.coupon, effectiveUserId, effectiveCourseId);
         }
 
-        try {
-            if (updatedUser.fcmToken) {
-                const admin = (await import('firebase-admin')).default;
-                if (!admin.apps.length) {
-                    admin.initializeApp({
-                        credential: admin.credential.cert({
-                            projectId: process.env.FIREBASE_PROJECT_ID,
-                            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-                        }),
-                    });
-                }
-
-                const message = {
-                    notification: {
-                        title: '🎉 Course Purchased!',
-                        body: `Thank you for purchasing "${course.title}". Start learning now!`,
-                        imageUrl: course.thumbnail,
-                    },
-                    data: {
-                        type: 'course_purchase',
-                        courseId: course._id.toString(),
-                        courseName: course.title,
-                    },
-                    token: updatedUser.fcmToken,
-                    android: {
-                        priority: 'high',
-                        notification: {
-                            imageUrl: course.thumbnail,
-                            icon: '@mipmap/launcher_icon',
-                            color: '#FF0000',
-                            channelId: 'high_importance_channel',
-                            sound: 'default',
-                        },
-                    },
-                };
-                await admin.messaging().send(message);
-            }
-        } catch (notifError) {
-            console.error('❌ Notification error:', notifError);
-        }
+        const updatedUser = await User.findById(effectiveUserId);
+        await notifyCoursePurchase(effectiveUserId, updatedUser, course);
 
         try {
             await sendAdminPurchaseNotification({
@@ -351,4 +253,25 @@ export async function POST(request) {
         console.error('❌ Verify Payment Exception:', error);
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
+}
+
+
+/**
+ * Record one redemption of `coupon` by `userId` for `courseId`.
+ * Safe to call with a null coupon.
+ */
+async function recordCouponRedemption(coupon, userId, courseId) {
+    if (!coupon?._id) return;
+
+    const Coupon = (await import('@/models/Coupon')).default;
+    await Coupon.findByIdAndUpdate(coupon._id, {
+        $inc: { currentUses: 1 },
+        $push: {
+            usedBy: {
+                user: userId,
+                courseId: courseId,
+                usedAt: new Date()
+            }
+        }
+    });
 }

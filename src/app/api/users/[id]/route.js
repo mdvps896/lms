@@ -127,6 +127,22 @@ export async function PATCH(request, { params }) {
     await connectDB();
     const body = await request.json();
 
+    const targetUser = await User.findById(params.id);
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const hasPermission = await checkUserManagementPermission(request, targetUser);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     // Validate category if provided
     if (body.category) {
       const categoryExists = await Category.findById(body.category);

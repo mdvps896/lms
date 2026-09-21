@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Coupon from '@/models/Coupon';
 import Course from '@/models/Course';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,8 +64,12 @@ export async function POST(request) {
             );
         }
 
-        // Check per-user usage (if userId provided)
-        const { userId } = body;
+        // Check per-user usage. 🔒 The user is taken from the verified JWT, not
+        // from the request body — a client-supplied userId let anyone probe
+        // (or sidestep) another account's redemption history by sending a
+        // different id, or omitting it entirely to skip the check.
+        const currentUser = await getAuthenticatedUser(request);
+        const userId = currentUser?.id || currentUser?._id?.toString();
         if (userId && coupon.usedBy && Array.isArray(coupon.usedBy)) {
             const userUsageCount = coupon.usedBy.filter(
                 entry => entry.user && entry.user.toString() === userId.toString()
@@ -102,6 +107,14 @@ export async function POST(request) {
             if (!categoryIds.includes(course.category.toString())) {
                 return NextResponse.json(
                     { success: false, message: 'Coupon not applicable to this course category' },
+                    { status: 400 }
+                );
+            }
+        } else if (coupon.applicationType === 'students') {
+            const studentIds = (coupon.students || []).map(s => s.toString());
+            if (!userId || !studentIds.includes(userId.toString())) {
+                return NextResponse.json(
+                    { success: false, message: 'Coupon not applicable to this student' },
                     { status: 400 }
                 );
             }

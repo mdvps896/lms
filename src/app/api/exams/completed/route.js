@@ -2,10 +2,16 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
 import Exam from '@/models/Exam';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request) {
+    // 🔒 SECURITY: returns every student's submitted attempts. Had no
+    // authorization check at all.
+    const authError = await requirePermission(request, 'view_analytics');
+    if (authError) return authError;
+
     try {
         await connectDB();
 

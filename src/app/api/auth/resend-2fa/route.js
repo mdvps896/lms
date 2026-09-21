@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { sendOtpEmail } from '@/utils/sendOtpEmail';
+import { generateOtp, clearOtpAttempts } from '@/utils/otpAttempts';
+import { checkOTPRateLimit } from '@/utils/otpRateLimit';
 
 export async function POST(request) {
   try {
@@ -24,8 +26,18 @@ export async function POST(request) {
       );
     }
     
+    // 🔒 Throttle resends — an unlimited resend loop is both an email-bombing
+    // vector and a way to keep a fresh code alive indefinitely while guessing.
+    const resendLimit = checkOTPRateLimit(`resend-2fa:${userId}`);
+    if (!resendLimit.allowed) {
+      return NextResponse.json(
+        { success: false, message: resendLimit.message || 'Please wait before requesting another code.' },
+        { status: 429 }
+      );
+    }
+
     // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
     // Save OTP to database
@@ -33,6 +45,7 @@ export async function POST(request) {
       twoFactorOtp: otp,
       twoFactorOtpExpiry: otpExpiry
     });
+    await clearOtpAttempts(User, userId, '2fa');
     
     // Send OTP email
     try {

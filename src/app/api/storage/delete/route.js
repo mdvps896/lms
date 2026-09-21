@@ -28,8 +28,7 @@ export async function POST(request) {
         const itemsToDelete = items || (body.filePaths ? body.filePaths.map(p => ({ path: p })) : []);
 
         if (itemsToDelete.length > 0) {
-            const results = [];
-            for (const item of itemsToDelete) {
+            const results = await Promise.all(itemsToDelete.map(async (item) => {
                 let success = false;
                 let msg = '';
 
@@ -54,8 +53,8 @@ export async function POST(request) {
                     msg = e.message;
                 }
 
-                results.push({ path: item.path, publicId: item.publicId, success, message: msg });
-            }
+                return { path: item.path, publicId: item.publicId, success, message: msg };
+            }));
 
             const successCount = results.filter(r => r.success).length;
             return NextResponse.json({

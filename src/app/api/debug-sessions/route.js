@@ -3,14 +3,24 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import PDFViewSession from '@/models/PDFViewSession';
 import mongoose from 'mongoose';
+import { requireAdmin } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
     try {
+        if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json({ success: false, message: 'Not found' }, { status: 404 });
+        }
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         await connectDB();
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId') || '69832d4ee25a78e339a676';
+        const userId = searchParams.get('userId');
+        if (!userId) {
+            return NextResponse.json({ success: false, message: 'userId is required' }, { status: 400 });
+        }
         
         const allSessions = await PDFViewSession.find({
             user: userId,

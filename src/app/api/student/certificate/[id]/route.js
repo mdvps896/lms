@@ -5,7 +5,7 @@ import Settings from '@/models/Settings';
 import jsPDF from 'jspdf';
 import path from 'path';
 import fs from 'fs';
-import { getAuthenticatedUser } from '@/utils/apiAuth';
+import { getAuthenticatedUser, hasPermission } from '@/utils/apiAuth';
 
 // Helper to load fonts/images from the local filesystem
 const loadAsset = (relativePath) => {
@@ -47,7 +47,10 @@ export async function GET(request, { params }) {
 
         // Security: Students can only access their own certificate, unless admin/teacher
         const userId = currentUser.id || currentUser._id?.toString();
-        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher' && attempt.user?._id?.toString() !== userId && attempt.user?.toString() !== userId) {
+        // 🔒 Staff access requires the analytics permission, not the bare
+        // teacher role.
+        const isOwnCertificate = attempt.user?._id?.toString() === userId || attempt.user?.toString() === userId;
+        if (!isOwnCertificate && !hasPermission(currentUser, 'view_analytics')) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 

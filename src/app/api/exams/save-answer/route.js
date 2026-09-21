@@ -2,10 +2,16 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Exam from '@/models/Exam'
 import ExamAttempt from '@/models/ExamAttempt'
+import { getAuthenticatedUser } from '@/utils/apiAuth'
 
 export async function POST(request) {
     try {
         await connectDB()
+
+        const currentUser = await getAuthenticatedUser(request)
+        if (!currentUser) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+        }
 
         const { attemptId, questionId, answer, sessionToken, examId } = await request.json()
 
@@ -41,6 +47,17 @@ export async function POST(request) {
                 )
             }
             attempt = embeddedAttempt;
+        }
+
+        // 🔒 SECURITY: Verify the attempt belongs to the requester
+        const requesterId = currentUser.id || currentUser._id?.toString()
+        const ownerId = isIndependentAttempt ? attempt.user?.toString() : attempt.userId?.toString()
+        if (
+            currentUser.role !== 'admin' &&
+            currentUser.role !== 'teacher' &&
+            ownerId !== requesterId
+        ) {
+            return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
         }
 
         // Validate session token

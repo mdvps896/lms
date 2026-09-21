@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 export default function ExamInstructionsModal({ show, onClose, instructions }) {
     if (!show) return null;
@@ -17,7 +18,7 @@ export default function ExamInstructionsModal({ show, onClose, instructions }) {
                     </div>
                     <div className="modal-body">
                         {instructions ? (
-                            <div className="instruction-content" dangerouslySetInnerHTML={{ __html: instructions }} />
+                            <div className="instruction-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructions) }} />
                         ) : (
                             <div className="text-center py-4 text-muted">
                                 <i className="feather-file-text d-block mb-2" style={{ fontSize: '2rem' }}></i>

@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import connectDB from '../../../lib/mongodb';
+import { checkOTPRateLimit } from '../../../utils/otpRateLimit';
+import { generateOtp } from '@/utils/otpAttempts';
 
 // Generate 6-digit OTP
 const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // CSPRNG — Math.random is predictable and must never mint a credential.
+    return generateOtp();
 };
 
 export async function POST(request) {
     try {
         const { email, name } = await request.json();
+
+        const rateLimit = checkOTPRateLimit(`send-otp:${email}`);
+        if (!rateLimit.allowed) {
+            return NextResponse.json({ success: false, message: rateLimit.message }, { status: 429 });
+        }
 
         // Fetch site settings to get site name and SMTP settings
         let siteName = 'Exam Portal';
@@ -199,19 +207,16 @@ export async function POST(request) {
         // Send email
         await transporter.sendMail(mailOptions);
 
-        // Store OTP in session/memory (in production, use Redis or database)
-        // For now, return OTP to client (only for development)
         return NextResponse.json({
             success: true,
             message: 'OTP sent successfully',
-            otp: otp, // Remove this in production
             expiresIn: 600000 // 10 minutes
         });
 
     } catch (error) {
         console.error('Email sending error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to send OTP', error: error.message },
+            { success: false, message: 'Failed to send OTP' },
             { status: 500 }
         );
     }

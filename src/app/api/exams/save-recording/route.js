@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 // import { saveToCloudinary } from '@/utils/cloudinary';
 import { saveToLocalStorage } from '@/utils/localStorage';
+import ExamAttempt from '@/models/ExamAttempt';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Configure route to allow large file uploads
 export const runtime = 'nodejs';
@@ -20,6 +22,21 @@ export async function POST(request) {
         const examId = formData.get('examId');
         const cameraVideo = formData.get('cameraVideo');
         const screenVideo = formData.get('screenVideo');
+
+        // 🔒 SECURITY: only the candidate the attempt belongs to (or staff) may
+        // write a recording against it. There was no check at all, so anyone
+        // could overwrite another candidate's proctoring footage.
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
+            const callerId = currentUser.id || currentUser._id?.toString();
+            const ownAttempt = await ExamAttempt.findById(attemptId).select('user').lean();
+            if (!ownAttempt || ownAttempt.user?.toString() !== callerId) {
+                return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+            }
+        }
         const cameraRecordingId = formData.get('cameraRecordingId');
         const screenRecordingId = formData.get('screenRecordingId');
 

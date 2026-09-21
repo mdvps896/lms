@@ -144,3 +144,17 @@ export async function requireAdminOrOwner(request, ownerId) {
         { status: 403 }
     );
 }
+
+/**
+ * Boolean permission check for use inside a handler that has already loaded
+ * the user (e.g. "owner OR staff-with-permission" branches).
+ *
+ * 🔒 Several routes granted blanket access on `role === 'teacher'` alone, with
+ * no permission or accessScope check — so any teacher could read any student's
+ * results regardless of what they were actually assigned.
+ */
+export function hasPermission(user, permission) {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    return Array.isArray(user.permissions) && user.permissions.includes(permission);
+}

@@ -9,10 +9,12 @@
     "start": "next start",
     "lint": "next lint",
     "migrate:exam-attempts": "node src/utils/migrateExamAttempts.js",
+    "migrate:esign-public-index": "node scripts/migrateESignPublicIndex.js",
     "fix:exam-attempts": "node src/utils/fixExamAttempts.js",
     "cleanup:exam-attempts": "node src/utils/cleanupExamAttempts.js",
     "create:admin": "node scripts/createAdmin.js",
-    "add:category": "node scripts/addCategoryAndAssignToAdmin.js"
+    "add:category": "node scripts/addCategoryAndAssignToAdmin.js",
+    "seed:sample": "node scripts/seedSampleData.js"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.15",
@@ -49,6 +51,7 @@
     "mongoose": "^9.0.0",
     "next": "^14.2.32",
     "nodemailer": "^7.0.11",
+    "pdfjs-dist": "^3.11.174",
     "perfect-scrollbar": "^1.5.6",
     "razorpay": "^2.9.6",
     "react": "^18",
@@ -66,6 +69,7 @@
     "react-select": "^5.10.2",
     "react-toastify": "^11.0.5",
     "react-tooltip": "^5.28.0",
+    "sanitize-html": "^2.17.7",
     "sass": "^1.83.1",
     "sha256": "^0.2.0",
     "sharp": "^0.34.5",

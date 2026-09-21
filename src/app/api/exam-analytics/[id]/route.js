@@ -4,9 +4,13 @@ import Exam from '../../../../models/Exam';
 import Question from '../../../../models/Question';
 import QuestionGroup from '../../../../models/QuestionGroup';
 import ExamAttempt from '../../../../models/ExamAttempt';
+import { requirePermission } from '../../../../utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'view_analytics');
+        if (authError) return authError;
+
         await connectDB();
 
         const { id } = params;

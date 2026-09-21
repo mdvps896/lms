@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // GET - List all deleted students
 export async function GET(request) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await dbConnect();
 
         const { searchParams } = new URL(request.url);

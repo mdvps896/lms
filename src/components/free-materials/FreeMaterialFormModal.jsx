@@ -134,7 +134,7 @@ const FreeMaterialFormModal = ({ isOpen, onClose, material, onSave }) => {
     const handleAddFileRow = () => {
         setFormData(prev => ({
             ...prev,
-            files: [...prev.files, { title: '', fileData: null, url: null, inputType: 'upload', isDownloadable: false }]
+            files: [...prev.files, { title: '', fileData: null, url: null, inputType: 'upload', isDownloadable: false, isSelfieRequired: false }]
         }))
     }
 
@@ -528,6 +528,22 @@ const FreeMaterialFormModal = ({ isOpen, onClose, material, onSave }) => {
                                                                         />
                                                                         <label className="form-check-label small text-muted" htmlFor={`downloadable-${index}`}>
                                                                             Allow Offline Download (App Only)
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Selfie Attendance Verification Toggle */}
+                                                                {(formData.type === 'document' || formData.type === 'video') && (
+                                                                    <div className="form-check">
+                                                                        <input
+                                                                            className="form-check-input"
+                                                                            type="checkbox"
+                                                                            id={`selfie-required-${index}`}
+                                                                            checked={file.isSelfieRequired || false}
+                                                                            onChange={(e) => handleFileChange(index, 'isSelfieRequired', e.target.checked)}
+                                                                        />
+                                                                        <label className="form-check-label small text-muted" htmlFor={`selfie-required-${index}`}>
+                                                                            Require Selfie Attendance Verification (App Only)
                                                                         </label>
                                                                     </div>
                                                                 )}

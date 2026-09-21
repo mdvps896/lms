@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { signToken, signRefreshToken } from '@/utils/auth';
+import { checkOtpAttempts, recordFailedOtpAttempt, clearOtpAttempts, otpMatches } from '@/utils/otpAttempts';
 import { sendPushNotification } from '@/utils/firebaseAdmin';
 
 export async function POST(request) {
@@ -26,6 +27,18 @@ export async function POST(request) {
       );
     }
 
+    // 🔒 SECURITY: cap guesses. This endpoint is public and previously allowed
+    // unlimited attempts against a 6-digit code inside a 10-minute window,
+    // i.e. 2FA could be brute-forced with nothing more than the userId that
+    // the login response hands out.
+    const attemptState = checkOtpAttempts(user, '2fa');
+    if (attemptState.exceeded) {
+      return NextResponse.json(
+        { success: false, message: 'Too many incorrect codes. Please sign in again to get a new one.' },
+        { status: 429 }
+      );
+    }
+
     // Check if OTP exists and hasn't expired
     if (!user.twoFactorOtp || !user.twoFactorOtpExpiry) {
       return NextResponse.json(
@@ -47,13 +60,27 @@ export async function POST(request) {
       );
     }
 
-    // Verify OTP
-    if (user.twoFactorOtp !== otp) {
+    // Verify OTP (constant-time, so response timing can't leak a prefix)
+    if (!otpMatches(user.twoFactorOtp, String(otp))) {
+      const result = await recordFailedOtpAttempt(
+        User,
+        userId,
+        '2fa',
+        ['twoFactorOtp', 'twoFactorOtpExpiry']
+      );
       return NextResponse.json(
-        { success: false, message: 'Invalid verification code' },
-        { status: 400 }
+        {
+          success: false,
+          message: result.exceeded
+            ? 'Too many incorrect codes. Please sign in again to get a new one.'
+            : 'Invalid verification code',
+          attemptsLeft: result.attemptsLeft
+        },
+        { status: result.exceeded ? 429 : 400 }
       );
     }
+
+    await clearOtpAttempts(User, userId, '2fa');
 
     // Clear OTP after successful verification
     const updateFields = {
@@ -120,12 +147,20 @@ export async function POST(request) {
       message: 'Two-factor authentication successful'
     });
 
-    // Set HttpOnly Cookie for web clients
+    // Set HttpOnly cookies for web clients, matching /api/auth/login.
+    // The refresh cookie was missing here, so a 2FA user had no way to renew
+    // their (now short-lived) access token and got logged out after 2 hours.
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 365 * 24 * 60 * 60 // 365 days
+      maxAge: 2 * 60 * 60 // matches the 2h access token TTL
+    });
+    response.cookies.set('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 // matches the 30d refresh token TTL
     });
 
     return response;

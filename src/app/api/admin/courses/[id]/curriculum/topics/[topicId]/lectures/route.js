@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Course from '@/models/Course';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/admin/courses/[id]/curriculum/topics/[topicId]/lectures - Add lecture to topic
 export async function POST(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_courses');
+        if (authError) return authError;
+
         await connectDB();
         const { id, topicId } = params;
         const { title, type, content, isDemo } = await request.json();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
 import { requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
+import { checkEnrollment, sanitizeCurriculum } from '@/utils/courseAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,15 @@ export async function GET(request, { params }) {
                 return rUserId === userId;
             });
         }
+
+        // 🔒 SECURITY: this endpoint used to return every lecture's real
+        // content URL (video/PDF/image) to anyone who fetched a course by id —
+        // enrolled or not, even to a freshly registered account that had never
+        // paid. Enrollment is checked server-side against the database; only
+        // demo lectures and lectures in a free course keep their content URL.
+        const { enrolled, expired } = await checkEnrollment(currentUser, id);
+        courseObj.isEnrolled = enrolled;
+        courseObj.isExpired = expired;
 
         courseObj.rating = avgRating > 0 ? avgRating.toFixed(1) : '4.5';
         courseObj.averageRating = parseFloat(avgRating.toFixed(1));
@@ -101,13 +111,16 @@ export async function GET(request, { params }) {
         courseObj.demoVideo = fixUrl(courseObj.demoVideo);
 
         if (courseObj.curriculum) {
-            courseObj.curriculum.forEach(topic => {
-                if (topic.lectures) {
-                    topic.lectures.forEach(lecture => {
-                        lecture.content = fixUrl(lecture.content);
-                    });
-                }
-            });
+            courseObj.curriculum = sanitizeCurriculum(courseObj.curriculum, {
+                isCourseFree: courseObj.isFree,
+                enrolled
+            }).map(topic => ({
+                ...topic,
+                lectures: (topic.lectures || []).map(lecture => ({
+                    ...lecture,
+                    content: lecture.content ? fixUrl(lecture.content) : lecture.content
+                }))
+            }));
         }
 
         return NextResponse.json({ success: true, data: courseObj });

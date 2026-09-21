@@ -3,11 +3,15 @@ import connectDB from '@/lib/mongodb';
 import Course from '@/models/Course'; // Import Course FIRST to register schema
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { requirePermission } from '@/utils/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
         // Use lean() to get a plain object, easier to manipulate
@@ -72,9 +76,18 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
         const body = await request.json();
+
+        // 🔒 SECURITY: Strip privilege-escalation fields — this endpoint is for
+        // editing student profile data only, not for granting roles/permissions
+        delete body.role;
+        delete body.permissions;
+        delete body.accessScope;
 
         // Check if this is a restore operation
         if (body.action === 'restore') {
@@ -140,6 +153,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
 
@@ -172,6 +188,9 @@ export async function DELETE(request, { params }) {
 
 export async function PATCH(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_students');
+        if (authError) return authError;
+
         await connectDB();
         const { id } = params;
         const body = await request.json();

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ExamAttempt from '@/models/ExamAttempt';
+import { requireAdmin } from '@/utils/apiAuth';
 
-export async function POST() {
+export async function POST(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         await connectDB();
 
         // Find all active attempts

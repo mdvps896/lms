@@ -9,7 +9,7 @@ const FileUpload = ({ onUploadComplete }) => {
     const [showUrlInput, setShowUrlInput] = useState(false)
     const [fileUrl, setFileUrl] = useState('')
     const [selectedFolder, setSelectedFolder] = useState('images')
-    const [uploadProgress, setUploadProgress] = useState({ show: false, fileName: '', progress: 0, currentChunk: 0, totalChunks: 0, isChunked: false })
+    const [uploadProgress, setUploadProgress] = useState({ show: false, fileName: '', progress: 0 })
 
     const folders = [
         { value: 'images', label: 'Images' },
@@ -41,36 +41,16 @@ const FileUpload = ({ onUploadComplete }) => {
                 show: true,
                 fileName: file.name,
                 progress: 0,
-                currentChunk: 0,
-                totalChunks: 1,
-                isChunked: fileSize > 50 * 1024 * 1024
             })
 
             try {
-                // Use different upload strategies based on file size
-                if (fileSize > 100 * 1024 * 1024) {
-                    // For very large files (>100MB), try direct upload first
-                    const result = await uploadDirectly(file, selectedFolder)
-                    if (result.success) {
-                        successCount++;
-                    } else {
-                        // Fallback to chunked upload if direct fails
-                        const chunkResult = await uploadLargeFile(file, selectedFolder)
-                        if (chunkResult.success) {
-                            successCount++;
-                        } else {
-                            errorCount++;
-                            errors.push(`${file.name}: ${chunkResult.message}`);
-                        }
-                    }
-                } else if (fileSize > 50 * 1024 * 1024) {
-                    let result = await uploadLargeFile(file, selectedFolder)
-
-                    // If chunked upload fails, try simple upload as fallback
-                    if (!result.success && !result.message?.includes('413')) {
+                // Large files go up as one raw binary body (no splitting, no
+                // chunk files on disk); small files use the plain form upload.
+                if (fileSize > 20 * 1024 * 1024) {
+                    let result = await uploadDirectly(file, selectedFolder)
+                    if (!result.success) {
                         result = await uploadSimple(file, selectedFolder)
                     }
-
                     if (result.success) {
                         successCount++;
                     } else {
@@ -108,7 +88,7 @@ const FileUpload = ({ onUploadComplete }) => {
         }
 
         setUploading(false)
-        setUploadProgress({ show: false, fileName: '', progress: 0, currentChunk: 0, totalChunks: 0, isChunked: false })
+        setUploadProgress({ show: false, fileName: '', progress: 0 })
         e.target.value = ''
 
         if (errorCount === 0) {
@@ -155,66 +135,6 @@ const FileUpload = ({ onUploadComplete }) => {
         }
 
         onUploadComplete()
-    }
-
-    // Function to handle large file uploads using chunked strategy
-    const uploadLargeFile = async (file, folder) => {
-        const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunks to avoid 413 errors
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-        const fileId = `${Date.now()}_${Math.random().toString(36).substring(2)}`
-
-        // Update progress bar for chunked upload
-        setUploadProgress(prev => ({ ...prev, totalChunks }))
-
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-            const start = chunkIndex * CHUNK_SIZE
-            const end = Math.min(start + CHUNK_SIZE, file.size)
-            const chunk = file.slice(start, end)
-
-            const formData = new FormData()
-            formData.append('file', new File([chunk], file.name, { type: file.type }))
-            formData.append('folder', folder)
-            formData.append('chunkIndex', chunkIndex.toString())
-            formData.append('totalChunks', totalChunks.toString())
-            formData.append('fileName', file.name)
-            formData.append('fileId', fileId)
-
-            try {
-                const response = await fetch('/api/storage/chunked-upload', {
-                    method: 'POST',
-                    body: formData
-                })
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-                }
-
-                const result = await response.json()
-
-                if (!result.success) {
-                    console.error(`❌ Chunk ${chunkIndex + 1} failed:`, result.message)
-                    throw new Error(result.message || 'Chunk upload failed')
-                }
-
-                // Update progress for each chunk
-                setUploadProgress(prev => ({
-                    ...prev,
-                    currentChunk: chunkIndex + 1,
-                    progress: Math.round(((chunkIndex + 1) / totalChunks) * 100)
-                }))
-
-                // If this was the last chunk, return the final result
-                if (chunkIndex === totalChunks - 1) {
-                    return result
-                }
-
-            } catch (error) {
-                console.error(`❌ Chunk ${chunkIndex + 1} upload error:`, error)
-                return { success: false, message: error.message }
-            }
-        }
-
-        return { success: false, message: 'Unexpected end of chunked upload' }
     }
 
     // Simple upload method for fallback
@@ -412,17 +332,8 @@ const FileUpload = ({ onUploadComplete }) => {
 
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="upload-chunk-indicator">
-                                    {uploadProgress.isChunked ? (
-                                        <>
-                                            <i className="fas fa-puzzle-piece"></i>
-                                            <span>Chunk {uploadProgress.currentChunk} of {uploadProgress.totalChunks}</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <i className="fas fa-rocket"></i>
-                                            <span>{uploadProgress.progress < 100 ? 'Processing...' : 'Complete!'}</span>
-                                        </>
-                                    )}
+                                    <i className="fas fa-rocket"></i>
+                                    <span>{uploadProgress.progress < 100 ? 'Processing...' : 'Complete!'}</span>
                                 </div>
                                 <div className="text-primary fw-bold">
                                     {uploadProgress.progress}%

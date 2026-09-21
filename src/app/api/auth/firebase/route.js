@@ -36,7 +36,10 @@ export async function POST(request) {
         const { uid, email, name, picture } = verifyResult.decodedToken;
 
         // 2. Check registration settings for new users
-        let user = await User.findOne({ email });
+        // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
+        // as {"$ne": null} sent in the JSON body would otherwise be
+        // interpreted as a query OPERATOR and match an arbitrary account.
+        let user = await User.findOne({ email: String(email || '') });
         let isNewUser = false;
 
         if (!user) {

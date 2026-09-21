@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
+import { requireAdmin } from '@/utils/apiAuth';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -18,6 +19,9 @@ if (!admin.apps.length) {
 
 export async function POST(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const body = await request.json();
         const {
             fcmToken,
@@ -93,6 +97,9 @@ export async function POST(request) {
 // Send notification to topic
 export async function PUT(request) {
     try {
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const body = await request.json();
         const {
             topic = 'all_users',

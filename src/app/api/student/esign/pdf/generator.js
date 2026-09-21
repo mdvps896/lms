@@ -261,7 +261,12 @@ export async function generateESignPDF(submission, userImages = {}, userProfile 
         }
     } catch (e) { }
 
-    const signatureToUse = sig.signatureImage || userImages.signatureImage;
+    // `d.signatureImage` (now stored directly on the submission — see
+    // ESignSubmission.js) is checked first so this works for submissions with
+    // no linked User document at all (the public web form). The other two
+    // are kept for existing submissions that only ever wrote it into
+    // `signature.signatureImage` or the User.esign_images side-channel.
+    const signatureToUse = d.signatureImage || sig.signatureImage || userImages.signatureImage;
     if (signatureToUse) {
         await drawImage(doc, 'Client Signature', signatureToUse, drawer.margin, drawer.yPos + 25, 50, 25, drawer.colors);
     }

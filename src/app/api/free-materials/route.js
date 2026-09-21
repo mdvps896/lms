@@ -104,7 +104,8 @@ export async function POST(request) {
                             url: `/api/storage/file${uploadResult.url}`,
                             type: fileType,
                             size: uploadResult.size,
-                            isDownloadable: file.isDownloadable || false
+                            isDownloadable: file.isDownloadable || false,
+                            isSelfieRequired: file.isSelfieRequired || false
                         });
                     } else if (file.url) {
                         // Ensure type is set for manual URLs

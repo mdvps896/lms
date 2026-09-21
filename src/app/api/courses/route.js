@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Course from '@/models/Course';
 import User from '@/models/User';
-import { requirePermission } from '@/utils/apiAuth';
+import { requirePermission, getAuthenticatedUser } from '@/utils/apiAuth';
+import { checkEnrollment, sanitizeCurriculum } from '@/utils/courseAccess';
 
 export async function GET(request) {
     try {
@@ -18,6 +19,10 @@ export async function GET(request) {
             const authError = await requirePermission(request, 'manage_courses');
             if (authError) return authError;
         }
+
+        // Needed below to decide which lectures' content URLs this caller may
+        // actually see (see sanitizeCurriculum in the mobile-format branch).
+        const currentUser = format === 'admin' ? null : await getAuthenticatedUser(request);
 
         // Fetch courses with populated data
         let query = {};
@@ -131,14 +136,26 @@ export async function GET(request) {
             if (course.curriculum && Array.isArray(course.curriculum)) {
                 course.curriculum.forEach(topic => {
                     if (topic.lectures && Array.isArray(topic.lectures)) {
-                        topic.lectures.forEach(lecture => {
-                            // Fix content URL
-                            lecture.content = fixUrl(lecture.content);
-                        });
                         totalLectures += topic.lectures.length;
                     }
                 });
             }
+
+            // 🔒 SECURITY: same leak as the single-course endpoint — this list
+            // response included every lecture's real content URL for every
+            // course, to anyone with a login, enrolled or not. Strip content
+            // for anything the caller hasn't unlocked.
+            const { enrolled } = await checkEnrollment(currentUser, course._id);
+            const safeCurriculum = sanitizeCurriculum(course.curriculum || [], {
+                isCourseFree: course.isFree,
+                enrolled
+            }).map(topic => ({
+                ...topic,
+                lectures: (topic.lectures || []).map(lecture => ({
+                    ...lecture,
+                    content: lecture.content ? fixUrl(lecture.content) : lecture.content
+                }))
+            }));
 
             // Calculate price with GST
             const basePrice = course.price || 0;
@@ -150,13 +167,10 @@ export async function GET(request) {
                 totalPrice = basePrice + gstAmount;
             }
 
-            // Fix demo Video URL
-            let demoVideo = course.demoVideo || '';
-            if (demoVideo.includes('/api/storage/secure-file')) {
-                demoVideo = demoVideo.replace('/api/storage/secure-file', '/api/storage/demo-video');
-            } else {
-                demoVideo = fixUrl(demoVideo);
-            }
+            // Demo/preview video is public marketing content (like the
+            // thumbnail) — served via the plain public file route, never
+            // token-gated like paid lecture content.
+            const demoVideo = fixUrl(course.demoVideo || '');
 
             const formatted = {
                 id: course._id.toString(),
@@ -185,8 +199,10 @@ export async function GET(request) {
                 language: course.language || 'English',
                 readingDurationText: readingDurationText,
                 readingDuration: course.readingDuration || { value: 0, unit: 'hours' },
-                // Add curriculum for content tab
-                curriculum: course.curriculum || [],
+                isEnrolled: enrolled,
+                // Add curriculum for content tab — content URLs already
+                // stripped for locked lectures above.
+                curriculum: safeCurriculum,
                 reviews: course.ratings ? course.ratings.map(r => ({
                     userName: r.user?.name || 'Student',
                     rating: r.rating,

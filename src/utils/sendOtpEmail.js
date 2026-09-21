@@ -1,9 +1,11 @@
+import { generateOtp } from './otpAttempts';
 // Email utility for sending OTP verification emails
 const nodemailer = require('nodemailer');
 
 // Generate 6-digit OTP
 export const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // CSPRNG — Math.random is predictable and must never mint a credential.
+    return generateOtp();
 };
 
 // Helper to get SMTP settings from database

@@ -4,6 +4,7 @@ import ExamAttempt from '@/models/ExamAttempt';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
 import { getAuthenticatedUser } from '@/utils/apiAuth';
+import crypto from 'crypto';
 
 export async function POST(req) {
     try {
@@ -23,8 +24,8 @@ export async function POST(req) {
             return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 
-        // Generate unique session token
-        const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        // Unguessable session token (the old value was Date.now() + Math.random()).
+        const sessionToken = `session_${crypto.randomUUID()}`;
 
         // 🔒 SECURITY: Server-side Scoring
         const exam = await Exam.findById(examId);
@@ -32,15 +33,59 @@ export async function POST(req) {
             return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
         }
 
-        // Fetch valid questions
-        const questions = await Question.find({
-            questionGroup: { $in: exam.questionGroups },
-            status: 'active'
-        });
+        // 🔒 SECURITY: this endpoint creates a fresh submitted attempt out of
+        // thin air. It enforced neither the exam window nor maxAttempts —
+        // unlike /exams/start-session — so a student could submit unlimited
+        // attempts, before the exam opened or long after it closed, and keep
+        // the best score. Staff (admin/teacher) are exempt so they can still
+        // record attempts manually.
+        const isStaff = currentUser.role === 'admin' || currentUser.role === 'teacher';
+
+        if (!isStaff && !isFreeMaterial) {
+            const now = new Date();
+            if ((exam.startDate && now < exam.startDate) || (exam.endDate && now > exam.endDate)) {
+                return NextResponse.json(
+                    { success: false, error: 'Exam is not currently active' },
+                    { status: 400 }
+                );
+            }
+
+            const maxAttempts = exam.maxAttempts || -1;
+            if (maxAttempts !== -1) {
+                const usedAttempts = await ExamAttempt.countDocuments({
+                    exam: examId,
+                    user: targetUserId,
+                    status: 'submitted'
+                });
+                if (usedAttempts >= maxAttempts) {
+                    return NextResponse.json(
+                        { success: false, error: 'You have exceeded the maximum number of attempts for this exam' },
+                        { status: 400 }
+                    );
+                }
+            }
+        }
+
+        // Fetch valid questions. Exams built from subjects rather than question
+        // groups used to yield an empty set here, making totalExamMarks 0 and
+        // failing every candidate with 0%.
+        let questions = [];
+        if (exam.questionGroups && exam.questionGroups.length > 0) {
+            questions = await Question.find({
+                questionGroup: { $in: exam.questionGroups },
+                status: 'active'
+            });
+        } else if (exam.subjects && exam.subjects.length > 0) {
+            questions = await Question.find({
+                subject: { $in: exam.subjects },
+                status: 'active'
+            });
+        }
 
         // Calculate Score
         let calculatedScore = 0;
         let totalExamMarks = 0;
+        let correctCount = 0;
 
         for (const question of questions) {
             totalExamMarks += (question.marks || 0);
@@ -50,6 +95,8 @@ export async function POST(req) {
             if (userAnswer !== undefined && userAnswer !== null) {
                 let isCorrect = false;
 
+                // Written answers are graded manually later; only auto-score
+                // the objective types here.
                 if (['mcq', 'true_false', 'multiple_choice'].includes(question.type)) {
                     if (typeof userAnswer === 'number') {
                         const option = question.options[userAnswer];
@@ -68,6 +115,7 @@ export async function POST(req) {
 
                 if (isCorrect) {
                     calculatedScore += (question.marks || 0);
+                    correctCount++;
                 }
             }
         }
@@ -101,7 +149,13 @@ export async function POST(req) {
 
             return NextResponse.json({
                 success: true,
-                data: examAttempt
+                data: {
+                    ...examAttempt.toObject(),
+                    // Clients render the result screen from these; they must
+                    // never need the answer key to do it.
+                    correctCount,
+                    totalQuestions: questions.length
+                }
             });
         } catch (createError) {
             console.error('❌ Error creating exam attempt in database:', createError);

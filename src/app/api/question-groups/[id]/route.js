@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import QuestionGroup from '@/models/QuestionGroup';
+import { requirePermission } from '@/utils/apiAuth';
 
 export async function GET(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         await connectDB();
         const questionGroup = await QuestionGroup.findById(params.id)
             .populate('category', 'name')
@@ -28,6 +32,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         await connectDB();
         const body = await request.json();
         
@@ -85,6 +92,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     try {
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         await connectDB();
         const questionGroup = await QuestionGroup.findByIdAndDelete(params.id);
         

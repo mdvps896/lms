@@ -1,10 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { FiX, FiVideo, FiFileText, FiImage, FiChevronDown, FiChevronUp, FiUsers, FiClock, FiTag, FiDollarSign } from 'react-icons/fi';
+import AdminPdfViewerModal from '../shared/AdminPdfViewerModal';
 
 export default function CourseViewModal({ course, onClose }) {
     // Accordion State: Track which topic index is open
     const [openTopicIndex, setOpenTopicIndex] = useState(0);
+    const [viewerLecture, setViewerLecture] = useState(null);
 
     const toggleTopic = (index) => {
         setOpenTopicIndex(openTopicIndex === index ? null : index);
@@ -19,6 +21,7 @@ export default function CourseViewModal({ course, onClose }) {
     const enrolledStudents = course.studentCount || 0;
 
     return (
+        <>
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
             <div className="modal-dialog modal-dialog-centered modal-xl">
                 <div className="modal-content border-0 shadow-lg">
@@ -177,7 +180,14 @@ export default function CourseViewModal({ course, onClose }) {
 
                                                                                 {/* Content Link/Preview */}
                                                                                 <div className="text-muted small text-truncate" style={{ maxWidth: '400px' }}>
-                                                                                    {lecture.type}: <a href={lecture.content} target="_blank" rel="noopener noreferrer" className="text-decoration-none text-muted">{lecture.content}</a>
+                                                                                    {lecture.type === 'pdf' ? (
+                                                                                        <button type="button" className="btn btn-link btn-sm p-0 text-decoration-none"
+                                                                                            onClick={() => setViewerLecture(lecture)}>
+                                                                                            {lecture.type}: View PDF
+                                                                                        </button>
+                                                                                    ) : (
+                                                                                        <>{lecture.type}: <a href={lecture.content} target="_blank" rel="noopener noreferrer" className="text-decoration-none text-muted">{lecture.content}</a></>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </li>
@@ -197,5 +207,14 @@ export default function CourseViewModal({ course, onClose }) {
                 </div>
             </div>
         </div>
+        <AdminPdfViewerModal
+            isOpen={!!viewerLecture}
+            onClose={() => setViewerLecture(null)}
+            filePath={viewerLecture?.content || null}
+            courseId={course?._id}
+            lectureId={viewerLecture?._id}
+            fileTitle={viewerLecture?.title}
+        />
+        </>
     );
 }

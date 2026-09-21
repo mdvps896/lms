@@ -257,9 +257,16 @@ export async function GET(request) {
 }
 
 export async function PUT(request) {
-    const authError = await requireAdmin(request);
-    if (authError) return authError;
     try {
+        // Auth check moved inside the try block — if it ever throws (a
+        // malformed cookie, an unexpected JWT decode error), the outer
+        // catch below still returns proper JSON. Previously an exception
+        // here bypassed all error handling and let Next.js's default HTML
+        // error page reach the client, which fetch().json() can't parse
+        // ("Unexpected token '<', <!DOCTYPE... is not valid JSON").
+        const authError = await requireAdmin(request);
+        if (authError) return authError;
+
         const { tab, settings, data } = await request.json();
 
         // Support both 'settings' and 'data' parameter names for flexibility

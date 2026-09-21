@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { FiCheck, FiX } from 'react-icons/fi';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 const ViewQuestionModal = ({ show, onClose, question }) => {
     if (!show || !question) return null;
@@ -78,7 +79,7 @@ const ViewQuestionModal = ({ show, onClose, question }) => {
 
                             <div className="col-12">
                                 <label className="fw-bold text-muted small">Question Text</label>
-                                <div className="p-3 border rounded bg-light" dangerouslySetInnerHTML={{ __html: question.questionText }}></div>
+                                <div className="p-3 border rounded bg-light" dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.questionText) }}></div>
                             </div>
 
                             <div className="col-12">

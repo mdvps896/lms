@@ -4,9 +4,13 @@ export const dynamic = 'force-dynamic';
 import connectDB from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import Question from '@/models/Question';
+import { requireAuth } from '@/utils/apiAuth';
 
 export async function GET(request) {
     try {
+        const authError = await requireAuth(request);
+        if (authError) return authError;
+
         await connectDB();
         const exams = await Exam.find({})
             .populate('category', 'name')

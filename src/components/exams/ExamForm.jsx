@@ -60,6 +60,9 @@ const ExamForm = ({ type, initialData }) => {
                 enabled: false,
                 required: false,
                 useProfileImage: true
+            },
+            attendanceSelfie: {
+                enabled: true
             }
         }
     });
@@ -180,6 +183,9 @@ const ExamForm = ({ type, initialData }) => {
                         enabled: initialData.settings?.identityVerification?.enabled || false,
                         required: initialData.settings?.identityVerification?.required || false,
                         useProfileImage: initialData.settings?.identityVerification?.useProfileImage ?? true
+                    },
+                    attendanceSelfie: {
+                        enabled: initialData.settings?.attendanceSelfie?.enabled ?? true
                     }
                 }
             };
@@ -240,6 +246,18 @@ const ExamForm = ({ type, initialData }) => {
                     ...prev.settings,
                     identityVerification: {
                         ...prev.settings.identityVerification,
+                        [field]: inputType === 'checkbox' ? checked : value
+                    }
+                }
+            }));
+        } else if (name.startsWith('settings.attendanceSelfie.')) {
+            const field = name.split('.')[2];
+            setFormData(prev => ({
+                ...prev,
+                settings: {
+                    ...prev.settings,
+                    attendanceSelfie: {
+                        ...prev.settings.attendanceSelfie,
                         [field]: inputType === 'checkbox' ? checked : value
                     }
                 }
@@ -544,7 +562,25 @@ const ExamForm = ({ type, initialData }) => {
                             </small>
                         </div>
 
-                        {/* Settings removed as requested */}
+                        <div className="mb-3">
+                            <div className="form-check form-switch">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    role="switch"
+                                    id="attendanceSelfieEnabled"
+                                    name="settings.attendanceSelfie.enabled"
+                                    checked={formData.settings.attendanceSelfie?.enabled ?? true}
+                                    onChange={handleChange}
+                                />
+                                <label className="form-check-label" htmlFor="attendanceSelfieEnabled">
+                                    Enable Attendance (Selfie Verification)
+                                </label>
+                            </div>
+                            <small className="text-muted">
+                                Periodically captures a selfie during the exam to verify the student stays present. Turn off for exams where this isn't needed.
+                            </small>
+                        </div>
                     </div>
                 </div>
 

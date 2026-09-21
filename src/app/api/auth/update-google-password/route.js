@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(request) {
     try {
         await connectDB();
-        
+
+        const currentUser = await getAuthenticatedUser(request);
+        if (!currentUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { email, password, isGoogleAuth } = await request.json();
 
         if (!email || !password) {
@@ -25,11 +32,19 @@ export async function POST(request) {
             }, { status: 404 });
         }
 
-        // Update user's password and Google auth status (store as plain text)
+        // 🔒 SECURITY: Only the account owner (or an admin) may set this password
+        const requesterId = currentUser.id || currentUser._id?.toString();
+        if (currentUser.role !== 'admin' && user._id.toString() !== requesterId) {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Update user's password and Google auth status
         await User.updateOne(
             { email: email.toLowerCase() },
-            { 
-                password: password, // Store plain text password as system expects
+            {
+                password: hashedPassword,
                 isGoogleAuth: isGoogleAuth === true,
                 emailVerified: true // Mark email as verified for Google users
             }

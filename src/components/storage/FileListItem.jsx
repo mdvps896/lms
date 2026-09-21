@@ -1,10 +1,14 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Swal from 'sweetalert2'
 import { Eye, Copy, Trash2, Image as ImageIcon, Video, Music, FileText, File } from 'feather-icons-react'
+import AdminPdfViewerModal from '../shared/AdminPdfViewerModal'
+import AdminMediaViewerModal from '../shared/AdminMediaViewerModal'
 
 const FileListItem = ({ file, onDelete, onRefresh, isSelected, onSelect }) => {
+    const [showPdfViewer, setShowPdfViewer] = useState(false)
+    const [showMediaViewer, setShowMediaViewer] = useState(false)
 
     const getFileIcon = (type) => {
         switch (type) {
@@ -64,8 +68,10 @@ const FileListItem = ({ file, onDelete, onRefresh, isSelected, onSelect }) => {
     }
 
     const handleView = () => {
-        if (file.type === 'image' || file.type === 'video' || file.type === 'pdf') {
-            window.open(getSecureUrl(file.path), '_blank')
+        if (file.type === 'pdf') {
+            setShowPdfViewer(true)
+        } else if (file.type === 'image' || file.type === 'video') {
+            setShowMediaViewer(true)
         } else {
             handleCopyLink()
         }
@@ -207,6 +213,24 @@ const FileListItem = ({ file, onDelete, onRefresh, isSelected, onSelect }) => {
                     background-color: #f8f9fa;
                 }
             `}</style>
+            {file.type === 'pdf' && (
+                <AdminPdfViewerModal
+                    isOpen={showPdfViewer}
+                    onClose={() => setShowPdfViewer(false)}
+                    filePath={file.path}
+                    fileTitle={file.name}
+                />
+            )}
+            {(file.type === 'image' || file.type === 'video') && (
+                <AdminMediaViewerModal
+                    isOpen={showMediaViewer}
+                    onClose={() => setShowMediaViewer(false)}
+                    fileUrl={getSecureUrl(file.path)}
+                    filePath={file.path}
+                    fileTitle={file.name}
+                    mediaType={file.type}
+                />
+            )}
         </tr>
     )
 }

@@ -14,9 +14,13 @@ export const exportFilesAsZip = async (files, zipName = 'media-export.zip') => {
         if (!path) return null;
 
         // Use secure-file API for everything to ensure server-side proxying and admin check
-        const normalizedPath = (path.startsWith('http://') || path.startsWith('https://'))
-            ? path
-            : (path.startsWith('/') ? path : '/' + path);
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return `/api/storage/secure-file?path=${encodeURIComponent(path)}`;
+        }
+        // Reduce "/api/storage/file/uploads/x.jpg" → "/uploads/x.jpg" so the
+        // path resolves under public/ on the server.
+        let normalizedPath = path.replace(/^\/api\/storage\/file\//, '/');
+        if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath;
 
         return `/api/storage/secure-file?path=${encodeURIComponent(normalizedPath)}`;
     };

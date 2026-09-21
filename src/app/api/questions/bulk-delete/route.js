@@ -1,8 +1,12 @@
 import dbConnect from '../../../../lib/mongodb';
 import Question from '../../../../models/Question';
+import { requirePermission } from '../../../../utils/apiAuth';
 
 export async function DELETE(request) {
     try {
+        const authError = await requirePermission(request, 'manage_questions');
+        if (authError) return authError;
+
         await dbConnect();
 
         const body = await request.json();
