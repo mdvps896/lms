@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose';
+import crypto from 'crypto';
 
 /**
  * Short-lived, signed, single-file access token for serving PDFs.
@@ -9,7 +10,7 @@ import { SignJWT, jwtVerify } from 'jose';
  *   - the exact file path (`p`)
  *   - the user it was issued to (`uid`)
  *   - the access scope it was granted under (`scope`)
- * and expires in 5 minutes. The serve route re-checks the signature, the
+ * and expires after PDF_ACCESS_TOKEN_TTL_SECONDS. The serve route re-checks the signature, the
  * expiry, that `p` matches the requested path byte-for-byte, AND re-derives the
  * user's authorization live from the database on every single request — so a
  * tampered path, a swapped user, a flipped flag, or a revoked enrollment can
@@ -24,7 +25,48 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 }
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
-export const PDF_ACCESS_TOKEN_TTL_SECONDS = 5 * 60;
+// Was 5 minutes — fine when the whole file was downloaded in one shot, but
+// non-downloadable PDFs now stream page-by-page straight from this token's
+// URL (see pdf_viewer_screen.dart), so a long document read over several
+// minutes needs the token to still be alive on page 300 as much as page 1.
+// Still short enough that a leaked link, combined with the IP-binding above,
+// isn't useful for long.
+export const PDF_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
+
+// 🔒 A token used to authorize ANY requester who had the URL — copy the link
+// into another tab, forward it to a friend, or paste it in a different app,
+// and it would render just the same for them, for as long as the 5-minute
+// window lasted. Bind each token to whichever IP redeems it first; every
+// later request (repeat page loads, video Range-request seeking — all
+// legitimately reuse the same token) must come from that same IP, or it's
+// treated as a different requester and rejected. Single Node process on one
+// VPS instance (see pm2 fork mode), so an in-memory Map is enough — no Redis
+// needed. Entries are pruned lazily against the token's own TTL.
+const tokenBindings = new Map(); // jti -> { ip, expiresAt }
+
+function pruneExpiredBindings(now) {
+    for (const [jti, entry] of tokenBindings) {
+        if (entry.expiresAt <= now) tokenBindings.delete(jti);
+    }
+}
+
+/**
+ * First caller to redeem a given token's jti "claims" it for their IP;
+ * every subsequent redemption must come from that same IP.
+ * @returns {boolean} true if this request is allowed to use the token.
+ */
+export function claimTokenForIp(jti, ip, exp) {
+    const now = Date.now();
+    pruneExpiredBindings(now);
+
+    const expiresAt = exp ? exp * 1000 : now + PDF_ACCESS_TOKEN_TTL_SECONDS * 1000;
+    const existing = tokenBindings.get(jti);
+    if (!existing) {
+        tokenBindings.set(jti, { ip, expiresAt });
+        return true;
+    }
+    return existing.ip === ip;
+}
 
 // Despite the "Pdf" naming (kept to avoid touching every import site), this
 // gate also covers locally-hosted lecture/material videos — anything that
@@ -97,6 +139,7 @@ export async function createPdfAccessToken({ userId, filePath, scope, ctx }) {
 
     return new SignJWT({ typ: 'pdf-access', uid: String(userId), p, scope, ctx: cleanCtx })
         .setProtectedHeader({ alg: 'HS256' })
+        .setJti(crypto.randomUUID())
         .setIssuedAt()
         .setExpirationTime(`${PDF_ACCESS_TOKEN_TTL_SECONDS}s`)
         .sign(secretKey);
@@ -112,7 +155,7 @@ export async function verifyPdfAccessToken(token) {
     try {
         const { payload } = await jwtVerify(token, secretKey);
         if (payload.typ !== 'pdf-access') return null;
-        if (!payload.uid || !payload.p || !payload.scope) return null;
+        if (!payload.uid || !payload.p || !payload.scope || !payload.jti) return null;
         return payload;
     } catch {
         return null;

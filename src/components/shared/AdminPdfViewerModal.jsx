@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { FiX, FiZoomIn, FiZoomOut, FiRotateCw, FiMenu } from 'react-icons/fi'
 
 // A view-only PDF modal styled like a normal browser PDF viewer (thumbnail
@@ -26,9 +27,17 @@ async function resolveSecurePdfUrl({ filePath, courseId, lectureId, materialId }
 }
 
 const AdminPdfViewerModal = ({ isOpen, onClose, fileUrl, filePath, courseId, lectureId, materialId, fileTitle }) => {
-    const canvasRef = useRef(null)
     const pdfDocRef = useRef(null)
-    const renderTaskRef = useRef(null)
+    const scrollContainerRef = useRef(null)
+    const pageContainerRefs = useRef({})
+    // Set while goToPage() is driving a programmatic scroll, so the scroll
+    // IntersectionObserver doesn't fight it and re-set pageNum mid-flight.
+    const isProgrammaticScrollRef = useRef(false)
+    const programmaticScrollTimeoutRef = useRef(null)
+
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
 
     const [pdfjsLib, setPdfjsLib] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -44,6 +53,26 @@ const AdminPdfViewerModal = ({ isOpen, onClose, fileUrl, filePath, courseId, lec
         document.body.style.overflow = isOpen ? 'hidden' : 'unset'
         return () => { document.body.style.overflow = 'unset' }
     }, [isOpen])
+
+    // Reflect which file is open in the URL (?file=<path>) so the address bar
+    // identifies it — purely cosmetic/shareable, doesn't drive loading.
+    useEffect(() => {
+        if (!isOpen) return
+        const fileId = filePath || fileUrl
+        if (!fileId) return
+
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('file', fileId)
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+
+        return () => {
+            const cleanup = new URLSearchParams(searchParams.toString())
+            cleanup.delete('file')
+            const qs = cleanup.toString()
+            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, filePath, fileUrl])
 
     useEffect(() => {
         if (!isOpen || (!fileUrl && !filePath)) return
@@ -97,44 +126,48 @@ const AdminPdfViewerModal = ({ isOpen, onClose, fileUrl, filePath, courseId, lec
 
     useEffect(() => { setPageInput(String(pageNum)) }, [pageNum])
 
+    // Every page stays mounted in the scroll list (see PdfPage below); this
+    // just tracks which one is currently most visible, so the toolbar's
+    // "N / total" counter and the active thumbnail follow natural scrolling —
+    // like a real PDF viewer, instead of only advancing on explicit clicks.
     useEffect(() => {
-        if (!pdfDocRef.current || !canvasRef.current) return
+        const container = scrollContainerRef.current
+        if (!container || numPages === 0) return
 
-        let cancelled = false
-
-        async function renderPage() {
-            const pdfDoc = pdfDocRef.current
-            const page = await pdfDoc.getPage(pageNum)
-            if (cancelled) return
-
-            const viewport = page.getViewport({ scale, rotation })
-            const canvas = canvasRef.current
-            const context = canvas.getContext('2d')
-            canvas.height = viewport.height
-            canvas.width = viewport.width
-
-            if (renderTaskRef.current) {
-                renderTaskRef.current.cancel()
-            }
-
-            const renderTask = page.render({ canvasContext: context, viewport })
-            renderTaskRef.current = renderTask
-            try {
-                await renderTask.promise
-            } catch (err) {
-                if (err?.name !== 'RenderingCancelledException') {
-                    console.error('PDF render error:', err)
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (isProgrammaticScrollRef.current) return
+                const visible = entries
+                    .filter((e) => e.isIntersecting)
+                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+                if (visible[0]) {
+                    const n = Number(visible[0].target.dataset.pageNumber)
+                    if (n) setPageNum(n)
                 }
-            }
-        }
+            },
+            { root: container, threshold: [0.5] }
+        )
 
-        renderPage()
+        Object.values(pageContainerRefs.current).forEach((el) => {
+            if (el) observer.observe(el)
+        })
 
-        return () => { cancelled = true }
-    }, [pageNum, scale, rotation, numPages])
+        return () => observer.disconnect()
+    }, [numPages])
 
     const goToPage = (n) => {
         const clamped = Math.min(Math.max(1, n), numPages || 1)
+        const el = pageContainerRefs.current[clamped]
+        if (el) {
+            isProgrammaticScrollRef.current = true
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            clearTimeout(programmaticScrollTimeoutRef.current)
+            // Smooth-scroll has no completion callback — release the guard
+            // after it should reasonably have settled.
+            programmaticScrollTimeoutRef.current = setTimeout(() => {
+                isProgrammaticScrollRef.current = false
+            }, 600)
+        }
         setPageNum(clamped)
     }
 
@@ -235,21 +268,31 @@ const AdminPdfViewerModal = ({ isOpen, onClose, fileUrl, filePath, courseId, lec
                     </div>
                 )}
 
-                <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '24px' }}>
+                <div
+                    ref={scrollContainerRef}
+                    style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', gap: '16px' }}
+                >
                     {loading && (
-                        <div style={{ color: '#e8eaed', textAlign: 'center', alignSelf: 'center' }}>
+                        <div style={{ color: '#e8eaed', textAlign: 'center', alignSelf: 'center', margin: 'auto' }}>
                             <div className="spinner-border text-light" role="status"></div>
                             <div className="mt-2">Loading PDF...</div>
                         </div>
                     )}
-                    {error && <div style={{ color: '#f28b82', alignSelf: 'center' }}>{error}</div>}
-                    {!loading && !error && (
-                        <canvas
-                            ref={canvasRef}
-                            onContextMenu={(e) => e.preventDefault()}
-                            style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.4)', userSelect: 'none', height: 'fit-content' }}
-                        />
-                    )}
+                    {error && <div style={{ color: '#f28b82', alignSelf: 'center', margin: 'auto' }}>{error}</div>}
+                    {!loading && !error && Array.from({ length: numPages }, (_, i) => i + 1).map((n) => (
+                        <div
+                            key={n}
+                            ref={(el) => { pageContainerRefs.current[n] = el }}
+                            data-page-number={n}
+                        >
+                            <PdfPage
+                                pdfDoc={pdfDocRef.current}
+                                pageNumber={n}
+                                scale={scale}
+                                rotation={rotation}
+                            />
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>,
@@ -312,6 +355,75 @@ function PageThumbnail({ pdfDoc, pageNumber, isActive, onClick }) {
                 <canvas ref={canvasRef} style={{ display: 'block', maxWidth: '100%' }} />
             </div>
             <span style={{ color: isActive ? '#8ab4f8' : '#9aa0a6', fontSize: '11px' }}>{pageNumber}</span>
+        </div>
+    )
+}
+
+// One page inside the continuous-scroll list. Renders lazily (only once it's
+// near the viewport, via IntersectionObserver — same approach as the
+// thumbnail strip) and re-renders whenever zoom/rotation change.
+function PdfPage({ pdfDoc, pageNumber, scale, rotation }) {
+    const canvasRef = useRef(null)
+    const containerRef = useRef(null)
+    const renderTaskRef = useRef(null)
+    const [isVisible, setIsVisible] = useState(false)
+
+    useEffect(() => {
+        const el = containerRef.current
+        if (!el) return
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setIsVisible(true)
+                }
+            },
+            { rootMargin: '800px 0px' }
+        )
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
+
+    useEffect(() => {
+        if (!pdfDoc || !isVisible) return
+        let cancelled = false
+
+        async function render() {
+            try {
+                const page = await pdfDoc.getPage(pageNumber)
+                if (cancelled) return
+                const viewport = page.getViewport({ scale, rotation })
+                const canvas = canvasRef.current
+                if (!canvas) return
+                canvas.width = viewport.width
+                canvas.height = viewport.height
+
+                if (renderTaskRef.current) renderTaskRef.current.cancel()
+                const renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport })
+                renderTaskRef.current = renderTask
+                await renderTask.promise
+            } catch (err) {
+                if (err?.name !== 'RenderingCancelledException') {
+                    console.error('PDF page render error:', err)
+                }
+            }
+        }
+
+        render()
+        return () => { cancelled = true }
+    }, [pdfDoc, pageNumber, scale, rotation, isVisible])
+
+    return (
+        <div ref={containerRef} style={{ minHeight: isVisible ? undefined : '400px' }}>
+            {isVisible ? (
+                <canvas
+                    ref={canvasRef}
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ display: 'block', boxShadow: '0 2px 10px rgba(0,0,0,0.4)', userSelect: 'none' }}
+                />
+            ) : (
+                <div style={{ width: '600px', maxWidth: '80vw', height: '400px', background: '#3c3f41' }} />
+            )}
         </div>
     )
 }

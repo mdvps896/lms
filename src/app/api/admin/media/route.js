@@ -13,7 +13,13 @@ function getFilesRecursively(dir, fileList = [], baseDir = '') {
         const stat = fs.statSync(filePath);
 
         if (stat.isDirectory()) {
-            getFilesRecursively(filePath, fileList, path.join(baseDir, file));
+            // 🔒/🐛 path.join uses the OS separator — on Windows that's '\',
+            // which then got embedded straight into the web-facing `path`
+            // below (e.g. "/uploads/documents\images/x.pdf"), a URL the
+            // <input type="url"> in the lecture form (and any real browser
+            // fetch) rejects outright. Web paths are always forward-slash,
+            // regardless of what OS generated them.
+            getFilesRecursively(filePath, fileList, baseDir ? `${baseDir}/${file}` : file);
         } else {
             // Only include media files
             const ext = path.extname(file).toLowerCase();
@@ -36,7 +42,7 @@ function getFilesRecursively(dir, fileList = [], baseDir = '') {
                 fileList.push({
                     name: file,
                     path: `/uploads/${baseDir ? baseDir + '/' : ''}${file}`, // Web accessible path
-                    relativePath: path.join(baseDir, file),
+                    relativePath: baseDir ? `${baseDir}/${file}` : file,
                     size: stat.size,
                     modified: stat.mtime,
                     type: type

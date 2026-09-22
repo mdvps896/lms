@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { FiTrash2, FiVideo, FiImage, FiFileText, FiPlus, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import MediaLibraryModal from '../MediaLibraryModal';
 
 export default function LectureManagerModal({ course, onClose, onUpdate }) {
     const [curriculum, setCurriculum] = useState(course.curriculum || []);
@@ -20,6 +21,10 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
     });
     // Store file temporarily
     const [lectureFile, setLectureFile] = useState(null);
+    const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
+
+    // MediaLibraryModal's `fileType` filter uses 'document' for PDFs, not 'pdf'.
+    const mediaLibraryFileType = lectureForm.type === 'pdf' ? 'document' : lectureForm.type;
 
     const handleAddTopic = () => {
         const topicName = prompt('Enter Topic Name:');
@@ -313,20 +318,33 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
 
                                     <div className="d-flex flex-column gap-2">
                                         {/* File Upload Input */}
-                                        <input
-                                            type="file"
-                                            className="form-control"
-                                            accept={lectureForm.type === 'image' ? 'image/*' : lectureForm.type === 'video' ? 'video/*' : '.pdf'}
-                                            onChange={(e) => setLectureFile(e.target.files[0])}
-                                            disabled={uploading}
-                                        />
+                                        <div className="d-flex gap-2">
+                                            <input
+                                                type="file"
+                                                className="form-control"
+                                                accept={lectureForm.type === 'image' ? 'image/*' : lectureForm.type === 'video' ? 'video/*' : '.pdf'}
+                                                onChange={(e) => setLectureFile(e.target.files[0])}
+                                                disabled={uploading}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-primary text-nowrap"
+                                                onClick={() => setIsMediaLibraryOpen(true)}
+                                                disabled={uploading}
+                                            >
+                                                <FiImage className="me-1" /> Library
+                                            </button>
+                                        </div>
 
                                         <div className="text-center text-muted small">- OR -</div>
 
-                                        {/* URL Input */}
+                                        {/* URL Input — plain text, not type="url": a library
+                                            pick fills this with a relative "/uploads/..." path,
+                                            which native URL validation (requires a scheme) would
+                                            reject even though the backend accepts it fine. */}
                                         <input
                                             className="form-control"
-                                            type="url"
+                                            type="text"
                                             value={lectureForm.content}
                                             onChange={e => setLectureForm({ ...lectureForm, content: e.target.value })}
                                             placeholder="Enter URL directly (e.g. YouTube link)"
@@ -334,6 +352,9 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                                         />
                                     </div>
                                     {lectureFile && <small className="text-success mt-1 d-block">Selected: {lectureFile.name}</small>}
+                                    {!lectureFile && lectureForm.content && (
+                                        <small className="text-success mt-1 d-block">Selected from library: {lectureForm.content}</small>
+                                    )}
                                     {uploading && lectureFile && (
                                         <div className="mt-2">
                                             <div className="progress" style={{ height: '8px' }}>
@@ -372,6 +393,17 @@ export default function LectureManagerModal({ course, onClose, onUpdate }) {
                     </div>
                 )}
             </div>
+
+            <MediaLibraryModal
+                isOpen={isMediaLibraryOpen}
+                onClose={() => setIsMediaLibraryOpen(false)}
+                onSelect={(file) => {
+                    setLectureForm({ ...lectureForm, content: file.path });
+                    setLectureFile(null); // Clear manual upload if library selected
+                    setIsMediaLibraryOpen(false);
+                }}
+                fileType={mediaLibraryFileType}
+            />
         </div>
     );
 }

@@ -3,10 +3,18 @@ import { getAuthenticatedUser } from '@/utils/apiAuth'
 import connectDB from '@/lib/mongodb'
 import fs from 'fs'
 import path from 'path'
-import { verifyPdfAccessToken, normalizePdfPath } from '@/utils/pdfAccessToken'
+import { verifyPdfAccessToken, normalizePdfPath, claimTokenForIp } from '@/utils/pdfAccessToken'
 import { authorizePdfAccess } from '@/utils/pdfAuthorization'
 
 export const dynamic = 'force-dynamic';
+
+function getClientIp(req) {
+    return (
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        req.headers.get('x-real-ip') ||
+        'unknown'
+    );
+}
 
 // PDFs served here are gated ENTIRELY by a signed, short-lived access token
 // (issued by /api/storage/pdf-token). Every request re-verifies the token
@@ -30,6 +38,17 @@ async function serveSecurePdf(request, normalizedPath) {
     // is a tamper attempt.
     if (payload.p !== normalizedPath) {
         if (process.env.NODE_ENV !== 'production') console.warn('[secure-file] 404: path mismatch', { tokenPath: payload.p, normalizedPath });
+        return new NextResponse('File not found', { status: 404 });
+    }
+
+    // 🔒 The token alone used to be enough — copy the URL into another tab,
+    // forward it to someone else, and it worked for them too, for the full
+    // 5-minute window. The first requester to redeem a given token claims it
+    // for their IP; anyone else presenting the same token from a different
+    // IP is treated as a leaked/shared link, not the original viewer.
+    const clientIp = getClientIp(request);
+    if (!claimTokenForIp(payload.jti, clientIp, payload.exp)) {
+        if (process.env.NODE_ENV !== 'production') console.warn('[secure-file] 404: token claimed by a different IP', { jti: payload.jti, clientIp });
         return new NextResponse('File not found', { status: 404 });
     }
 
