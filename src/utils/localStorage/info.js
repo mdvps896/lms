@@ -144,8 +144,18 @@ export async function getStorageStatus() {
             return { size: totalSize, count: fileCount };
         };
 
-        // Scan the entire public directory for total usage
-        const total = getDirectorySize(PUBLIC_DIR);
+        // Scan the entire storage directory for total usage. Files uploaded
+        // before the move to storage/uploads still sit in public/uploads and
+        // are still being served — without also scanning that root, the
+        // sidebar's "Total Files"/"Usage" only ever counted the new folder
+        // (see the same dual-root fix in /api/storage/files and
+        // /api/admin/media).
+        const publicUploadsSize = getDirectorySize(path.join(process.cwd(), 'public', 'uploads'));
+        const storageSize = getDirectorySize(PUBLIC_DIR);
+        const total = {
+            size: storageSize.size + publicUploadsSize.size,
+            count: storageSize.count + publicUploadsSize.count
+        };
 
         // Get specific stats for main categories for the UI
         const images = getDirectorySize(IMAGES_DIR);

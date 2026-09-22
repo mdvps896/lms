@@ -46,6 +46,20 @@ export async function deleteFromLocalStorage(filePath) {
             const absolutePath = path.join(process.cwd(), 'storage', cleanPath);
             pathsToTry.push(absolutePath);
 
+            // Pre-migration files still sit under public/uploads, not
+            // storage/uploads — every candidate above only ever resolved
+            // under storage/, so deleting a legacy file silently matched
+            // nothing and the API reported a false "success" (see the same
+            // dual-root fallback in /api/storage/file and
+            // /api/storage/secure-file).
+            // cleanPath already starts with "uploads/" (see normalizedFilePath
+            // above), so join against public/ directly — not public/uploads/,
+            // which would double up to public/uploads/uploads/...
+            const publicPath = path.join(process.cwd(), 'public', cleanPath);
+            if (!pathsToTry.includes(publicPath)) {
+                pathsToTry.push(publicPath);
+            }
+
             // Try normalized version with proper separators
             const normalizedPath = path.normalize(path.join(process.cwd(), 'storage', cleanPath));
             if (normalizedPath !== absolutePath && !pathsToTry.includes(normalizedPath)) {
