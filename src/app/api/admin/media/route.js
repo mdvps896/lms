@@ -60,13 +60,20 @@ export async function GET(request) {
         // User "admin" requested feature.
         if (authError) return authError;
 
-        const uploadsDir = path.join(process.cwd(), 'storage', 'uploads');
+        const storageUploadsDir = path.join(process.cwd(), 'storage', 'uploads');
+        // Pre-migration uploads still live under public/uploads (see the same
+        // fallback in /api/storage/file and /api/storage/secure-file) — without
+        // this, every file uploaded before the move to storage/uploads is
+        // invisible here, even though it's still being served on the site.
+        const publicUploadsDir = path.join(process.cwd(), 'public', 'uploads');
 
-        if (!fs.existsSync(uploadsDir)) {
-            return NextResponse.json({ success: true, files: [] });
-        }
+        const storageFiles = fs.existsSync(storageUploadsDir) ? getFilesRecursively(storageUploadsDir) : [];
+        const publicFiles = fs.existsSync(publicUploadsDir) ? getFilesRecursively(publicUploadsDir) : [];
 
-        const files = getFilesRecursively(uploadsDir);
+        // Same relative path in both roots -> the storage/uploads copy is the
+        // current one; don't list the legacy file twice.
+        const seen = new Set(storageFiles.map(f => f.relativePath));
+        const files = [...storageFiles, ...publicFiles.filter(f => !seen.has(f.relativePath))];
 
         // Sort by modified date desc
         files.sort((a, b) => new Date(b.modified) - new Date(a.modified));

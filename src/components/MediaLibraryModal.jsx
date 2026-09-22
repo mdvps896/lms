@@ -9,6 +9,11 @@ const MediaLibraryModal = ({ isOpen, onClose, onSelect, fileType = 'all' }) => {
     const [loading, setLoading] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterType, setFilterType] = useState('all') // 'all', 'image', 'video', 'document'
+    // Legacy uploads folders can hold thousands of files — rendering them
+    // all as DOM cards at once (each with its own <img>) is what actually
+    // freezes the tab, not the fetch. Show a page at a time instead.
+    const PAGE_SIZE = 60
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
     useEffect(() => {
         if (isOpen) {
@@ -48,6 +53,12 @@ const MediaLibraryModal = ({ isOpen, onClose, onSelect, fileType = 'all' }) => {
         const matchesType = filterType === 'all' || file.type === filterType
         return matchesSearch && matchesType
     })
+    const visibleFiles = filteredFiles.slice(0, visibleCount)
+
+    // Back to a fresh page whenever the visible set actually changes.
+    useEffect(() => {
+        setVisibleCount(PAGE_SIZE)
+    }, [searchTerm, filterType, isOpen])
 
     const formatSize = (bytes) => {
         if (bytes === 0) return '0 B'
@@ -112,7 +123,10 @@ const MediaLibraryModal = ({ isOpen, onClose, onSelect, fileType = 'all' }) => {
                                 </div>
                             ) : (
                                 <div className="row g-3">
-                                    {filteredFiles.map((file, index) => (
+                                    <div className="col-12 text-muted small mb-1">
+                                        Showing {visibleFiles.length} of {filteredFiles.length} files
+                                    </div>
+                                    {visibleFiles.map((file, index) => (
                                         <div key={index} className="col-6 col-sm-4 col-md-3 col-lg-2">
                                             <div
                                                 className="card h-100 border shadow-sm cursor-pointer file-card"
@@ -135,6 +149,17 @@ const MediaLibraryModal = ({ isOpen, onClose, onSelect, fileType = 'all' }) => {
                                             </div>
                                         </div>
                                     ))}
+                                    {visibleCount < filteredFiles.length && (
+                                        <div className="col-12 text-center mt-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-dark btn-sm"
+                                                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                                            >
+                                                Load More ({filteredFiles.length - visibleCount} remaining)
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
