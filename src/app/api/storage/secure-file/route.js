@@ -61,7 +61,15 @@ async function serveSecurePdf(request, normalizedPath) {
         return new NextResponse('File not found', { status: 404 });
     }
 
-    const fullPath = path.join(process.cwd(), 'storage', normalizedPath);
+    let fullPath = path.join(process.cwd(), 'storage', normalizedPath);
+    // Fallback for pre-migration records still pointing at their old
+    // public/ location (see the matching fallback in /api/storage/file).
+    if (!fs.existsSync(fullPath)) {
+        const publicFallback = path.join(process.cwd(), 'public', normalizedPath);
+        if (fs.existsSync(publicFallback)) {
+            fullPath = publicFallback;
+        }
+    }
     if (!fs.existsSync(fullPath)) {
         if (process.env.NODE_ENV !== 'production') console.warn('[secure-file] 404: file missing on disk', { fullPath });
         return new NextResponse('File not found', { status: 404 });
@@ -227,7 +235,15 @@ export async function GET(request) {
             );
         }
 
-        const fullPath = path.join(process.cwd(), 'storage', filePath)
+        let fullPath = path.join(process.cwd(), 'storage', filePath)
+        // Fallback for pre-migration records still pointing at their old
+        // public/ location (see the matching fallback in /api/storage/file).
+        if (!fs.existsSync(fullPath)) {
+            const publicFallback = path.join(process.cwd(), 'public', filePath);
+            if (fs.existsSync(publicFallback)) {
+                fullPath = publicFallback;
+            }
+        }
 
         if (!fs.existsSync(fullPath)) {
             return NextResponse.json({ success: false, message: 'File not found' }, { status: 404 })

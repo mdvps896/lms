@@ -12,7 +12,19 @@ export async function GET(request, { params }) {
             return new NextResponse('Invalid path', { status: 400 });
         }
 
-        const fullPath = path.join(process.cwd(), 'storage', filePath);
+        let fullPath = path.join(process.cwd(), 'storage', filePath);
+
+        // Fallback: older records were saved back when uploads lived under
+        // public/ (e.g. "uploads/images/courses/thumbnails/x.jpg"). filePath
+        // already carries that same "uploads/..." prefix (see save.js), so
+        // the same relative path also resolves under public/ — check there
+        // before giving up, instead of 404ing every pre-migration file.
+        if (!fs.existsSync(fullPath)) {
+            const publicFallback = path.join(process.cwd(), 'public', filePath);
+            if (fs.existsSync(publicFallback)) {
+                fullPath = publicFallback;
+            }
+        }
 
         // This route is public, unauthenticated and cacheable. Anything
         // sensitive must never be reachable through it — it is served instead
