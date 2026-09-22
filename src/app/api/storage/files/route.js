@@ -8,8 +8,13 @@ import { getAuthenticatedUser } from '@/utils/apiAuth'
 // Reads auth headers — must not be statically prerendered.
 export const dynamic = 'force-dynamic';
 
-// Helper function to get all files recursively (Local)
-function getAllFiles(dirPath, arrayOfFiles = []) {
+// Helper function to get all files recursively (Local).
+// `stripRoot` is the absolute directory whose prefix gets removed to build
+// the web-facing `path` — pass the storage root when scanning storage/ and
+// the public root when scanning public/, so both come out as the same
+// "/uploads/..." shape the rest of the app (and the file-serving routes'
+// storage-then-public fallback) already expects.
+function getAllFiles(dirPath, stripRoot, arrayOfFiles = []) {
     try {
         if (!fs.existsSync(dirPath)) return arrayOfFiles;
 
@@ -19,10 +24,10 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
             const filePath = path.join(dirPath, file)
 
             if (fs.statSync(filePath).isDirectory()) {
-                arrayOfFiles = getAllFiles(filePath, arrayOfFiles)
+                arrayOfFiles = getAllFiles(filePath, stripRoot, arrayOfFiles)
             } else {
                 const stats = fs.statSync(filePath)
-                let relativePath = filePath.replace(path.join(process.cwd(), 'storage'), '')
+                let relativePath = filePath.replace(stripRoot, '')
                 relativePath = relativePath.replace(/\\/g, '/')
                 // Ensure path starts with /
                 if (!relativePath.startsWith('/')) {
@@ -65,10 +70,17 @@ export async function GET(request) {
 
         const user = await getAuthenticatedUser(request)
         const isTeacherOwn = user && user.role === 'teacher' && (user.accessScope || 'own') === 'own';
-        // 1. Get local files (Legacy support & backups) — uploads now live
-        // outside public/ (see localStorage/constants.js), so scan there.
-        const uploadsRoot = path.join(process.cwd(), 'storage')
-        const localFiles = getAllFiles(uploadsRoot)
+        // 1. Get local files. New uploads live in storage/ (see
+        // localStorage/constants.js), but everything uploaded before that
+        // move is still sitting in public/uploads and still being served —
+        // scan both, or the admin only ever sees a fraction of what's
+        // actually stored.
+        const storageRoot = path.join(process.cwd(), 'storage')
+        const publicUploadsRoot = path.join(process.cwd(), 'public', 'uploads')
+        const storageFiles = getAllFiles(storageRoot, storageRoot)
+        const publicFiles = getAllFiles(publicUploadsRoot, path.join(process.cwd(), 'public'))
+        const seenPaths = new Set(storageFiles.map(f => f.path))
+        const localFiles = [...storageFiles, ...publicFiles.filter(f => !seenPaths.has(f.path))]
         // 2. Get Cloudinary files - REMOVED
 
         // 3. Get exam recordings (from DB)
