@@ -148,7 +148,10 @@ export async function POST(request) {
         // extra time can't buy extra answers — while still crediting
         // everything the student legitimately saved before time ran out
         // (rather than voiding their whole paper over a late upload).
-        const submittedAnswers = lateSubmission ? savedAnswers : clientAnswers;
+        // On time, the paper is everything saved during the exam plus what
+        // the app sends now (the app's copy wins) — so answers from before an
+        // app restart still count.
+        const submittedAnswers = lateSubmission ? savedAnswers : { ...savedAnswers, ...clientAnswers };
 
         const scoreResults = questions.map((question) => {
             const questionId = question._id.toString();
@@ -244,6 +247,7 @@ export async function POST(request) {
             // render a result screen.
             correctCount: scoreResults.filter(r => r.isCorrect).length,
             lateSubmission,
+            timeTaken: serverTimeTaken,
             totalQuestions: scoreResults.length,
             passed,
             submittedAt,

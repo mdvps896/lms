@@ -25,6 +25,15 @@ export const menuList = [
         dropdownMenu: []
     },
     {
+        id: 2.5,
+        name: "live viewers",
+        path: "/live-viewers",
+        icon: 'feather-activity',
+        roles: ['admin', 'teacher'],
+        permission: 'manage_students',
+        dropdownMenu: []
+    },
+    {
         id: 3,
         name: "exam",
         path: "/exam",

@@ -3,23 +3,27 @@ import { FiCheckCircle, FiClock, FiDownload, FiAlertCircle, FiMail } from 'react
 import { toast } from 'react-hot-toast';
 import SendESignEmailModal from '../modals/SendESignEmailModal';
 
-const StudentESignTab = ({ studentId }) => {
+const StudentESignTab = ({ studentId, refreshSignal = 0 }) => {
     const [statusData, setStatusData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [approving, setApproving] = useState(false);
     const [showEmailModal, setShowEmailModal] = useState(false);
 
+    // refreshSignal changes when the tab is shown again or Refresh is pressed:
+    // reload quietly, keeping the current data on screen ("Loading" only the first time).
     useEffect(() => {
         fetchStatus();
-    }, [studentId]);
+    }, [studentId, refreshSignal]);
 
     const fetchStatus = async () => {
+        if (!statusData) setLoading(true);
         try {
             const res = await fetch(`/api/student/esign/status?userId=${studentId}`);
             const data = await res.json();
             if (data.success) {
                 setStatusData(data);
+                setError(null);
             } else {
                 setError('Failed to fetch status');
             }

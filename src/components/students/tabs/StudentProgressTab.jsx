@@ -4,17 +4,19 @@ import React, { useState, useEffect } from 'react'
 import { FiCheckCircle, FiClock, FiAlertCircle, FiDollarSign, FiFileText, FiUpload, FiDownload, FiSave, FiEdit3 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
-const StudentProgressTab = ({ studentId }) => {
+const StudentProgressTab = ({ studentId, refreshSignal = 0 }) => {
     const [progressData, setProgressData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
+    // refreshSignal changes when the tab is shown again or Refresh is pressed:
+    // reload quietly, keeping the current data on screen ("Loading" only the first time).
     useEffect(() => {
         fetchProgress()
-    }, [studentId])
+    }, [studentId, refreshSignal])
 
     const fetchProgress = async () => {
-        setLoading(true)
+        if (!progressData) setLoading(true)
         try {
             const res = await fetch(`/api/student/progress?userId=${studentId}`)
             const data = await res.json()

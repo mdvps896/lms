@@ -55,9 +55,12 @@ export async function POST(request) {
             )
         }
 
-        // Check if exam is currently active
+        // Check if exam is currently active. Free-material tests are open
+        // practice with no window — rejecting them here (while the
+        // /exam-attempts fallback accepted the same submission) left the app
+        // with no attemptId, so the whole test ran with no selfies at all.
         const now = new Date()
-        if (now < exam.startDate || now > exam.endDate) {
+        if (!isFreeMaterial && (now < exam.startDate || now > exam.endDate)) {
             return NextResponse.json(
                 { message: 'Exam is not currently active' },
                 { status: 400 }
@@ -91,7 +94,7 @@ export async function POST(request) {
         )
 
         const maxAttempts = exam.maxAttempts || -1
-        if (maxAttempts !== -1 && userAttempts.length >= maxAttempts) {
+        if (!isFreeMaterial && maxAttempts !== -1 && userAttempts.length >= maxAttempts) {
             return NextResponse.json(
                 { message: 'You have exceeded the maximum number of attempts for this exam' },
                 { status: 400 }
@@ -103,7 +106,28 @@ export async function POST(request) {
             exam: examId,
             user: userId,
             status: 'active'
-        })
+        }).sort({ startedAt: -1 })
+
+        // Only resume a session whose clock hasn't run out. An abandoned
+        // attempt (app closed, never submitted) used to be resumed days later
+        // with its original startedAt — the new sitting was then scored as a
+        // late submission with a time taken of hundreds of hours, and the
+        // student's separate sittings collapsed into one record.
+        // A free-material test is practice: leaving it ("Exit Test? Your
+        // progress will be lost") and coming back must start a fresh paper
+        // with a fresh clock, not resume the old one mid-way.
+        const durationMs = (exam.duration || 0) * 60 * 1000
+        if (activeExamAttempt) {
+            const startedMs = new Date(activeExamAttempt.startedAt).getTime()
+            const RESUME_GRACE_MS = 60 * 1000
+            if (isFreeMaterial || !durationMs || now.getTime() > startedMs + durationMs + RESUME_GRACE_MS) {
+                await ExamAttempt.updateMany(
+                    { exam: examId, user: userId, status: 'active' },
+                    { $set: { status: 'expired', isActive: false } }
+                )
+                activeExamAttempt = null
+            }
+        }
 
         // If verificationId is provided, use that ExamAttempt.
         // 🔒 SECURITY: this used to activate ANY attempt id the caller sent,
@@ -133,7 +157,12 @@ export async function POST(request) {
         }
 
         if (activeExamAttempt) {
-            // Return existing session
+            // Return existing session. remainingSeconds is measured on the
+            // server so the app's countdown matches the deadline /exams/submit
+            // enforces — the app used to restart at the full duration here,
+            // and the student's final minutes then counted as a late
+            // submission (graded as 0) with an inflated time taken.
+            const elapsedMs = now.getTime() - new Date(activeExamAttempt.startedAt).getTime()
             return NextResponse.json({
                 session: {
                     token: activeExamAttempt.sessionToken,
@@ -141,6 +170,9 @@ export async function POST(request) {
                     examId: exam._id
                 },
                 attemptId: activeExamAttempt._id,
+                durationSeconds: durationMs / 1000,
+                remainingSeconds: Math.max(0, Math.round((durationMs - elapsedMs) / 1000)),
+                resumed: true,
                 message: 'Resuming existing session'
             })
         }
@@ -217,10 +249,14 @@ export async function POST(request) {
                 examId
             },
             attemptId: examAttempt._id,
+            durationSeconds: durationMs / 1000,
+            remainingSeconds: durationMs / 1000,
+            resumed: false,
             message: 'Exam session started successfully'
         })
 
     } catch (error) {
+        console.error('Error starting exam session:', error)
         return NextResponse.json(
             { message: 'Internal server error' },
             { status: 500 }

@@ -2,20 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiChevronUp, FiCamera, FiClock, FiCalendar, FiFileText, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import SelfieViewerModal from '../SelfieViewerModal';
 
-const StudentFreeMaterialsTab = ({ studentId, freeMaterialViews = [] }) => {
+const StudentFreeMaterialsTab = ({ studentId, freeMaterialViews = [], refreshSignal = 0 }) => {
     const [activeTab, setActiveTab] = useState('pdfs');
     const [testHistory, setTestHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loaded, setLoaded] = useState(false);
     const [error, setError] = useState(null);
     const [expandedId, setExpandedId] = useState(null);
     const [selfieModal, setSelfieModal] = useState({ show: false, sessionId: null });
 
+    // refreshSignal changes when the tab is shown again or Refresh is pressed:
+    // reload quietly, keeping the current data on screen ("Loading" only the first time).
     useEffect(() => {
         fetchTestHistory();
-    }, [studentId]);
+    }, [studentId, refreshSignal]);
 
     const fetchTestHistory = async () => {
-        setLoading(true);
+        if (!loaded) setLoading(true);
         try {
             const response = await fetch(`/api/users/${studentId}/free-materials-selfies`);
             const result = await response.json();
@@ -24,6 +27,8 @@ const StudentFreeMaterialsTab = ({ studentId, freeMaterialViews = [] }) => {
                 if (!Array.isArray(result.data)) {
                     setTestHistory(result.data.testHistory || []);
                 }
+                setLoaded(true);
+                setError(null);
             } else {
                 setError(result.message);
             }
@@ -284,12 +289,12 @@ const StudentFreeMaterialsTab = ({ studentId, freeMaterialViews = [] }) => {
                                                                     </div>
                                                                 </td>
                                                                 <td>
-                                                                    <span className="fw-bold text-primary">{attempt.score}</span>
+                                                                    <span className="fw-bold text-primary">{attempt.score ?? '-'}</span>
                                                                     <span className="text-muted"> / {attempt.totalMarks}</span>
                                                                 </td>
                                                                 <td>
                                                                     <span className="badge bg-light text-dark border font-monospace">
-                                                                        {formatTime(attempt.timeTaken)}
+                                                                        {attempt.status && attempt.status !== 'submitted' ? '-' : formatTime(attempt.timeTaken)}
                                                                     </span>
                                                                 </td>
                                                                 <td>
@@ -299,7 +304,11 @@ const StudentFreeMaterialsTab = ({ studentId, freeMaterialViews = [] }) => {
                                                                     </span>
                                                                 </td>
                                                                 <td>
-                                                                    {attempt.passed ? (
+                                                                    {attempt.status && attempt.status !== 'submitted' ? (
+                                                                        <span className="badge bg-soft-warning text-warning">
+                                                                            Not submitted
+                                                                        </span>
+                                                                    ) : attempt.passed ? (
                                                                         <span className="badge bg-soft-success text-success">
                                                                             <FiCheckCircle className="me-1" /> Pass
                                                                         </span>

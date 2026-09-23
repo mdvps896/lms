@@ -326,7 +326,8 @@ const IntegrationsSettings = () => {
                                 <div className="d-flex align-items-center">
                                     <Image 
                                         src="https://www.gstatic.com/marketing-cms/assets/images/5b/b0/3a62c7b4486e943fceeeb3fe90df/g-about-gatg.png=n-w128-h131-fcrop64=1,000005f5ffffffff-rw" 
-                                        alt="Google" 
+                                        alt="Google"
+                                        unoptimized
                                         width={32} 
                                         height={32} 
                                         className="me-2"
@@ -434,7 +435,8 @@ const IntegrationsSettings = () => {
                                 <div className="d-flex align-items-center">
                                     <Image 
                                         src="https://www.gstatic.com/images/icons/material/product/2x/recaptcha_48dp.png" 
-                                        alt="reCAPTCHA" 
+                                        alt="reCAPTCHA"
+                                        unoptimized
                                         width={30} 
                                         height={30} 
                                         className="me-2"

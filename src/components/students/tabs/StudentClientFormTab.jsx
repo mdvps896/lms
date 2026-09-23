@@ -3,24 +3,26 @@
 import React, { useState, useEffect } from 'react'
 import { FiDownload, FiFileText, FiAlertCircle, FiRefreshCw } from 'react-icons/fi'
 
-const StudentClientFormTab = ({ studentId, studentName }) => {
+const StudentClientFormTab = ({ studentId, studentName, refreshSignal = 0 }) => {
     const [formData, setFormData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [generating, setGenerating] = useState(false)
 
+    // refreshSignal changes when the tab is shown again or Refresh is pressed:
+    // reload quietly, keeping the current data on screen ("Loading" only the first time).
     useEffect(() => {
         if (studentId) fetchFormData()
-    }, [studentId])
+    }, [studentId, refreshSignal])
 
     const fetchFormData = async () => {
-        setLoading(true)
-        setError(null)
+        if (!formData) setLoading(true)
         try {
             const res = await fetch(`/api/admin/client-form?userId=${studentId}`)
             const data = await res.json()
             if (data.success) {
                 setFormData(data.data.formData)
+                setError(null)
             } else {
                 setError(data.message || 'No form data found')
             }

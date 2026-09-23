@@ -136,16 +136,18 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                                                 >
                                                     <FiDownload size={14} />
                                                 </button>
-                                                <button
-                                                    className="btn btn-sm btn-danger p-1 rounded-circle"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDelete(selfie._id);
-                                                    }}
-                                                    title="Delete"
-                                                >
-                                                    <FiTrash2 size={14} />
-                                                </button>
+                                                {!selfie.fromAttempt && (
+                                                    <button
+                                                        className="btn btn-sm btn-danger p-1 rounded-circle"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDelete(selfie._id);
+                                                        }}
+                                                        title="Delete"
+                                                    >
+                                                        <FiTrash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {/* Timestamp footer */}
@@ -211,9 +213,11 @@ const SelfieViewerModal = ({ show, sessionId, onClose }) => {
                                 <button className="btn btn-primary d-flex align-items-center gap-2" onClick={() => handleDownload(selectedImage.imageUrl)}>
                                     <FiDownload /> Download
                                 </button>
-                                <button className="btn btn-danger d-flex align-items-center gap-2" onClick={() => handleDelete(selectedImage._id)}>
-                                    <FiTrash2 /> Delete Photo
-                                </button>
+                                {!selectedImage.fromAttempt && (
+                                    <button className="btn btn-danger d-flex align-items-center gap-2" onClick={() => handleDelete(selectedImage._id)}>
+                                        <FiTrash2 /> Delete Photo
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

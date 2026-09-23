@@ -71,12 +71,31 @@ export async function GET(request, { params }) {
             .sort({ submittedAt: -1, startedAt: -1 })
             .lean();
 
-        // Enriched test attempts with selfie count
-        const enrichedTestAttempts = testAttempts.map(attempt => ({
-            ...attempt,
-            selfieCount: attempt.verification?.faceVerification?.periodicChecks?.length || 0,
-            timeTaken: attempt.timeTaken || 0
-        }));
+        // Selfies are recorded both as SelfieCapture documents and on the
+        // attempt's periodicChecks; count the union of distinct images so the
+        // number here matches what the selfie viewer shows.
+        const attemptIds = testAttempts.map(a => a._id);
+        const attemptSelfies = attemptIds.length > 0
+            ? await SelfieCapture.find({ attemptId: { $in: attemptIds } }).select('attemptId imageUrl').lean()
+            : [];
+        const selfieUrlsByAttempt = {};
+        attemptSelfies.forEach(s => {
+            const key = s.attemptId.toString();
+            if (!selfieUrlsByAttempt[key]) selfieUrlsByAttempt[key] = new Set();
+            selfieUrlsByAttempt[key].add(s.imageUrl);
+        });
+
+        const enrichedTestAttempts = testAttempts.map(attempt => {
+            const urls = selfieUrlsByAttempt[attempt._id.toString()] || new Set();
+            (attempt.verification?.faceVerification?.periodicChecks || []).forEach(c => {
+                if (c.selfieImage) urls.add(c.selfieImage);
+            });
+            return {
+                ...attempt,
+                selfieCount: urls.size,
+                timeTaken: attempt.timeTaken || 0
+            };
+        });
 
         return NextResponse.json({
             success: true,

@@ -70,9 +70,17 @@ export async function POST(request) {
                 uid: user.firebaseUid || undefined // Use existing if available
             });
         } catch (firebaseErr) {
-            // If user already exists in Firebase, just return success so mobile can retry login
-            if (firebaseErr.code === 'auth/email-already-exists') {
-                return NextResponse.json({ success: true, message: 'Already migrated' });
+            if (firebaseErr.code === 'auth/email-already-exists' || firebaseErr.code === 'auth/uid-already-exists') {
+                // Passwords are changed in MongoDB only (change/reset password,
+                // admin edits) — Firebase is never told, so its copy goes stale
+                // and the app's Firebase sign-in keeps failing. The caller has
+                // just proved the current password above, so bring Firebase in
+                // line. Previously this answered "Already migrated" without
+                // fixing anything, and the app retried sign-in in a loop until
+                // Firebase blocked the device for "unusual activity".
+                const existing = await firebaseAdmin.auth().getUserByEmail(user.email);
+                await firebaseAdmin.auth().updateUser(existing.uid, { password });
+                return NextResponse.json({ success: true, message: 'Password synced' });
             }
             throw firebaseErr;
         }

@@ -167,7 +167,10 @@ export async function POST(request) {
         // Or '000000000000000000000000'
 
         let courseIdToSave = courseId;
-        if (isFreeMaterial) {
+        // Older app builds send the exam's category *name* as courseId for
+        // free tests; that isn't an ObjectId and made SelfieCapture.create
+        // throw, so the selfie was never recorded.
+        if (isFreeMaterial || !mongoose.Types.ObjectId.isValid(String(courseId))) {
             // Use a deterministic Dummy ID for "Free Material" "Course"
             // Hex string 24 chars.
             courseIdToSave = '000000000000000000000000';
@@ -207,35 +210,26 @@ export async function POST(request) {
 
                 if (!updatedPdfSession) {
                     // If not PDF, try ExamAttempt
-                    const examAttempt = await ExamAttempt.findById(idToUpdate);
-                    if (examAttempt) {
-                        // Initialize verification structure if it doesn't exist
-                        if (!examAttempt.verification) {
-                            examAttempt.verification = {};
+                    // One atomic $push. Loading the attempt, pushing and
+                    // save()-ing the whole document raced with a second
+                    // selfie or the final submit landing at the same moment
+                    // (VersionError), silently losing the selfie record.
+                    const pushResult = await ExamAttempt.updateOne(
+                        { _id: idToUpdate },
+                        {
+                            $push: {
+                                'verification.faceVerification.periodicChecks': {
+                                    capturedAt: new Date(),
+                                    selfieImage: relativePath,
+                                    verificationScore: 100 // Placeholder
+                                }
+                            }
                         }
-                        if (!examAttempt.verification.faceVerification) {
-                            examAttempt.verification.faceVerification = {
-                                enabled: false,
-                                verified: false,
-                                periodicChecks: []
-                            };
-                        }
-                        if (!examAttempt.verification.faceVerification.periodicChecks) {
-                            examAttempt.verification.faceVerification.periodicChecks = [];
-                        }
-
-                        // Push the selfie data
-                        examAttempt.verification.faceVerification.periodicChecks.push({
-                            capturedAt: new Date(),
-                            selfieImage: relativePath,
-                            verificationScore: 100 // Placeholder
-                        });
-
-                        await examAttempt.save();
-                        } else {
-                        }
-                } else {
+                    );
+                    if (pushResult.matchedCount === 0) {
+                        console.error(`[SELFIE UPLOAD] No PDF session or exam attempt ${idToUpdate}`);
                     }
+                }
             } catch (sessionErr) {
                 console.error(`❌ [SELFIE UPLOAD] Error updating Session/Attempt ${idToUpdate}:`, sessionErr);
             }
