@@ -9,7 +9,11 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
             enableRegistration: settings?.authSettings?.web?.enableRegistration ?? true,
             allowGoogleAuth: settings?.authSettings?.web?.allowGoogleAuth ?? true,
             allowEmailAuth: settings?.authSettings?.web?.allowEmailAuth ?? true,
-            enableForgotPassword: settings?.authSettings?.web?.enableForgotPassword ?? true
+            enableForgotPassword: settings?.authSettings?.web?.enableForgotPassword ?? true,
+            enableMobileOTP: settings?.authSettings?.web?.enableMobileOTP ?? false,
+            smsProvider: settings?.authSettings?.web?.smsProvider ?? 'msg91',
+            twoFactorApiKey: settings?.authSettings?.web?.twoFactorApiKey ?? settings?.authSettings?.app?.twoFactorApiKey ?? '',
+            twoFactorTemplateName: settings?.authSettings?.web?.twoFactorTemplateName ?? settings?.authSettings?.app?.twoFactorTemplateName ?? ''
         },
         app: {
             enableRegistration: settings?.authSettings?.app?.enableRegistration ?? true,
@@ -136,6 +140,74 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                                 </label>
                             </div>
                         </div>
+
+                        <div className="mb-3">
+                            <div className="form-check form-switch">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="webEnableMobileOTP"
+                                    checked={formData.web.enableMobileOTP}
+                                    onChange={(e) => handleChange('web', 'enableMobileOTP', e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="webEnableMobileOTP">
+                                    <strong>Enable Mobile OTP Login</strong>
+                                    <div className="text-muted small">
+                                        Show "Login with Mobile OTP" on the web login page (mobile number + OTP, new numbers register automatically)
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {formData.web.enableMobileOTP && (
+                            <div className="card bg-light border-0 mb-3">
+                                <div className="card-body">
+                                    <h6 className="fw-bold mb-3">SMS Gateway Configuration (Web)</h6>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold">Select SMS Provider</label>
+                                        <select
+                                            className="form-select"
+                                            value={formData.web.smsProvider}
+                                            onChange={(e) => handleChange('web', 'smsProvider', e.target.value)}
+                                        >
+                                            <option value="msg91">MSG91 (Recommended)</option>
+                                            <option value="2factor">2FA (2Factor.in SMS Gateway)</option>
+                                        </select>
+                                        <div className="form-text">
+                                            {formData.web.smsProvider === 'msg91'
+                                                ? 'Add the MSG91 Auth Key and SMS / WhatsApp Widget ID + Token in Settings → Integrations → MSG91, and send a test OTP there.'
+                                                : 'Uses 2Factor.in SMS Gateway. Requires an active account and API Key.'}
+                                        </div>
+                                    </div>
+
+                                    {formData.web.smsProvider === '2factor' && (
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label fw-bold">2Factor.in API Key <span className="text-danger">*</span></label>
+                                                <input
+                                                    type="password"
+                                                    className="form-control"
+                                                    placeholder="Enter API Key"
+                                                    value={formData.web.twoFactorApiKey}
+                                                    onChange={(e) => handleChange('web', 'twoFactorApiKey', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label fw-bold">Template Name (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="e.g. MY_OTP_TEMP"
+                                                    value={formData.web.twoFactorTemplateName}
+                                                    onChange={(e) => handleChange('web', 'twoFactorTemplateName', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -243,12 +315,15 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                                             onChange={(e) => handleChange('app', 'smsProvider', e.target.value)}
                                         >
                                             <option value="firebase">SMS (Firebase - Recommended)</option>
+                                            <option value="msg91">MSG91 (SMS Gateway)</option>
                                             <option value="2factor">2FA (2Factor.in SMS Gateway)</option>
                                         </select>
                                         <div className="form-text">
                                             {formData.app.smsProvider === 'firebase'
                                                 ? 'Uses Firebase Phone Authentication. Ensure Google Services JSON is updated in the app.'
-                                                : 'Uses 2Factor.in SMS Gateway. Requires an active account and API Key.'}
+                                                : formData.app.smsProvider === 'msg91'
+                                                    ? 'Add the MSG91 Auth Key and SMS / WhatsApp Widget ID + Token in Settings → Integrations → MSG91, and send a test OTP there.'
+                                                    : 'Uses 2Factor.in SMS Gateway. Requires an active account and API Key.'}
                                         </div>
                                     </div>
 
@@ -285,7 +360,7 @@ const AuthSettingsTab = ({ settings, onUpdate, saving }) => {
                                     <div className="alert alert-info mt-3 mb-0">
                                         <strong>ℹ️ Mobile OTP Flow:</strong>
                                         <ul className="mb-0 mt-2 small">
-                                            <li>Users enter mobile number to receive OTP via {formData.app.smsProvider === 'firebase' ? 'Firebase' : '2Factor.in'}</li>
+                                            <li>Users enter mobile number to receive OTP via {{ firebase: 'Firebase', msg91: 'MSG91', '2factor': '2Factor.in' }[formData.app.smsProvider]}</li>
                                             <li>OTP verification automatically logs in existing users or registers new users</li>
                                             <li>Email and Google login remain available as alternative options</li>
                                             <li>No password required for mobile OTP users</li>

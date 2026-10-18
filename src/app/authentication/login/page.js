@@ -86,6 +86,12 @@ const Page = () => {
                                 resetPath="/authentication/reset"
                                 enableRegistration={settings?.authSettings?.web?.enableRegistration ?? true}
                                 enableForgotPassword={settings?.authSettings?.web?.enableForgotPassword ?? true}
+                                enableMobileOTP={settings?.authSettings?.web?.enableMobileOTP ?? false}
+                                otpChannels={
+                                    settings?.authSettings?.web?.smsProvider === '2factor'
+                                        ? [] // 2Factor sends SMS only; the server picks the channel
+                                        : ['sms', 'whatsapp'].filter((c) => settings?.integrations?.msg91?.[c])
+                                }
                             />
                         </div>
                     </div>

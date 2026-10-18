@@ -13,7 +13,6 @@ const StudentExamsTab = ({ details, formatDate }) => {
                             <span className="badge bg-soft-danger text-danger">
                                 Total Time: {(() => {
                                     const totalSec = details.attempts
-                                        .filter(a => !a.isFreeMaterial)
                                         .reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
                                     const h = Math.floor(totalSec / 3600);
                                     const m = Math.floor((totalSec % 3600) / 60);
@@ -38,8 +37,8 @@ const StudentExamsTab = ({ details, formatDate }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {details.attempts && details.attempts.filter(a => !a.isFreeMaterial).length > 0 ? (
-                                    details.attempts.filter(a => !a.isFreeMaterial).map((attempt) => (
+                                {details.attempts && details.attempts.length > 0 ? (
+                                    details.attempts.map((attempt) => (
                                         <tr key={attempt.id}>
                                             <td className="ps-4 fw-medium text-dark">
                                                 {attempt.examTitle}

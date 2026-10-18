@@ -10,8 +10,18 @@ import GoogleOAuthButton from './GoogleOAuthButton'
 import GoogleRecaptcha from './GoogleRecaptcha'
 import TwoFactorVerification from './TwoFactorVerification'
 
-const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableForgotPassword = true }) => {
+const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableForgotPassword = true, enableMobileOTP = false, otpChannels = [] }) => {
     const { login, completeTwoFactorAuth } = useAuth();
+
+    // Mobile OTP login (enabled from Settings → Login & Register Settings → Web)
+    const [otpMode, setOtpMode] = useState(false);
+    const [mobile, setMobile] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+    const [sessionId, setSessionId] = useState('');
+    const [lastChannel, setLastChannel] = useState(undefined);
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [resendIn, setResendIn] = useState(0);
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -34,6 +44,84 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableF
         }
         return () => clearInterval(timer);
     }, [lockoutTime]);
+
+    useEffect(() => {
+        if (resendIn <= 0) return;
+        const timer = setTimeout(() => setResendIn(resendIn - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [resendIn]);
+
+    const sendOtp = async (channel) => {
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Enter a valid 10-digit mobile number', timer: 2000 });
+            return;
+        }
+        setOtpLoading(true);
+        try {
+            const res = await fetch('/api/auth/send-mobile-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile, platform: 'web', channel })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setOtpSent(true);
+                setSessionId(data.sessionId || '');
+                setLastChannel(channel);
+                setOtp('');
+                setResendIn(30);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'OTP Sent',
+                    text: `OTP sent to ${mobile}${channel === 'whatsapp' ? ' on WhatsApp' : ''}`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Could not send OTP', text: data.message || 'Please try again', timer: 3000 });
+            }
+        } catch {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not send OTP', timer: 2000 });
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    const verifyOtp = async (e) => {
+        e.preventDefault();
+        // Before the OTP is sent, Enter should send on the first channel.
+        if (!otpSent) return sendOtp(otpChannels[0]);
+        if (!/^[0-9]{4,9}$/.test(otp)) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Enter the OTP you received', timer: 2000 });
+            return;
+        }
+        setOtpLoading(true);
+        try {
+            const res = await fetch('/api/auth/verify-mobile-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile, otp, sessionId, platform: 'web' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Same finish as a 2FA login: stores the user and goes to the dashboard.
+                completeTwoFactorAuth(data.data);
+            } else {
+                Swal.fire({ icon: 'error', title: 'Login Failed', text: data.message || 'Invalid OTP', timer: 3000 });
+            }
+        } catch {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not verify OTP', timer: 2000 });
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    const switchMode = (toOtp) => {
+        setOtpMode(toOtp);
+        setOtpSent(false);
+        setOtp('');
+        setResendIn(0);
+    };
 
     useEffect(() => {
         // Seed default users on component mount
@@ -260,7 +348,107 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableF
         <>
             <h2 className="fs-20 fw-bolder mb-4">Login</h2>
 
-            <form onSubmit={handleSubmit} className="w-100 mt-4 pt-2">
+            {otpMode && (
+                <form onSubmit={verifyOtp} className="w-100 mt-4 pt-2">
+                    <div className="mb-3">
+                        <input
+                            type="tel"
+                            inputMode="numeric"
+                            className="form-control"
+                            placeholder="Mobile number (10 digits)"
+                            value={mobile}
+                            maxLength={10}
+                            disabled={otpSent || otpLoading}
+                            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            autoComplete="tel-national"
+                            required
+                        />
+                    </div>
+                    {otpSent && (
+                        <div className="mb-3">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                className="form-control"
+                                placeholder="Enter OTP"
+                                value={otp}
+                                maxLength={9}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                                autoComplete="one-time-code"
+                                autoFocus
+                                required
+                            />
+                            <div className="d-flex justify-content-between mt-2 fs-11">
+                                <button
+                                    type="button"
+                                    className="btn btn-link p-0 fs-11"
+                                    onClick={() => { setOtpSent(false); setOtp(''); }}
+                                >
+                                    Change number
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-link p-0 fs-11"
+                                    disabled={resendIn > 0 || otpLoading}
+                                    onClick={() => sendOtp(lastChannel)}
+                                >
+                                    {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    <div className="mt-4 d-grid gap-2">
+                        {otpSent ? (
+                            <button
+                                type="submit"
+                                className="btn btn-lg btn-primary w-100"
+                                disabled={otpLoading}
+                                style={{ minHeight: '48px' }}
+                            >
+                                {otpLoading ? 'Please wait...' : 'Verify & Login'}
+                            </button>
+                        ) : otpChannels.length > 1 ? (
+                            // Several channels on: one button per channel.
+                            <>
+                                <button
+                                    type="button"
+                                    className="btn btn-lg btn-primary w-100"
+                                    disabled={otpLoading}
+                                    style={{ minHeight: '48px' }}
+                                    onClick={() => sendOtp('sms')}
+                                >
+                                    {otpLoading ? 'Please wait...' : 'Send OTP on SMS'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-lg btn-success w-100"
+                                    disabled={otpLoading}
+                                    style={{ minHeight: '48px' }}
+                                    onClick={() => sendOtp('whatsapp')}
+                                >
+                                    {otpLoading ? 'Please wait...' : 'Send OTP on WhatsApp'}
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                type="submit"
+                                className="btn btn-lg btn-primary w-100"
+                                disabled={otpLoading}
+                                style={{ minHeight: '48px' }}
+                            >
+                                {otpLoading ? 'Please wait...' : otpChannels[0] === 'whatsapp' ? 'Send OTP on WhatsApp' : 'Send OTP'}
+                            </button>
+                        )}
+                    </div>
+                    <div className="text-center mt-3">
+                        <button type="button" className="btn btn-link fs-12" onClick={() => switchMode(false)}>
+                            Login with Email &amp; Password
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            <form onSubmit={handleSubmit} className="w-100 mt-4 pt-2" hidden={otpMode}>
                 <div className="mb-4">
                     <input
                         type="email"
@@ -345,6 +533,14 @@ const LoginForm = ({ registerPath, resetPath, enableRegistration = true, enableF
                         </span>
                     </button>
                 </div>
+
+                {enableMobileOTP && (
+                    <div className="text-center mt-3">
+                        <button type="button" className="btn btn-link fs-12" onClick={() => switchMode(true)}>
+                            Login with Mobile OTP
+                        </button>
+                    </div>
+                )}
 
                 {/* reCAPTCHA Component */}
                 <GoogleRecaptcha

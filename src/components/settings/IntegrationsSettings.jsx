@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { FiEye, FiEyeOff, FiInfo, FiExternalLink, FiCheck, FiX, FiHardDrive, FiAlertTriangle } from 'react-icons/fi'
+import { FiEye, FiEyeOff, FiInfo, FiExternalLink, FiCheck, FiX, FiHardDrive, FiAlertTriangle, FiMessageSquare } from 'react-icons/fi'
 import Image from 'next/image'
 import Swal from 'sweetalert2'
 
@@ -16,6 +16,11 @@ const IntegrationsSettings = () => {
             siteKey: '',
             secretKey: ''
         },
+        msg91: {
+            authKey: '',
+            sms: { enabled: false, widgetId: '', token: '' },
+            whatsapp: { enabled: false, widgetId: '', token: '' }
+        },
         localStorage: {
             enabled: true,
             maxImageSize: 10,
@@ -28,14 +33,22 @@ const IntegrationsSettings = () => {
         save: false,
         testOAuth: false,
         testRecaptcha: false,
-        testStorage: false
+        testStorage: false,
+        msg91Send: false,
+        msg91Verify: false
     })
 
     const [showSecrets, setShowSecrets] = useState({
         clientSecret: false,
         secretKey: false,
-        apiSecret: false
+        apiSecret: false,
+        msg91AuthKey: false,
+        msg91SmsToken: false,
+        msg91WhatsappToken: false
     })
+
+    // MSG91 test-OTP box
+    const [msg91Test, setMsg91Test] = useState({ mobile: '', channel: 'sms', otp: '', sessionId: '' })
 
     // Load settings on component mount
     useEffect(() => {
@@ -47,10 +60,19 @@ const IntegrationsSettings = () => {
             const response = await fetch('/api/settings')
             const data = await response.json()
             if (data.success && data.data.integrations) {
-                setFormData(prev => ({
-                    ...prev,
-                    ...data.data.integrations
-                }))
+                const saved = data.data.integrations
+                setFormData(prev => {
+                    // Merge each section over its defaults. A shallow spread let a saved
+                    // section that lacked a field (e.g. localStorage.maxImageSize) turn
+                    // a controlled input into an uncontrolled one.
+                    const merged = { ...prev, ...saved }
+                    for (const key of Object.keys(prev)) {
+                        merged[key] = { ...prev[key], ...(saved[key] || {}) }
+                    }
+                    merged.msg91.sms = { ...prev.msg91.sms, ...(saved.msg91?.sms || {}) }
+                    merged.msg91.whatsapp = { ...prev.msg91.whatsapp, ...(saved.msg91?.whatsapp || {}) }
+                    return merged
+                })
             } else {
                 }
         } catch (error) {
@@ -222,9 +244,85 @@ const IntegrationsSettings = () => {
         setLoading(prev => ({ ...prev, testStorage: false }))
     }
 
+    const handleMsg91Change = (field, value) => {
+        setFormData(prev => ({ ...prev, msg91: { ...prev.msg91, [field]: value } }))
+    }
+
+    const handleMsg91ChannelChange = (channel, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            msg91: { ...prev.msg91, [channel]: { ...prev.msg91[channel], [field]: value } }
+        }))
+    }
+
+    const callMsg91Test = async (action) => {
+        const key = action === 'send' ? 'msg91Send' : 'msg91Verify'
+        const { mobile, otp, channel, sessionId } = msg91Test
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            Swal.fire({ icon: 'error', title: 'Invalid number', text: 'Enter a 10-digit mobile number', timer: 2500 })
+            return
+        }
+        if (action === 'send' && (!formData.msg91[channel].widgetId || !formData.msg91[channel].token)) {
+            Swal.fire({ icon: 'error', title: 'Missing Configuration', text: `Enter the ${channel === 'sms' ? 'SMS' : 'WhatsApp'} Widget ID and Token first`, timer: 3000 })
+            return
+        }
+        if (action === 'verify' && !otp) {
+            Swal.fire({ icon: 'error', title: 'Enter OTP', text: 'Type the OTP you received', timer: 2500 })
+            return
+        }
+
+        setLoading(prev => ({ ...prev, [key]: true }))
+        try {
+            const response = await fetch('/api/integrations/test-msg91', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, mobile, otp, channel, sessionId, ...formData.msg91 })
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                if (action === 'send') setMsg91Test(prev => ({ ...prev, sessionId: result.sessionId, otp: '' }))
+                Swal.fire({
+                    icon: 'success',
+                    title: action === 'send' ? 'OTP Sent' : 'MSG91 Working!',
+                    text: result.message,
+                    timer: 2500
+                })
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: action === 'send' ? 'Could not send OTP' : 'Verification Failed',
+                    // No timer: the admin needs time to read the reason.
+                    html: `<div>${(result.message || 'MSG91 returned an error').replace(/</g, '&lt;')}</div>` +
+                        (result.detail ? `<pre style="text-align:left;font-size:12px;white-space:pre-wrap;margin-top:10px">${String(result.detail).replace(/</g, '&lt;')}</pre>` : '')
+                })
+            }
+        } catch (error) {
+            Swal.fire({ icon: 'error', title: 'Test Failed', text: 'Unable to reach the server', timer: 2500 })
+        }
+        setLoading(prev => ({ ...prev, [key]: false }))
+    }
+
     const showHowToModal = (type) => {
         let content = ''
-        
+
+        if (type === 'msg91') {
+            content = `
+                <div style="text-align: left; line-height: 1.6;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">MSG91 OTP Widget Setup Steps:</h4>
+                    <ol style="padding-left: 20px;">
+                        <li style="margin-bottom: 10px;">Log in to <a href="https://control.msg91.com" target="_blank" style="color: #667eea;">MSG91 Dashboard</a></li>
+                        <li style="margin-bottom: 10px;"><strong>Auth Key:</strong> profile menu → "Authkey". Copy it into <em>MSG91 Auth Key</em>.</li>
+                        <li style="margin-bottom: 10px;">Go to <em>OTP → Widgets</em> and create <strong>one widget per channel</strong> (SMS, and WhatsApp if you use it).</li>
+                        <li style="margin-bottom: 10px;">In each widget's <em>Widget Settings</em>, turn <strong>Captcha</strong> and <strong>Invisible OTP</strong> <strong>off</strong> (server-side use does not support them).</li>
+                        <li style="margin-bottom: 10px;">Copy the widget's <strong>Widget ID</strong>, and its token from <em>OTP → Tokens</em>, into the matching channel here.</li>
+                        <li style="margin-bottom: 10px;">Switch the channel on, click <strong>Save</strong>, then use <strong>Send Test OTP</strong>.</li>
+                        <li style="margin-bottom: 10px;">Finally choose <strong>MSG91</strong> as SMS provider in <em>Login &amp; Register Settings</em> for Web and/or Mobile App.</li>
+                    </ol>
+                </div>
+            `
+        }
+
         if (type === 'oauth') {
             content = `
                 <div style="text-align: left; line-height: 1.6;">
@@ -540,6 +638,189 @@ const IntegrationsSettings = () => {
                                 </div>
                             )}
                         </div>
+
+                        <hr />
+
+                        {/* MSG91 SMS (OTP) Section */}
+                        <div className="mb-5">
+                            <div className="d-flex align-items-center justify-content-between mb-4">
+                                <div className="d-flex align-items-center">
+                                    <FiMessageSquare className="me-3 text-primary" size={30} />
+                                    <h6 className="mb-0">MSG91 OTP (SMS / WhatsApp)</h6>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-info btn-sm"
+                                    onClick={() => showHowToModal('msg91')}
+                                >
+                                    <FiInfo className="me-1" /> How to Setup
+                                </button>
+                            </div>
+
+                            <div className="alert alert-info">
+                                <FiInfo className="me-2" />
+                                Customers log in or sign up with their mobile number. Create <strong>one OTP widget per channel</strong> in MSG91 → OTP → Widgets and copy its Widget ID and Token here. Used when <strong>MSG91</strong> is selected as the SMS provider in <strong>Login &amp; Register Settings</strong> (Web and/or Mobile App).
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">MSG91 Auth Key</label>
+                                <div className="input-group">
+                                    <input
+                                        type={showSecrets.msg91AuthKey ? 'text' : 'password'}
+                                        className="form-control"
+                                        value={formData.msg91.authKey}
+                                        onChange={(e) => handleMsg91Change('authKey', e.target.value)}
+                                        placeholder="Your MSG91 Auth Key"
+                                        autoComplete="off"
+                                    />
+                                    <button
+                                        className="btn btn-outline-secondary"
+                                        type="button"
+                                        onClick={() => setShowSecrets(prev => ({ ...prev, msg91AuthKey: !prev.msg91AuthKey }))}
+                                    >
+                                        {showSecrets.msg91AuthKey ? <FiEyeOff /> : <FiEye />}
+                                    </button>
+                                </div>
+                                <small className="text-muted">MSG91 → Authkey. Used by the server to confirm each OTP login — never shown to visitors.</small>
+                            </div>
+
+                            {[
+                                { key: 'sms', label: 'OTP on SMS', hint: 'Show “Send OTP on SMS” on the login page.', secretKey: 'msg91SmsToken' },
+                                { key: 'whatsapp', label: 'OTP on WhatsApp', hint: 'Show “Send OTP on WhatsApp” on the login page.', secretKey: 'msg91WhatsappToken' }
+                            ].map(({ key, label, hint, secretKey }) => (
+                                <div key={key} className="mb-3">
+                                    <div className="d-flex align-items-center justify-content-between border rounded p-3 mb-2">
+                                        <div>
+                                            <div className="fw-bold">{label}</div>
+                                            <small className="text-muted">{hint}</small>
+                                        </div>
+                                        <div className="form-check form-switch m-0">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={formData.msg91[key].enabled}
+                                                onChange={(e) => handleMsg91ChannelChange(key, 'enabled', e.target.checked)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="row g-3 bg-light rounded mx-0 py-3">
+                                        <div className="col-md-6">
+                                            <label className="form-label">{key === 'sms' ? 'SMS' : 'WhatsApp'} Widget ID</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                value={formData.msg91[key].widgetId}
+                                                onChange={(e) => handleMsg91ChannelChange(key, 'widgetId', e.target.value)}
+                                                placeholder="Widget ID"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                        <div className="col-md-6">
+                                            <label className="form-label">{key === 'sms' ? 'SMS' : 'WhatsApp'} Token</label>
+                                            <div className="input-group">
+                                                <input
+                                                    type={showSecrets[secretKey] ? 'text' : 'password'}
+                                                    className="form-control"
+                                                    value={formData.msg91[key].token}
+                                                    onChange={(e) => handleMsg91ChannelChange(key, 'token', e.target.value)}
+                                                    placeholder="Widget Token"
+                                                    autoComplete="off"
+                                                />
+                                                <button
+                                                    className="btn btn-outline-secondary"
+                                                    type="button"
+                                                    onClick={() => setShowSecrets(prev => ({ ...prev, [secretKey]: !prev[secretKey] }))}
+                                                >
+                                                    {showSecrets[secretKey] ? <FiEyeOff /> : <FiEye />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Test OTP */}
+                            <div className="card bg-light border-0">
+                                <div className="card-body">
+                                    <h6 className="fw-bold mb-3">Test OTP</h6>
+                                    <div className="row g-2 align-items-end">
+                                        <div className="col-md-3">
+                                            <label className="form-label">Mobile Number</label>
+                                            <input
+                                                type="tel"
+                                                className="form-control"
+                                                maxLength={10}
+                                                placeholder="10-digit number"
+                                                value={msg91Test.mobile}
+                                                onChange={(e) => setMsg91Test(prev => ({
+                                                    ...prev,
+                                                    mobile: e.target.value.replace(/\D/g, '').slice(0, 10),
+                                                    sessionId: ''
+                                                }))}
+                                            />
+                                        </div>
+                                        <div className="col-md-2">
+                                            <label className="form-label">Channel</label>
+                                            <select
+                                                className="form-select"
+                                                value={msg91Test.channel}
+                                                onChange={(e) => setMsg91Test(prev => ({ ...prev, channel: e.target.value, sessionId: '' }))}
+                                            >
+                                                <option value="sms">SMS</option>
+                                                <option value="whatsapp">WhatsApp</option>
+                                            </select>
+                                        </div>
+                                        <div className="col-md-3">
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary w-100"
+                                                onClick={() => callMsg91Test('send')}
+                                                disabled={loading.msg91Send}
+                                            >
+                                                {loading.msg91Send ? (
+                                                    <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</>
+                                                ) : (
+                                                    msg91Test.sessionId ? 'Resend OTP' : 'Send Test OTP'
+                                                )}
+                                            </button>
+                                        </div>
+                                        {msg91Test.sessionId && (
+                                            <>
+                                                <div className="col-md-2">
+                                                    <label className="form-label">Enter OTP</label>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        className="form-control"
+                                                        maxLength={9}
+                                                        placeholder="OTP"
+                                                        value={msg91Test.otp}
+                                                        onChange={(e) => setMsg91Test(prev => ({ ...prev, otp: e.target.value.replace(/\D/g, '') }))}
+                                                    />
+                                                </div>
+                                                <div className="col-md-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-success w-100"
+                                                        onClick={() => callMsg91Test('verify')}
+                                                        disabled={loading.msg91Verify}
+                                                    >
+                                                        {loading.msg91Verify ? (
+                                                            <span className="spinner-border spinner-border-sm"></span>
+                                                        ) : 'Verify'}
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    <small className="text-muted d-block mt-2">
+                                        Uses the values typed above, even before saving. A real message is sent and billed by MSG91.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr />
 
         {/* Local Storage Section */}
         <div className="mb-5">

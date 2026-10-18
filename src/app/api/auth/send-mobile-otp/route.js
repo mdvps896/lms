@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import { User } from '@/models/init';
 import Settings from '@/models/Settings';
 import { checkOTPRateLimit } from '@/utils/otpRateLimit';
+import { sendMsg91Otp } from '@/lib/msg91';
 
 /**
  * POST /api/auth/send-mobile-otp
@@ -13,7 +14,7 @@ export async function POST(request) {
     try {
         await connectDB();
 
-        const { mobile, platform = 'app' } = await request.json();
+        const { mobile, platform = 'app', channel } = await request.json();
 
         // Validate mobile number
         if (!mobile || !/^[0-9]{10}$/.test(mobile)) {
@@ -34,9 +35,17 @@ export async function POST(request) {
             );
         }
 
-        // Check if mobile OTP is enabled for app
+        // Mobile OTP is switched on per platform in Settings → Login & Register
+        // Settings. The app keeps its old "only off when explicitly false"
+        // behaviour; web is opt-in.
         const settings = await Settings.findOne();
-        if (platform === 'app' && settings?.authSettings?.app?.enableMobileOTP === false) {
+        const platformSettings = platform === 'web'
+            ? settings?.authSettings?.web
+            : settings?.authSettings?.app;
+        const otpEnabled = platform === 'web'
+            ? platformSettings?.enableMobileOTP === true
+            : platformSettings?.enableMobileOTP !== false;
+        if (!otpEnabled) {
             return NextResponse.json(
                 { success: false, message: 'Mobile OTP login is not enabled' },
                 { status: 403 }
@@ -63,8 +72,34 @@ export async function POST(request) {
             isNewUser = true;
         }
 
-        // Check SMS Provider Setting
-        const smsProvider = settings?.authSettings?.app?.smsProvider || 'firebase';
+        // Check SMS Provider Setting. Web has no Firebase phone-auth flow, so its
+        // default is MSG91.
+        const smsProvider = platformSettings?.smsProvider || (platform === 'web' ? 'msg91' : 'firebase');
+
+        if (smsProvider === 'msg91') {
+            // `channel` is 'sms' | 'whatsapp'; omitted → first enabled channel
+            // (older app builds never send it).
+            const sent = await sendMsg91Otp(mobile, channel === 'sms' || channel === 'whatsapp' ? channel : undefined);
+            if (!sent.success) {
+                return NextResponse.json({ success: false, message: sent.message }, { status: 500 });
+            }
+            return NextResponse.json({
+                success: true,
+                message: 'OTP sent successfully',
+                // Encodes channel + MSG91 request id, signed against this mobile.
+                sessionId: sent.sessionId,
+                channel: sent.channel,
+                isNewUser,
+                provider: 'msg91'
+            });
+        }
+
+        if (platform === 'web' && smsProvider === 'firebase') {
+            return NextResponse.json(
+                { success: false, message: 'Select an SMS provider for web in Login & Register Settings' },
+                { status: 400 }
+            );
+        }
 
         // If provider is configured as Firebase in backend, but this API is called, 
         // it means the client is either old or expecting backend-triggered OTP (which Firebase doesn't do via this API usually).
@@ -82,7 +117,9 @@ export async function POST(request) {
 
         // Send OTP via 2Factor.in
         // Prioritize API key from settings, then env
-        const apiKey = settings?.authSettings?.app?.twoFactorApiKey || process.env.TWOFACTOR_API_KEY;
+        const apiKey = platformSettings?.twoFactorApiKey
+            || settings?.authSettings?.app?.twoFactorApiKey
+            || process.env.TWOFACTOR_API_KEY;
 
         if (!apiKey) {
             return NextResponse.json(
@@ -93,7 +130,9 @@ export async function POST(request) {
 
         try {
             // Use custom template if provided, else AUTOGEN
-            const templateName = settings?.authSettings?.app?.twoFactorTemplateName || 'AUTOGEN';
+            const templateName = platformSettings?.twoFactorTemplateName
+                || settings?.authSettings?.app?.twoFactorTemplateName
+                || 'AUTOGEN';
             const twoFactorUrl = `https://2factor.in/API/V1/${apiKey}/SMS/${mobile}/${templateName}`;
             const otpResponse = await fetch(twoFactorUrl);
             const otpData = await otpResponse.json();

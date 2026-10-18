@@ -180,6 +180,16 @@ const defaultSettings = {
 
 import { getAuthenticatedUser } from '@/utils/apiAuth';
 
+function isMsg91ChannelReady(channel) {
+    return channel?.enabled === true && !!channel.widgetId && !!channel.token;
+}
+
+function stripSmsSecrets(platformSettings) {
+    if (!platformSettings) return {};
+    const { twoFactorApiKey, twoFactorTemplateName, ...safe } = platformSettings;
+    return safe;
+}
+
 export async function GET(request) {
     // Attempt to authenticate, but don't block if not logged in
     const user = await getAuthenticatedUser(request);
@@ -237,9 +247,18 @@ export async function GET(request) {
                 offlinePayments: {
                     enabled: settings.integrations?.offlinePayments?.enabled,
                     message: settings.integrations?.offlinePayments?.message
+                },
+                // Only which OTP channels are usable — never the IDs/tokens.
+                msg91: {
+                    sms: isMsg91ChannelReady(settings.integrations?.msg91?.sms),
+                    whatsapp: isMsg91ChannelReady(settings.integrations?.msg91?.whatsapp)
                 }
             },
-            authSettings: settings.authSettings || {}
+            // Public: strip SMS gateway credentials (2Factor key etc.).
+            authSettings: {
+                web: stripSmsSecrets(settings.authSettings?.web),
+                app: stripSmsSecrets(settings.authSettings?.app)
+            }
         };
 
         return NextResponse.json({

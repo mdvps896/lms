@@ -41,10 +41,7 @@ export async function GET(request) {
         let courseProgress = [];
 
         if (includeExams) {
-            examAttempts = await ExamAttempt.find({ 
-                user: studentId,
-                isFreeMaterial: { $ne: true } // Exclude free material exams
-            })
+            examAttempts = await ExamAttempt.find({ user: studentId })
                 .populate('exam', 'name duration passingPercentage')
                 .sort({ createdAt: -1 })
                 .lean();

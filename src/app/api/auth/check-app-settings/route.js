@@ -4,6 +4,8 @@ import Settings from '@/models/Settings';
 
 export const dynamic = 'force-dynamic';
 
+const ready = (channel) => channel?.enabled === true && !!channel.widgetId && !!channel.token;
+
 /**
  * GET /api/auth/check-app-settings
  * Returns app-specific authentication settings for mobile app
@@ -34,6 +36,11 @@ export async function GET() {
             smsProvider: settings.authSettings?.app?.smsProvider ?? 'firebase',
             allowEmailAuth: settings.authSettings?.app?.allowEmailAuth ?? true,
             allowGoogleAuth: settings.authSettings?.app?.allowGoogleAuth ?? true,
+            // Which MSG91 OTP channels are switched on (booleans only, no secrets)
+            msg91Channels: {
+                sms: ready(settings.integrations?.msg91?.sms),
+                whatsapp: ready(settings.integrations?.msg91?.whatsapp)
+            },
             // Include payment integration settings for mobile app
             integrations: {
                 offlinePayments: {

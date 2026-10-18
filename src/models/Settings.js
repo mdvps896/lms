@@ -84,6 +84,22 @@ const settingsSchema = new mongoose.Schema({
 
     // Integrations Settings  
     integrations: {
+        // MSG91 (Settings → Integrations). Used by send/verify-mobile-otp
+        // when a platform's smsProvider is 'msg91'.
+        // MSG91 OTP Widget (no DLT needed): one widget per channel.
+        msg91: {
+            authKey: { type: String, default: '' },
+            sms: {
+                enabled: { type: Boolean, default: false },
+                widgetId: { type: String, default: '' },
+                token: { type: String, default: '' }
+            },
+            whatsapp: {
+                enabled: { type: Boolean, default: false },
+                widgetId: { type: String, default: '' },
+                token: { type: String, default: '' }
+            }
+        },
         googleOAuth: {
             enabled: { type: Boolean, default: false },
             clientId: { type: String, default: '' },
@@ -169,12 +185,17 @@ const settingsSchema = new mongoose.Schema({
             enableRegistration: { type: Boolean, default: true },
             allowGoogleAuth: { type: Boolean, default: true },
             allowEmailAuth: { type: Boolean, default: true },
-            enableForgotPassword: { type: Boolean, default: true }
+            enableForgotPassword: { type: Boolean, default: true },
+            enableMobileOTP: { type: Boolean, default: false },
+            // Web has no Firebase phone-auth flow, so only gateway providers apply.
+            smsProvider: { type: String, enum: ['msg91', '2factor'], default: 'msg91' },
+            twoFactorApiKey: { type: String, default: '' },
+            twoFactorTemplateName: { type: String, default: '' }
         },
         app: {
             enableRegistration: { type: Boolean, default: true },
             enableMobileOTP: { type: Boolean, default: false },
-            smsProvider: { type: String, enum: ['firebase', '2factor'], default: 'firebase' }, // Added dynamic provider
+            smsProvider: { type: String, enum: ['firebase', '2factor', 'msg91'], default: 'firebase' }, // Added dynamic provider
             twoFactorApiKey: { type: String, default: '' }, // Added API Key for 2Factor
             twoFactorTemplateName: { type: String, default: '' }, // Added Template Name for 2Factor
             allowEmailAuth: { type: Boolean, default: true },
