@@ -1,6 +1,51 @@
 import { NextResponse } from 'next/server'
 import { verifyToken, verifyTokenAllowExpired, signToken } from '@/utils/auth'
 
+// The access-token cookie's maxAge equals the token's 2h TTL, so once it
+// expires the browser drops the cookie entirely. Without this, a student
+// sitting a 2-3h exam would hit "No token provided" on every save after the
+// 2h mark even though their 30d refresh cookie is still perfectly valid.
+async function getValidRefreshPayload(request) {
+    const refreshToken = request.cookies.get('refreshToken')?.value
+        || request.headers.get('x-refresh-token')
+    if (!refreshToken) return null
+    const payload = await verifyToken(refreshToken)
+    return payload && payload.typ === 'refresh' ? payload : null
+}
+
+async function signAccessFrom(source, fallback = {}) {
+    return signToken({
+        userId: source.userId,
+        email: source.email || fallback.email,
+        role: source.role || fallback.role,
+        permissions: source.permissions || fallback.permissions,
+        accessScope: source.accessScope || fallback.accessScope,
+        deviceId: source.deviceId || fallback.deviceId
+    })
+}
+
+function setAccessCookie(response, token) {
+    response.cookies.set('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        // Must match the access token's own TTL (2h) — a cookie
+        // that outlives its token just produces confusing 401s.
+        maxAge: 2 * 60 * 60
+    })
+}
+
+// Let the request through with a freshly minted access token, and hand that
+// token back to the client (cookie for web, x-new-token header for mobile).
+function continueWithToken(request, newToken) {
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('Authorization', `Bearer ${newToken}`)
+    const response = NextResponse.next({ request: { headers: requestHeaders } })
+    setAccessCookie(response, newToken)
+    response.headers.set('x-new-token', newToken)
+    return response
+}
+
 
 export async function middleware(request) {
     const { pathname } = request.nextUrl
@@ -101,6 +146,10 @@ export async function middleware(request) {
         }
 
         if (!token) {
+            const refreshPayload = await getValidRefreshPayload(request)
+            if (refreshPayload) {
+                return continueWithToken(request, await signAccessFrom(refreshPayload))
+            }
             return NextResponse.json(
                 { success: false, message: 'Unauthorized: No token provided' },
                 { status: 401 }
@@ -114,21 +163,10 @@ export async function middleware(request) {
         // Handle Expired Token Transparently (Strict Secure Refresh Flow + Legacy Bridge)
         if (payload && payload.expired) {
             // 1. Get Refresh Token (For new app versions)
-            let refreshToken = request.cookies.get('refreshToken')?.value;
-            if (!refreshToken) {
-                refreshToken = request.headers.get('x-refresh-token');
-            }
-
             let canProceed = false;
-            let refreshSource = null;
-
-            if (refreshToken) {
-                // Check if Refresh Token is valid
-                const refreshPayload = await verifyToken(refreshToken);
-                if (refreshPayload) {
-                    canProceed = true;
-                    refreshSource = refreshPayload;
-                }
+            let refreshSource = await getValidRefreshPayload(request);
+            if (refreshSource) {
+                canProceed = true;
             }
 
             // 2. LEGACY BRIDGE: If no Refresh Token, trust the expired access
@@ -148,36 +186,7 @@ export async function middleware(request) {
             }
 
             if (canProceed && refreshSource) {
-                // Issue new Access Token
-                const newToken = await signToken({
-                    userId: refreshSource.userId,
-                    email: refreshSource.email || payload.email,
-                    role: refreshSource.role || payload.role,
-                    permissions: refreshSource.permissions || payload.permissions,
-                    accessScope: refreshSource.accessScope || payload.accessScope,
-                    deviceId: refreshSource.deviceId || payload.deviceId
-                });
-
-                // Pass new token to the internal route handler
-                const requestHeaders = new Headers(request.headers);
-                requestHeaders.set('Authorization', `Bearer ${newToken}`);
-
-                const response = NextResponse.next({
-                    request: { headers: requestHeaders },
-                });
-
-                // Set new token in header and cookie
-                response.cookies.set('token', newToken, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'strict',
-                    // Must match the access token's own TTL (2h) — a cookie
-                    // that outlives its token just produces confusing 401s.
-                    maxAge: 2 * 60 * 60
-                });
-                response.headers.set('x-new-token', newToken);
-
-                return response;
+                return continueWithToken(request, await signAccessFrom(refreshSource, payload));
             }
 
             // No valid refresh mechanism - force logout
@@ -217,11 +226,21 @@ export async function middleware(request) {
         NextResponse.redirect(new URL('/authentication/login', request.url))
 
     const pageTokenCookie = request.cookies.get('token')
-    if (!pageTokenCookie) {
-        return redirectToLogin()
-    }
+    let renewedPageToken = null
+    let user = null
 
-    let user = await verifyToken(pageTokenCookie.value)
+    if (pageTokenCookie) {
+        user = await verifyToken(pageTokenCookie.value)
+    } else {
+        // Access cookie already dropped by the browser: renew from the
+        // refresh cookie instead of bouncing to login.
+        const refreshPayload = await getValidRefreshPayload(request)
+        if (!refreshPayload) {
+            return redirectToLogin()
+        }
+        user = refreshPayload
+        renewedPageToken = await signAccessFrom(refreshPayload)
+    }
 
     // Expired access token: accept it for page navigation only if a valid
     // refresh token backs it, mirroring the API branch above.
@@ -232,6 +251,7 @@ export async function middleware(request) {
 
         if (expiredPayload && refreshPayload && refreshPayload.userId === expiredPayload.userId) {
             user = refreshPayload
+            renewedPageToken = await signAccessFrom(refreshPayload, expiredPayload)
         } else {
             return redirectToLogin()
         }
@@ -320,7 +340,11 @@ export async function middleware(request) {
         return redirectToLogin()
     }
 
-    return NextResponse.next()
+    const response = NextResponse.next()
+    if (renewedPageToken) {
+        setAccessCookie(response, renewedPageToken)
+    }
+    return response
 }
 
 export const config = {
