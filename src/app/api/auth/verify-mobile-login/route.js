@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/models/init';
 import { signToken } from '@/utils/auth';
@@ -14,7 +15,7 @@ export async function POST(request) {
     try {
         await connectDB();
 
-        const { firebaseToken, name, deviceId, mobile: mobileNumber, otp, sessionId, platform: rawPlatform } = await request.json();
+        const { firebaseToken, name, deviceId, mobile: mobileNumber, otp, sessionId, platform: rawPlatform, category } = await request.json();
         const platform = rawPlatform === 'web' ? 'web' : 'app';
 
         let mobile = mobileNumber;
@@ -180,9 +181,15 @@ export async function POST(request) {
                 emailVerified: true, // Auto-verify for mobile OTP users
                 registerSource: platform,
                 authProvider: 'mobile',
+                // The app sends its default category, as /auth/firebase uses.
+                category: mongoose.isValidObjectId(category) ? category : null,
                 password: Buffer.from(`${mobile}-${Date.now()}`).toString('base64') // Random password
             });
-        } else if (!user.isActive) {
+        } else if (user.isActive === false) {
+            // Only an explicit `false`. Accounts made by email/Google/admin never
+            // set isActive at all, and `!user.isActive` treated every one of them
+            // as new: their roll number was regenerated and they were sent to
+            // the "complete profile" screen on their first mobile login.
             // Activate existing inactive user
             isNewUser = true;
 

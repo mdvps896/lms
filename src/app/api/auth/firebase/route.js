@@ -35,6 +35,16 @@ export async function POST(request) {
 
         const { uid, email, name, picture } = verifyResult.decodedToken;
 
+        // Phone-number Firebase accounts have no email; they sign in through
+        // /auth/verify-mobile-login. Without this, `email.split` below crashed
+        // with a 500 for them.
+        if (!email) {
+            return NextResponse.json({
+                success: false,
+                message: 'This sign-in method needs an email address'
+            }, { status: 400 });
+        }
+
         // 2. Check registration settings for new users
         // 🔒 Coerce to a primitive string before it reaches Mongo. An object such
         // as {"$ne": null} sent in the JSON body would otherwise be
